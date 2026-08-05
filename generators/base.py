@@ -2,11 +2,18 @@
 Base generator with idempotency checks, ID tracking, and Nexudus MCP helpers.
 
 All layer generators inherit from BaseGenerator.
+
+Usage:
+    python generators/00_reference.py              # Live mode (creates records)
+    python generators/00_reference.py --dry-run     # Logs what would be created
 """
 
+import argparse
 import json
 import logging
+import os
 import random
+import sys
 from pathlib import Path
 
 from config import (
@@ -19,17 +26,30 @@ from config import (
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(message)s")
 
+# Global dry-run flag — set via CLI or DRY_RUN env var
+DRY_RUN = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Log what would be created without making API calls")
+    return parser.parse_args()
+
 
 class BaseGenerator:
     """Base class for all layer generators."""
 
     entity_name: str = ""  # Override in subclass, e.g. "coworkers"
 
-    def __init__(self, seed: int = RANDOM_SEED):
+    def __init__(self, seed: int = RANDOM_SEED, dry_run: bool = False):
         self.rng = random.Random(seed)
+        self.dry_run = dry_run or DRY_RUN
         self.log = logging.getLogger(self.__class__.__name__)
         self._ids_file = CREATED_IDS_DIR / f"{self.entity_name}.json"
         self._created_ids: list[dict] = self._load_ids()
+        if self.dry_run:
+            self.log.info("DRY RUN — no records will be created")
 
     # ------------------------------------------------------------------
     # ID tracking
@@ -48,6 +68,10 @@ class BaseGenerator:
         """Append a created record's key fields and persist."""
         self._created_ids.append(record)
         self._save_ids()
+
+    def log_would_create(self, entity: str, body: dict):
+        """In dry-run mode, log the record that would be created."""
+        self.log.info("WOULD CREATE %s: %s", entity, json.dumps(body, indent=2))
 
     def get_tracked_ids(self) -> list[dict]:
         return self._created_ids

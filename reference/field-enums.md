@@ -1,16 +1,28 @@
 # Field Enums
 
 Quick reference for numeric enum values used across entities.
+Values validated against live Nexudus API schemas on 2026-08-05.
 
-## SystemTariffType (Tariff)
+## eTariffType — SystemTariffType (Tariff)
 | Value | Name |
 |-------|------|
 | 1 | FullTimePrivateOffice |
+| 2 | PartTimePrivateOffice |
 | 3 | FullTimeDedicatedDesk |
+| 4 | PartTimeDedicatedDesk |
 | 5 | FullTimeHotDesk |
 | 6 | PartTimeHotDesk |
+| 7 | FullTimeOther |
+| 8 | PartTimeOther |
+| 9 | Storage |
+| 10 | VirtualOffice |
+| 11 | Virtual |
+| 99 | Other |
 
-## SystemResourceType (Resource)
+## eResourceType — SystemResourceType (Resource)
+Note: ResourceType is also a separate entity (just BusinessId + Name).
+The `SystemResourceType` enum on Resource is distinct from the ResourceType FK.
+
 | Value | Name |
 |-------|------|
 | 1 | MeetingRoom |
@@ -19,7 +31,7 @@ Quick reference for numeric enum values used across entities.
 | 4 | PhoneBooth |
 | 5 | Parking |
 
-## ItemType (FloorPlanDesk)
+## eFloorPlanItemType — ItemType (FloorPlanDesk)
 | Value | Name |
 |-------|------|
 | 1 | Office |
@@ -28,28 +40,42 @@ Quick reference for numeric enum values used across entities.
 | 4 | Other |
 | 5 | Room |
 
-## AvailableAs (Product)
+## eRecurrentProductOptions — AvailableAs (Product)
 | Value | Name |
 |-------|------|
-| 2 | Recurring |
-| 3 | OneOff |
+| 1 | RecurrentOrOneOff |
+| 2 | OnlyRecurrent |
+| 3 | OnlyOneOff |
 
-## SystemProductType (Product)
+## eProductType — SystemProductType (Product)
 | Value | Name |
 |-------|------|
 | 1 | DayPass |
 | 2 | CreditBundle |
+| 3 | Stationery |
+| 4 | BookingFeature |
 | 5 | BookingProducts |
+| 6 | Lockers |
+| 7 | Equipment |
+| 8 | EventServices |
+| 9 | AdminServices |
+| 10 | FoodAndBeverage |
 | 99 | Other |
 
-## AccountType (FinancialAccount)
+## eFinancialAccountType — AccountType (FinancialAccount)
 | Value | Name |
 |-------|------|
 | 1 | Sales |
 | 2 | Payments |
 | 3 | Deposits |
 
-## DeliveryType (CoworkerDelivery)
+## eTaxExemptionReason — ExemptionReason (TaxRate)
+| Value | Name | Notes |
+|-------|------|-------|
+| 1 | None | Use for standard/reduced/zero-rated taxes |
+| 2–30 | M01–M99 | Various EU exemption codes |
+
+## eDeliveryType — DeliveryType (CoworkerDelivery)
 | Value | Name |
 |-------|------|
 | 1 | Mail |
@@ -58,7 +84,22 @@ Quick reference for numeric enum values used across entities.
 | 4 | Publicity |
 | 5 | Other |
 
-## ProposalStatus (Proposal)
+## eDeliveryHandlingPreference (Tariff default / CoworkerDelivery)
+| Value | Name |
+|-------|------|
+| 1 | StoreForCollection |
+| 2 | Forward |
+| 3 | OpenScanForward |
+| 4 | OpenScanRecycle |
+| 5 | OpenScanShred |
+| 6 | OpenScanStoreForCollection |
+| 7 | Recycle |
+| 8 | ReturnToSender |
+| 9 | Shred |
+| 10 | DepositCheck |
+| 11 | Unknown |
+
+## eProposalStatus — ProposalStatus (Proposal)
 | Value | Name |
 |-------|------|
 | 1 | Draft |
@@ -73,7 +114,7 @@ Quick reference for numeric enum values used across entities.
 | 2 | Weekly |
 | 3 | Monthly |
 
-## AssignToType (InventoryAsset)
+## eAssignToType — AssignToType (InventoryAsset)
 | Value | Name |
 |-------|------|
 | 1 | Location |
@@ -86,3 +127,22 @@ Quick reference for numeric enum values used across entities.
 | 1 | Manual |
 | 2 | Tablet |
 | 3 | Integration |
+
+---
+
+## Required Fields by Entity (non-obvious)
+
+These are required fields that may not be immediately obvious from the strategy doc.
+
+| Entity | Required fields beyond BusinessId + Name |
+|--------|----------------------------------------|
+| TaxRate | `Rate`, `ExemptionReason` (use 1=None) |
+| Tariff | `CurrencyId`, `Price`, `SystemTariffType`, `InvoiceEvery`, `InvoiceEveryWeeks`, `CancellationPeriod`, `TotalSignUpPrice`, `TotalPrice` |
+| Product | `Description`, `DisplayOrder`, `Price`, `CurrencyId`, `SystemProductType`, `AvailableAs` |
+| ExtraService | `DisplayOrder`, `Price`, `ChargePeriod`, `CurrencyId`, `LastMinuteAdjustmentType` |
+| TimePass | `Price`, `CurrencyId` |
+| Resource | `SystemResourceType`, `ResourceTypeId`, `DisplayOrder`, `CancellationFeeType` |
+| FloorPlan | `BackgroundScale`, `PositionX`, `PositionY`, `FloorLevel`, `Scale` |
+| FloorPlanDesk | `FloorPlanId`, `ItemType`, `Size`, `Capacity`, `Price`, `PositionX`, `PositionY`, `PositionZ` |
+| DiscountCode | `Code`, `Description` |
+| Team | `ActiveContracts` (int, set to 0 on create) |
