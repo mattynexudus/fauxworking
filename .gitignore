@@ -1,4 +1,4 @@
-# Runtime output — created by generators
+# Runtime output — created by generators at upload time
 data/created-ids/*.json
 
 # Python

@@ -6,10 +6,17 @@ Generates and seeds realistic test data into a Nexudus instance via MCP tools. P
 
 ```bash
 pip install -r requirements.txt
+python prebuild.py              # One-time: generate data/*.json files
 bash scripts/seed_all.sh        # Run all layers in order
 bash scripts/daily.sh           # Create today's fresh records
 bash scripts/verify.sh          # Check record counts
 ```
+
+## Architecture
+
+**Two-step flow:**
+1. `prebuild.py` generates static profiles (names, emails, scenarios) into `data/*.json` — run once, commit the files
+2. Generators read those JSON files and push to the API — dates use day offsets resolved at runtime for rolling windows
 
 ## Rolling Date Window
 
@@ -20,11 +27,13 @@ All dates are **relative to the run date** — the data spans 24 months back fro
 | Directory | Purpose |
 |-----------|---------|
 | `config.py` | Volumes, rolling date helpers, scale multiplier, test markers |
+| `prebuild.py` | One-time data generation (faker profiles → `data/*.json`) |
 | `generators/` | One Python file per layer (00–07) + daily update |
 | `generators/base.py` | Shared base class: idempotency, ID tracking, test markers |
 | `scripts/` | Shell wrappers: seed_all, seed_layer, daily, teardown, verify |
 | `reference/` | Entity dependency graph, variance scenarios, enum values |
-| `data/created-ids/` | JSON files tracking IDs of records created per entity |
+| `data/created-ids/` | Runtime: JSON files tracking IDs of records created per entity |
+| `data/*.json` | Pre-generated profiles (coworkers, visitors, etc.) — committed |
 
 ## Layers
 

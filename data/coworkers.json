@@ -1,0 +1,1142 @@
+[
+  {
+    "index": 1,
+    "FullName": "Stanley Griffiths",
+    "Email": "test-001@seeddata.local",
+    "Gender": 2,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.15,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 2,
+    "FullName": "Ashley Smith",
+    "Email": "test-002@seeddata.local",
+    "Gender": 2,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.04,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 3,
+    "FullName": "Diane Newman",
+    "Email": "test-003@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] Delta Ventures",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.07,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 4,
+    "FullName": "Sian Cox",
+    "Email": "test-004@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] CloudNine Labs",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.12,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 2,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 5,
+    "FullName": "Teresa Hopkins",
+    "Email": "test-005@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.01,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 6,
+    "FullName": "Mary Higgins",
+    "Email": "test-006@seeddata.local",
+    "Gender": 5,
+    "Team": "[TEST] CloudNine Labs",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.03,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 7,
+    "FullName": "Colin Lloyd",
+    "Email": "test-007@seeddata.local",
+    "Gender": 5,
+    "Team": "[TEST] Delta Ventures",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.05,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 8,
+    "FullName": "Leanne Foster",
+    "Email": "test-008@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.04,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 2,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 9,
+    "FullName": "Heather Ryan",
+    "Email": "test-009@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] Bright Studio",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.15,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 2,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 10,
+    "FullName": "Victor Harrison",
+    "Email": "test-010@seeddata.local",
+    "Gender": 2,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.17,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 2,
+      "Saturday": 2,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 11,
+    "FullName": "Samantha Quinn",
+    "Email": "test-011@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] Echo Digital",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.17,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 12,
+    "FullName": "Francesca White",
+    "Email": "test-012@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] Delta Ventures",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.0,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 13,
+    "FullName": "Sarah Reed",
+    "Email": "test-013@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] Echo Digital",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.19,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 14,
+    "FullName": "Tracy Harrison",
+    "Email": "test-014@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.05,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 15,
+    "FullName": "Kerry White",
+    "Email": "test-015@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] CloudNine Labs",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.11,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 16,
+    "FullName": "Robin Andrews",
+    "Email": "test-016@seeddata.local",
+    "Gender": 5,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.05,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 17,
+    "FullName": "Leslie Warner",
+    "Email": "test-017@seeddata.local",
+    "Gender": 2,
+    "Team": "[TEST] Bright Studio",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.01,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 18,
+    "FullName": "Janice Glover",
+    "Email": "test-018@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] Echo Digital",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.12,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 2,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 19,
+    "FullName": "Leigh Butler",
+    "Email": "test-019@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] Delta Ventures",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.08,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 2,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 20,
+    "FullName": "Gemma Elliott",
+    "Email": "test-020@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] Bright Studio",
+    "Scenario": "long_term_active",
+    "ChurnProbability": 0.11,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 21,
+    "FullName": "Paula Harvey",
+    "Email": "test-021@seeddata.local",
+    "Gender": 5,
+    "Team": "[TEST] Echo Digital",
+    "Scenario": "new_joiner",
+    "ChurnProbability": 0.12,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 22,
+    "FullName": "Gemma Ferguson",
+    "Email": "test-022@seeddata.local",
+    "Gender": 5,
+    "Team": "[TEST] Bright Studio",
+    "Scenario": "new_joiner",
+    "ChurnProbability": 0.27,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 2,
+      "Saturday": 2,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 23,
+    "FullName": "Billy Norton",
+    "Email": "test-023@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] Delta Ventures",
+    "Scenario": "new_joiner",
+    "ChurnProbability": 0.24,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 24,
+    "FullName": "Dylan Young",
+    "Email": "test-024@seeddata.local",
+    "Gender": 2,
+    "Team": "[TEST] CloudNine Labs",
+    "Scenario": "new_joiner",
+    "ChurnProbability": 0.11,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 2,
+      "Wednesday": 5,
+      "Thursday": 5,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 25,
+    "FullName": "Jeremy Mellor",
+    "Email": "test-025@seeddata.local",
+    "Gender": 2,
+    "Team": "[TEST] Bright Studio",
+    "Scenario": "new_joiner",
+    "ChurnProbability": 0.11,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 5,
+      "Saturday": 1,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 26,
+    "FullName": "Jay Rees",
+    "Email": "test-026@seeddata.local",
+    "Gender": 2,
+    "Team": "[TEST] Echo Digital",
+    "Scenario": "new_joiner",
+    "ChurnProbability": 0.12,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 5,
+      "Thursday": 2,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 27,
+    "FullName": "Joyce Wilson",
+    "Email": "test-027@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] CloudNine Labs",
+    "Scenario": "new_joiner",
+    "ChurnProbability": 0.18,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 2,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 28,
+    "FullName": "Jacob Robinson",
+    "Email": "test-028@seeddata.local",
+    "Gender": 2,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "new_joiner",
+    "ChurnProbability": 0.21,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 2,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 29,
+    "FullName": "Donald Taylor",
+    "Email": "test-029@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] Bright Studio",
+    "Scenario": "plan_change",
+    "ChurnProbability": 0.29,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 2,
+      "Thursday": 5,
+      "Friday": 5,
+      "Saturday": 5,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 30,
+    "FullName": "Jessica White",
+    "Email": "test-030@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "plan_change",
+    "ChurnProbability": 0.39,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 5,
+      "Saturday": 5,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 31,
+    "FullName": "Heather Lee",
+    "Email": "test-031@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] CloudNine Labs",
+    "Scenario": "plan_change",
+    "ChurnProbability": 0.32,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 5,
+      "Friday": 5,
+      "Saturday": 2,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 32,
+    "FullName": "Ben Middleton",
+    "Email": "test-032@seeddata.local",
+    "Gender": 5,
+    "Team": "[TEST] CloudNine Labs",
+    "Scenario": "plan_change",
+    "ChurnProbability": 0.38,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 5,
+      "Thursday": 2,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 33,
+    "FullName": "Rhys Davies",
+    "Email": "test-033@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] Bright Studio",
+    "Scenario": "plan_change",
+    "ChurnProbability": 0.33,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 1,
+      "Wednesday": 5,
+      "Thursday": 2,
+      "Friday": 5,
+      "Saturday": 5,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 34,
+    "FullName": "Bruce Cross",
+    "Email": "test-034@seeddata.local",
+    "Gender": 2,
+    "Team": "[TEST] Acme Corp",
+    "Scenario": "plan_change",
+    "ChurnProbability": 0.22,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 1,
+      "Wednesday": 5,
+      "Thursday": 1,
+      "Friday": 2,
+      "Saturday": 5,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 35,
+    "FullName": "Josephine Hammond",
+    "Email": "test-035@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] Delta Ventures",
+    "Scenario": "churned",
+    "ChurnProbability": 0.73,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 4,
+      "Thursday": 5,
+      "Friday": 5,
+      "Saturday": 5,
+      "Sunday": 4
+    }
+  },
+  {
+    "index": 36,
+    "FullName": "Heather Thompson",
+    "Email": "test-036@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] Echo Digital",
+    "Scenario": "churned",
+    "ChurnProbability": 0.88,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 5,
+      "Wednesday": 5,
+      "Thursday": 5,
+      "Friday": 5,
+      "Saturday": 2,
+      "Sunday": 4
+    }
+  },
+  {
+    "index": 37,
+    "FullName": "Lesley Humphries",
+    "Email": "test-037@seeddata.local",
+    "Gender": 3,
+    "Team": "[TEST] CloudNine Labs",
+    "Scenario": "churned",
+    "ChurnProbability": 0.86,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 5,
+      "Wednesday": 5,
+      "Thursday": 5,
+      "Friday": 4,
+      "Saturday": 2,
+      "Sunday": 4
+    }
+  },
+  {
+    "index": 38,
+    "FullName": "Jessica Dixon",
+    "Email": "test-038@seeddata.local",
+    "Gender": 5,
+    "Team": "[TEST] Bright Studio",
+    "Scenario": "churned",
+    "ChurnProbability": 0.74,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 5,
+      "Wednesday": 5,
+      "Thursday": 5,
+      "Friday": 5,
+      "Saturday": 4,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 39,
+    "FullName": "Ruth Holmes",
+    "Email": "test-039@seeddata.local",
+    "Gender": 5,
+    "Team": "[TEST] CloudNine Labs",
+    "Scenario": "churned",
+    "ChurnProbability": 0.76,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 4,
+      "Tuesday": 5,
+      "Wednesday": 5,
+      "Thursday": 2,
+      "Friday": 5,
+      "Saturday": 4,
+      "Sunday": 4
+    }
+  },
+  {
+    "index": 40,
+    "FullName": "Gerald Richardson",
+    "Email": "test-040@seeddata.local",
+    "Gender": 4,
+    "Team": "[TEST] Bright Studio",
+    "Scenario": "churned",
+    "ChurnProbability": 0.82,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 4,
+      "Wednesday": 4,
+      "Thursday": 2,
+      "Friday": 5,
+      "Saturday": 5,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 41,
+    "FullName": "Matthew Wilson",
+    "Email": "test-041@seeddata.local",
+    "Gender": 2,
+    "Team": null,
+    "Scenario": "churned",
+    "ChurnProbability": 0.78,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 4,
+      "Thursday": 2,
+      "Friday": 4,
+      "Saturday": 5,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 42,
+    "FullName": "Ryan Nelson",
+    "Email": "test-042@seeddata.local",
+    "Gender": 5,
+    "Team": null,
+    "Scenario": "churned",
+    "ChurnProbability": 0.71,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 4,
+      "Thursday": 5,
+      "Friday": 5,
+      "Saturday": 2,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 43,
+    "FullName": "Joanne Phillips",
+    "Email": "test-043@seeddata.local",
+    "Gender": 5,
+    "Team": null,
+    "Scenario": "churned",
+    "ChurnProbability": 0.84,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 2,
+      "Thursday": 2,
+      "Friday": 5,
+      "Saturday": 5,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 44,
+    "FullName": "Kenneth Johnston",
+    "Email": "test-044@seeddata.local",
+    "Gender": 2,
+    "Team": null,
+    "Scenario": "churned",
+    "ChurnProbability": 0.76,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 2,
+      "Wednesday": 5,
+      "Thursday": 2,
+      "Friday": 2,
+      "Saturday": 2,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 45,
+    "FullName": "Kirsty Hawkins",
+    "Email": "test-045@seeddata.local",
+    "Gender": 5,
+    "Team": null,
+    "Scenario": "returned",
+    "ChurnProbability": 0.36,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 5,
+      "Friday": 5,
+      "Saturday": 2,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 46,
+    "FullName": "Sally Kelly",
+    "Email": "test-046@seeddata.local",
+    "Gender": 3,
+    "Team": null,
+    "Scenario": "returned",
+    "ChurnProbability": 0.33,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 47,
+    "FullName": "Frederick Byrne",
+    "Email": "test-047@seeddata.local",
+    "Gender": 2,
+    "Team": null,
+    "Scenario": "returned",
+    "ChurnProbability": 0.29,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 2,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 48,
+    "FullName": "Danny Hale",
+    "Email": "test-048@seeddata.local",
+    "Gender": 2,
+    "Team": null,
+    "Scenario": "returned",
+    "ChurnProbability": 0.38,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 5,
+      "Saturday": 2,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 49,
+    "FullName": "Holly Davidson",
+    "Email": "test-049@seeddata.local",
+    "Gender": 3,
+    "Team": null,
+    "Scenario": "multi_contract",
+    "ChurnProbability": 0.18,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 2,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 50,
+    "FullName": "Chelsea Powell",
+    "Email": "test-050@seeddata.local",
+    "Gender": 5,
+    "Team": null,
+    "Scenario": "multi_contract",
+    "ChurnProbability": 0.18,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 51,
+    "FullName": "Fiona Rowe",
+    "Email": "test-051@seeddata.local",
+    "Gender": 4,
+    "Team": null,
+    "Scenario": "multi_contract",
+    "ChurnProbability": 0.09,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 52,
+    "FullName": "Eileen Matthews",
+    "Email": "test-052@seeddata.local",
+    "Gender": 3,
+    "Team": null,
+    "Scenario": "multi_contract",
+    "ChurnProbability": 0.05,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 1,
+      "Thursday": 2,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 53,
+    "FullName": "Gerald Turner",
+    "Email": "test-053@seeddata.local",
+    "Gender": 5,
+    "Team": null,
+    "Scenario": "multi_contract",
+    "ChurnProbability": 0.01,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 2,
+      "Wednesday": 1,
+      "Thursday": 2,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 54,
+    "FullName": "Ashley Bond",
+    "Email": "test-054@seeddata.local",
+    "Gender": 4,
+    "Team": null,
+    "Scenario": "multi_contract",
+    "ChurnProbability": 0.15,
+    "EngagementLevel": "High",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 55,
+    "FullName": "Jordan Davey",
+    "Email": "test-055@seeddata.local",
+    "Gender": 2,
+    "Team": null,
+    "Scenario": "unsubscribed",
+    "ChurnProbability": 0.48,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 2,
+      "Thursday": 5,
+      "Friday": 1,
+      "Saturday": 2,
+      "Sunday": 1
+    }
+  },
+  {
+    "index": 56,
+    "FullName": "William Gould",
+    "Email": "test-056@seeddata.local",
+    "Gender": 2,
+    "Team": null,
+    "Scenario": "unsubscribed",
+    "ChurnProbability": 0.58,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 5,
+      "Thursday": 1,
+      "Friday": 1,
+      "Saturday": 5,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 57,
+    "FullName": "Tracy James",
+    "Email": "test-057@seeddata.local",
+    "Gender": 3,
+    "Team": null,
+    "Scenario": "unsubscribed",
+    "ChurnProbability": 0.57,
+    "EngagementLevel": "Medium",
+    "Attendance": {
+      "Monday": 1,
+      "Tuesday": 1,
+      "Wednesday": 2,
+      "Thursday": 2,
+      "Friday": 2,
+      "Saturday": 1,
+      "Sunday": 2
+    }
+  },
+  {
+    "index": 58,
+    "FullName": "Mary Anderson",
+    "Email": "test-058@seeddata.local",
+    "Gender": 4,
+    "Team": null,
+    "Scenario": "ending_soon",
+    "ChurnProbability": 0.67,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 2,
+      "Tuesday": 5,
+      "Wednesday": 2,
+      "Thursday": 5,
+      "Friday": 4,
+      "Saturday": 2,
+      "Sunday": 4
+    }
+  },
+  {
+    "index": 59,
+    "FullName": "Alex Palmer",
+    "Email": "test-059@seeddata.local",
+    "Gender": 2,
+    "Team": null,
+    "Scenario": "ending_soon",
+    "ChurnProbability": 0.8,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 4,
+      "Thursday": 4,
+      "Friday": 4,
+      "Saturday": 5,
+      "Sunday": 5
+    }
+  },
+  {
+    "index": 60,
+    "FullName": "Donald Hill",
+    "Email": "test-060@seeddata.local",
+    "Gender": 2,
+    "Team": null,
+    "Scenario": "ending_soon",
+    "ChurnProbability": 0.72,
+    "EngagementLevel": "Low",
+    "Attendance": {
+      "Monday": 5,
+      "Tuesday": 5,
+      "Wednesday": 2,
+      "Thursday": 4,
+      "Friday": 5,
+      "Saturday": 2,
+      "Sunday": 5
+    }
+  }
+]
