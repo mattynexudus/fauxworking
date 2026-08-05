@@ -72,6 +72,7 @@ ENTITY_MODULES = {
     "crmopportunities": "crm", "crmopportunityhistories": "crm",
     "proposals": "billing", "coworkerdatafiles": "spaces", "users": "sys",
     "businesses": "sys", "cancelledbookings": "spaces",
+    "tarifftimepasses": "billing", "tariffextraservices": "billing",
 }
 
 DEFAULT_TIMEOUT = 30

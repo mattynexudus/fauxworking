@@ -84,8 +84,10 @@ EXTRA_SERVICES = [
     {"Name": f"{TEST_NAME_PREFIX}Private Office Rate", "Price": 50.00,  "ChargePeriod": 2, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Private Office"},
     {"Name": f"{TEST_NAME_PREFIX}Phone Booth Rate",    "Price": round(10.00 / 60, 4), "ChargePeriod": 1, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Phone Booth"},
     {"Name": f"{TEST_NAME_PREFIX}Parking Rate",        "Price": 8.00,   "ChargePeriod": 3, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Parking"},
-    {"Name": f"{TEST_NAME_PREFIX}Time Credit",         "Price": 0.00,   "ChargePeriod": 1, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room"},
-    {"Name": f"{TEST_NAME_PREFIX}Printing Credit",     "Price": 0.00,   "ChargePeriod": 5, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room"},
+    # IsBookingCredit/IsPrintingCredit are required for a TariffExtraService
+    # to reference these as a plan benefit (see _create_tariff_benefits).
+    {"Name": f"{TEST_NAME_PREFIX}Time Credit",         "Price": 0.00,   "ChargePeriod": 1, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room", "IsBookingCredit": True},
+    {"Name": f"{TEST_NAME_PREFIX}Printing Credit",     "Price": 0.00,   "ChargePeriod": 5, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room", "IsPrintingCredit": True},
 ]
 
 # TimePasses
@@ -95,6 +97,21 @@ TIME_PASSES = [
     {"Name": f"{TEST_NAME_PREFIX}10-Visit Pass",      "Price": 200.00},
     {"Name": f"{TEST_NAME_PREFIX}Evening Pass",       "Price": 10.00},
 ]
+
+# Plan benefits — day passes + time/printing credit allowances included per
+# billing cycle. eTimeSpanWeekMonth renewal: Week=1, TariffMonth=3.
+# Flex plans (part-time) get a smaller time-credit-only benefit, no day
+# passes or printing — matches their lighter usage pattern.
+TARIFF_BENEFITS = {
+    "Hot Desk Monthly":       {"day_passes": 2, "time_credit_minutes": 120, "printing_pages": 100, "renewal": 3},
+    "Dedicated Desk Monthly": {"day_passes": 2, "time_credit_minutes": 180, "printing_pages": 150, "renewal": 3},
+    "Private Office Small":   {"day_passes": 3, "time_credit_minutes": 240, "printing_pages": 200, "renewal": 3},
+    "Private Office Large":   {"day_passes": 4, "time_credit_minutes": 300, "printing_pages": 300, "renewal": 3},
+    "Hot Desk Quarterly":     {"day_passes": 2, "time_credit_minutes": 120, "printing_pages": 100, "renewal": 3},
+    "Private Office Annual":  {"day_passes": 4, "time_credit_minutes": 300, "printing_pages": 300, "renewal": 3},
+    "Flex Weekly":            {"time_credit_minutes": 60, "renewal": 1},
+    "Flex Fortnightly":       {"time_credit_minutes": 90, "renewal": 1},
+}
 
 # Resources — 20 total across types
 # SystemResourceType: 1=MeetingRoom, 2=HotDesk, 3=PrivateOffice, 4=PhoneBooth, 5=Parking
@@ -309,6 +326,9 @@ class StructuralGenerator(BaseGenerator):
         # TimePasses
         self._create_time_passes(biz, cur, nexudus_list, nexudus_create)
 
+        # Tariff benefits (day passes + time/printing credit allowances)
+        self._create_tariff_benefits(nexudus_list, nexudus_create)
+
         # Resources
         self._create_resources(biz, rt_ids, nexudus_list, nexudus_create)
 
@@ -501,6 +521,10 @@ class StructuralGenerator(BaseGenerator):
             }
             if defn.get("MaximumPrice") is not None:
                 body["MaximumPrice"] = defn["MaximumPrice"]
+            if defn.get("IsBookingCredit"):
+                body["IsBookingCredit"] = True
+            if defn.get("IsPrintingCredit"):
+                body["IsPrintingCredit"] = True
 
             if self.dry_run:
                 self.log_would_create("extraservices", body)
@@ -536,6 +560,75 @@ class StructuralGenerator(BaseGenerator):
                 self.time_pass_ids[name] = result["Id"]
                 self.track_id({"entity": "timepasses", "Id": result["Id"], "Name": name})
                 self.log.info("Created time pass '%s' (id=%s)", name, result["Id"])
+
+    # ------------------------------------------------------------------
+    # Tariff benefits — TariffTimePass (day passes) + TariffExtraService
+    # (time/printing credit allowances) per plan. TariffExtraService
+    # requires the target ExtraService to have IsBookingCredit/
+    # IsPrintingCredit set (see EXTRA_SERVICES).
+    # ------------------------------------------------------------------
+    def _create_tariff_benefits(self, nexudus_list, nexudus_create):
+        self.log.info("--- Tariff Benefits ---")
+        day_pass_id = self.time_pass_ids.get(f"{TEST_NAME_PREFIX}Day Pass")
+        time_credit_id = self.extra_service_ids.get(f"{TEST_NAME_PREFIX}Time Credit")
+        printing_credit_id = self.extra_service_ids.get(f"{TEST_NAME_PREFIX}Printing Credit")
+
+        for tariff_short_name, benefits in TARIFF_BENEFITS.items():
+            tariff_name = f"{TEST_NAME_PREFIX}{tariff_short_name}"
+            tariff_id = self.tariff_ids.get(tariff_name)
+            if tariff_id is None:
+                continue
+            renewal = benefits["renewal"]
+
+            if benefits.get("day_passes") and day_pass_id is not None:
+                self._create_tariff_time_pass(tariff_id, tariff_name, day_pass_id,
+                                              benefits["day_passes"], renewal, nexudus_list, nexudus_create)
+            if benefits.get("time_credit_minutes") and time_credit_id is not None:
+                self._create_tariff_extra_service(tariff_id, tariff_name, time_credit_id, "Time Credit",
+                                                  benefits["time_credit_minutes"], renewal,
+                                                  nexudus_list, nexudus_create)
+            if benefits.get("printing_pages") and printing_credit_id is not None:
+                self._create_tariff_extra_service(tariff_id, tariff_name, printing_credit_id, "Printing Credit",
+                                                  benefits["printing_pages"], renewal,
+                                                  nexudus_list, nexudus_create)
+
+    def _create_tariff_time_pass(self, tariff_id, tariff_name, time_pass_id, passes_included,
+                                  renewal, nexudus_list, nexudus_create):
+        existing = nexudus_list("tarifftimepasses", {"TariffTimePass_Tariff": tariff_id})
+        if any(r.get("TimePassId") == time_pass_id for r in existing):
+            self.log.info("'%s' already has the Day Pass benefit", tariff_name)
+            return
+
+        body = {
+            "TariffId": tariff_id, "TimePassId": time_pass_id,
+            "PassesIncluded": passes_included, "PassRenewalTime": renewal,
+        }
+        if self.dry_run:
+            self.log_would_create("tarifftimepasses", body)
+        else:
+            result = nexudus_create("tarifftimepasses", body)
+            self.track_id({"entity": "tarifftimepasses", "Id": result["Id"], "Tariff": tariff_name})
+            self.log.info("Added Day Pass benefit (%dx) to '%s' (id=%s)",
+                          passes_included, tariff_name, result["Id"])
+
+    def _create_tariff_extra_service(self, tariff_id, tariff_name, extra_service_id, label,
+                                      uses_included, renewal, nexudus_list, nexudus_create):
+        existing = nexudus_list("tariffextraservices", {"TariffExtraService_Tariff": tariff_id})
+        if any(r.get("ExtraServiceId") == extra_service_id for r in existing):
+            self.log.info("'%s' already has the %s benefit", tariff_name, label)
+            return
+
+        body = {
+            "TariffId": tariff_id, "ExtraServiceId": extra_service_id,
+            "UsesIncluded": uses_included, "ServiceRenewalTime": renewal,
+        }
+        if self.dry_run:
+            self.log_would_create("tariffextraservices", body)
+        else:
+            result = nexudus_create("tariffextraservices", body)
+            self.track_id({"entity": "tariffextraservices", "Id": result["Id"], "Tariff": tariff_name})
+            self.log.info("Added %s benefit (%d) to '%s' (id=%s)",
+                          label, uses_included, tariff_name, result["Id"])
 
     # ------------------------------------------------------------------
     # Resources
