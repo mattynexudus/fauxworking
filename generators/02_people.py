@@ -16,6 +16,7 @@ Usage:
     python generators/02_people.py --dry-run     # Log only
 """
 
+import importlib
 import json
 import sys
 from datetime import timedelta
@@ -52,7 +53,7 @@ class PeopleGenerator(BaseGenerator):
             )
         return json.loads(path.read_text())
 
-    def run(self, nexudus_list, nexudus_create, prev_output):
+    def run(self, nexudus_list, nexudus_create, nexudus_update, prev_output):
         biz = prev_output["business_id"]
         country = prev_output.get("country_id")
         tz = prev_output.get("timezone_id")
@@ -60,6 +61,7 @@ class PeopleGenerator(BaseGenerator):
 
         self._create_coworkers(biz, country, tz, team_ids, nexudus_list, nexudus_create)
         self._create_visitors(biz, nexudus_list, nexudus_create)
+        self._set_team_paying_members(team_ids, nexudus_list, nexudus_update)
 
         self.log.info("Layer 2 complete. Coworkers: %d, Visitors: %d",
                       len(self.coworker_ids), len(self.visitor_ids))
@@ -111,10 +113,11 @@ class PeopleGenerator(BaseGenerator):
             if defn.get("Team") and defn["Team"] in team_ids:
                 body["Teams"] = [team_ids[defn["Team"]]]
 
-            if defn.get("ChurnProbability") is not None:
-                body["ChurnProbability"] = defn["ChurnProbability"]
-            if defn.get("EngagementLevel") is not None:
-                body["EngagementLevel"] = defn["EngagementLevel"]
+            # ChurnProbability/EngagementLevel are readOnly on Coworker (confirmed
+            # via schema) — server-computed, not writable. Sending them causes a
+            # 400 "Access Denied" rather than a validation error. Data still exists
+            # per-coworker in coworkers.json (harmless, just unused here) in case
+            # a future report wants to reference the intended synthetic value.
 
             if self.dry_run:
                 self.log_would_create("coworkers", body)
@@ -175,6 +178,42 @@ class PeopleGenerator(BaseGenerator):
                 self.log.info("Created visitor #%d '%s' (id=%s)",
                               idx, defn["FullName"], result["Id"])
 
+    def _set_team_paying_members(self, team_ids, nexudus_list, nexudus_update):
+        """Merged-billing teams need CreateSingleInvoiceForTeam + PayingMemberId,
+        which the API only accepts once the paying member is an actual Coworker
+        on the team — see generators/01_structural.py's MERGED_BILLING_TEAMS."""
+        struct = importlib.import_module("generators.01_structural")
+        merged = struct.MERGED_BILLING_TEAMS
+        if not merged:
+            return
+
+        self.log.info("--- Team paying members (merged billing) ---")
+
+        for team_name, extra_fields in merged.items():
+            team_id = team_ids.get(team_name)
+            if not team_id:
+                continue
+
+            member = next((d for d in self.coworker_defs if d.get("Team") == team_name), None)
+            if member is None:
+                self.log.warning("No coworker assigned to team '%s' — skipping paying member setup", team_name)
+                continue
+
+            coworker_id = self.coworker_ids.get(member["index"])
+            if not coworker_id:
+                continue
+
+            fields = {"PayingMemberId": coworker_id, "CreateSingleInvoiceForTeam": True, **extra_fields}
+
+            if self.dry_run:
+                self.log.info("WOULD SET paying member for '%s' -> coworker id=%s (%s)",
+                              team_name, coworker_id, fields)
+                continue
+
+            nexudus_update("teams", team_id, fields)
+            self.log.info("Set paying member for '%s' (team id=%s, coworker id=%s)",
+                          team_name, team_id, coworker_id)
+
 
 if __name__ == "__main__":
     import importlib
@@ -204,6 +243,7 @@ if __name__ == "__main__":
         gen.run(
             nexudus_list=lambda entity, filters: [],
             nexudus_create=lambda entity, body: {"Id": f"DRY-{entity}-{body.get('Email', 'x')}"},
+            nexudus_update=lambda entity, id, body: None,
             prev_output=mock_prev,
         )
     else:

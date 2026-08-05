@@ -57,18 +57,23 @@ def _save_tokens(access_token, refresh_token, expires_in):
     _secure_env_file()
 
 
-def _check_admin_access(access_token):
-    """Fail loudly, at setup time, if this account can't actually do the job."""
+def _check_admin_access(access_token, email):
+    """Fail loudly, at setup time, if this account can't actually do the job.
+
+    Filters by the email that just logged in — an unfiltered users list on
+    an account with hundreds/thousands of users returns an arbitrary record,
+    not necessarily the authenticated one.
+    """
     resp = requests.get(
         f"{base_url()}/api/spaces/users",
         headers={"Authorization": f"Bearer {access_token}"},
-        params={"PageSize": 1},
+        params={"User_Email": email, "PageSize": 1},
         timeout=30,
     )
     resp.raise_for_status()
     records = resp.json().get("Records", [])
     if not records:
-        raise SystemExit("Could not resolve the logged-in user — unexpected API response.")
+        raise SystemExit(f"Could not find a user record for {email} — unexpected API response.")
 
     me = records[0]
     if not me.get("IsAdmin"):
@@ -103,7 +108,7 @@ def setup():
     _save_tokens(payload["access_token"], payload["refresh_token"], payload["expires_in"])
     print(f"✓ Tokens saved to {ENV_PATH} (chmod 600, gitignored).")
 
-    _check_admin_access(payload["access_token"])
+    _check_admin_access(payload["access_token"], email)
     print(f"✓ Access token valid for ~{int(payload['expires_in']) // 3600}h; "
           "will auto-refresh on future runs.")
 

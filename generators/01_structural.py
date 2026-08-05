@@ -37,13 +37,41 @@ from config import TEST_NAME_PREFIX
 # Data definitions
 # ---------------------------------------------------------------------------
 
+# Billing/sharing variance per team — spans the real range of Team's config:
+# full merged billing + full sharing, merged billing without shared credits,
+# shared credits without merged billing, and fully independent members.
+# PayingMemberId can't be set here (no Coworker exists yet at Layer 1) —
+# 02_people.py fills it in on teams with CreateSingleInvoiceForTeam=True
+# once members are actually assigned.
 TEAMS = [
-    {"Name": f"{TEST_NAME_PREFIX}Acme Corp"},
-    {"Name": f"{TEST_NAME_PREFIX}Bright Studio"},
-    {"Name": f"{TEST_NAME_PREFIX}CloudNine Labs"},
-    {"Name": f"{TEST_NAME_PREFIX}Delta Ventures"},
-    {"Name": f"{TEST_NAME_PREFIX}Echo Digital"},
+    {"Name": f"{TEST_NAME_PREFIX}Acme Corp",
+     "CreateSingleInvoiceForTeam": False, "TransferCreditsToPayingMember": False,
+     "ShareTimePasses": True, "ShareExtraServices": True, "ShareBookingCredit": True},
+    {"Name": f"{TEST_NAME_PREFIX}Bright Studio",
+     "CreateSingleInvoiceForTeam": False, "TransferCreditsToPayingMember": False,
+     "ShareTimePasses": True, "ShareExtraServices": False, "ShareBookingCredit": False},
+    {"Name": f"{TEST_NAME_PREFIX}CloudNine Labs",
+     "CreateSingleInvoiceForTeam": False, "TransferCreditsToPayingMember": False,
+     "ShareTimePasses": False, "ShareExtraServices": True, "ShareBookingCredit": True},
+    {"Name": f"{TEST_NAME_PREFIX}Delta Ventures",
+     "CreateSingleInvoiceForTeam": False, "TransferCreditsToPayingMember": False,
+     "ShareTimePasses": False, "ShareExtraServices": False, "ShareBookingCredit": False},
+    {"Name": f"{TEST_NAME_PREFIX}Echo Digital",
+     "CreateSingleInvoiceForTeam": False, "TransferCreditsToPayingMember": False,
+     "ShareTimePasses": True, "ShareExtraServices": True, "ShareBookingCredit": True},
 ]
+
+# Merged billing (single invoice via a paying member) can't be set at Team
+# creation time — the API rejects CreateSingleInvoiceForTeam=True unless
+# PayingMemberId already points at a member of the team, and no Coworkers
+# exist yet in Layer 1. These teams get CreateSingleInvoiceForTeam,
+# TransferCreditsToPayingMember, and PayingMemberId filled in by
+# 02_people.py once their members are created and assigned.
+MERGED_BILLING_TEAMS = {
+    f"{TEST_NAME_PREFIX}Acme Corp": {"TransferCreditsToPayingMember": True},
+    f"{TEST_NAME_PREFIX}Bright Studio": {"TransferCreditsToPayingMember": True},
+    f"{TEST_NAME_PREFIX}Echo Digital": {"TransferCreditsToPayingMember": False},
+}
 
 # Tariffs reference §4b — SystemTariffType enum, billing frequency, pricing
 TARIFFS = [
