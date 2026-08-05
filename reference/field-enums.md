@@ -121,12 +121,45 @@ The `SystemResourceType` enum on Resource is distinct from the ResourceType FK.
 | 2 | Resource |
 | 3 | FloorPlanItem |
 
-## VisitorSource (Visitor)
+## eVisitorSource — VisitorSource (Visitor)
 | Value | Name |
 |-------|------|
-| 1 | Manual |
-| 2 | Tablet |
-| 3 | Integration |
+| 1 | Administrator |
+| 2 | NexIO |
+| 3 | Customer |
+
+## eVisitorHostApprovalStatus — HostApprovalStatus (Visitor)
+| Value | Name |
+|-------|------|
+| 1 | NotRequired |
+| 2 | Requested |
+| 3 | Rejected |
+| 4 | AcceptedAndHold |
+| 5 | AcceptedAndGrant |
+
+## eCoworkerRecordType — CoworkerType (Coworker)
+| Value | Name |
+|-------|------|
+| 1 | Individual |
+| 2 | Company |
+
+## eGender — Gender (Coworker)
+| Value | Name |
+|-------|------|
+| 1 | NotSet |
+| 2 | Male |
+| 3 | Female |
+| 4 | Other |
+| 5 | RatherNotSay |
+
+## eCoworkerAttendance — Day Attendance (Coworker)
+| Value | Name |
+|-------|------|
+| 1 | WorkingFromOffice |
+| 2 | WorkingFromHome |
+| 3 | WorkingFromAbroad |
+| 4 | NotWorking |
+| 5 | Undefined |
 
 ---
 
