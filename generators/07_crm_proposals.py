@@ -199,6 +199,7 @@ class CrmProposalsGenerator(BaseGenerator):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "proposals" and r.get("ProposalIndex") == track_key)
                 self.proposal_ids[idx] = existing["Id"]
+                self.proposal_guids[idx] = existing.get("UniqueId")
                 continue
 
             body = {
@@ -230,7 +231,7 @@ class CrmProposalsGenerator(BaseGenerator):
                 self.proposal_guids[idx] = result.get("UniqueId")
                 self.track_id({
                     "entity": "proposals", "Id": result["Id"], "ProposalIndex": track_key,
-                    "TargetStatus": defn["ProposalStatus"],
+                    "TargetStatus": defn["ProposalStatus"], "UniqueId": result.get("UniqueId"),
                 })
                 self.log.info("Created proposal #%d '%s' (id=%s)", idx, defn["Reference"], result["Id"])
 

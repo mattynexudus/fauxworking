@@ -12,9 +12,9 @@ pip install -r requirements.txt
 # One-time login. Run this yourself, in your own terminal — it prompts for
 # your Nexudus email/password locally and never passes them anywhere else.
 # Only the resulting access/refresh tokens get saved, to a gitignored .env.
-python nexudus_auth.py setup
+python3 nexudus_auth.py setup
 
-python prebuild.py              # One-time: generate data/*.json files
+python3 prebuild.py              # One-time: generate data/*.json files
 bash scripts/seed_all.sh        # Push everything to Nexudus, layers 0-7
 bash scripts/daily.sh           # Create today's fresh records (run daily/on-demand)
 bash scripts/verify.sh          # Check record counts against targets
@@ -25,7 +25,7 @@ Re-running `seed_all.sh` is safe — every generator checks for existing records
 ### Requirements
 
 - The logged-in Nexudus account must be an **admin with API access enabled**. `nexudus_auth.py setup` checks this immediately and fails with a clear error if not, rather than letting a seeding run fail halfway through.
-- Your refresh token is valid for ~30–90 days (Nexudus-side). Re-run `python nexudus_auth.py setup` when it finally expires — you'll get a clear "Not authenticated" error telling you to.
+- Your refresh token is valid for ~30–90 days (Nexudus-side). Re-run `python3 nexudus_auth.py setup` when it finally expires — you'll get a clear "Not authenticated" error telling you to.
 
 ### Running one layer at a time
 
@@ -37,8 +37,8 @@ bash scripts/seed_layer.sh 3    # Runs layers 0-3 (each generator re-verifies
 ### Tearing down
 
 ```bash
-python teardown.py --dry-run    # Preview what would be deleted
-python teardown.py              # Actually delete every tracked record
+python3 teardown.py --dry-run    # Preview what would be deleted
+python3 teardown.py              # Actually delete every tracked record
 ```
 
 Deletes strictly by ID from `data/created-ids/*.json` — never by name pattern, never touches anything this project didn't create. Records it doesn't know how to delete (a handful of Nexudus entities are audit-trail-only) are logged and skipped, not silently ignored.
@@ -105,15 +105,15 @@ All dates are **relative to the run date** — the data spans 24 months back fro
 | 5 | `07_crm_proposals.py` | CRM opportunities, proposals |
 | — | `daily_update.py` | Fresh daily records (check-ins, bookings, visitors, deliveries) |
 
-Each generator also runs standalone — `python generators/03_contracts.py` re-verifies layers 0-3 exist (idempotently) before doing its own work, via `pipeline.run_up_to(3)`.
+Each generator also runs standalone — `python3 generators/03_contracts.py` re-verifies layers 0-3 exist (idempotently) before doing its own work, via `pipeline.run_up_to(3)`.
 
 ## Dry Run
 
 Every generator and script supports `--dry-run` — logs what would be created without making any API calls or needing credentials at all:
 
 ```bash
-python generators/03_contracts.py --dry-run
-python teardown.py --dry-run
+python3 generators/03_contracts.py --dry-run
+python3 teardown.py --dry-run
 ```
 
 ## Scale

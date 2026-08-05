@@ -36,7 +36,9 @@ MCP's nexudus_list already returned: {"Records": [...], "HasNextPage", ...}.
 """
 
 import os
+import re
 import sys
+import time
 from pathlib import Path
 
 import requests
@@ -74,6 +76,8 @@ ENTITY_MODULES = {
 
 DEFAULT_TIMEOUT = 30
 MAX_PAGES = 50  # safety cap for auto-pagination
+MAX_RATE_LIMIT_RETRIES = 8
+_RATE_LIMIT_WAIT_RE = re.compile(r"Wait ([\d.]+) seconds")
 
 
 class NexudusApiError(RuntimeError):
@@ -104,6 +108,22 @@ def _headers():
     return {"Authorization": f"Bearer {get_access_token()}"}
 
 
+def _request(method, url, **kwargs):
+    """requests.request, but retries on 429 for the server's suggested wait
+    (parsed from its "Wait N seconds" message), plus a small buffer."""
+    for attempt in range(MAX_RATE_LIMIT_RETRIES):
+        resp = requests.request(method, url, timeout=DEFAULT_TIMEOUT, **kwargs)
+        if resp.status_code != 429:
+            return resp
+
+        wait = 1.0
+        match = _RATE_LIMIT_WAIT_RE.search(resp.text)
+        if match:
+            wait = float(match.group(1))
+        time.sleep(wait + 0.25)
+    return resp
+
+
 def _unwrap(entity, action, resp):
     if not resp.ok:
         raise NexudusApiError(entity, action, resp)
@@ -121,7 +141,7 @@ def nexudus_list(entity, filters=None):
     page = 1
     while page <= MAX_PAGES:
         params["PageNumber"] = page
-        resp = requests.get(_url(entity), headers=_headers(), params=params, timeout=DEFAULT_TIMEOUT)
+        resp = _request("GET", _url(entity), headers=_headers(), params=params)
         if not resp.ok:
             raise NexudusApiError(entity, "list", resp)
         body = resp.json()
@@ -133,23 +153,42 @@ def nexudus_list(entity, filters=None):
 
 
 def nexudus_get(entity, id):
-    resp = requests.get(f"{_url(entity)}/{id}", headers=_headers(), timeout=DEFAULT_TIMEOUT)
+    resp = _request("GET", f"{_url(entity)}/{id}", headers=_headers())
     return _unwrap(entity, "get", resp)
 
 
 def nexudus_create(entity, body):
-    resp = requests.post(_url(entity), headers=_headers(), json=body, timeout=DEFAULT_TIMEOUT)
+    resp = _request("POST", _url(entity), headers=_headers(), json=body)
     return _unwrap(entity, "create", resp)
 
 
+# Generic metadata fields every entity returns that aren't meant to be sent
+# back on a PUT — entity-specific read-only fields (denormalized names like
+# CurrencyCode, ResourceTypeNames, etc.) are left in deliberately: PUT seems
+# to require the full record rather than a true partial patch (confirmed via
+# a 400 "X is a required field" when sending only the changed fields), and
+# echoing back read-only fields unchanged has not caused rejections.
+_UPDATE_STRIP_FIELDS = {
+    "CreatedOn", "UpdatedOn", "UpdatedBy", "UniqueId", "IsNew", "SystemId",
+    "ToStringText", "LocalizationDetails", "CustomFields",
+}
+
+
 def nexudus_update(entity, id, body):
-    payload = {"Id": id, **body}
-    resp = requests.put(_url(entity), headers=_headers(), json=payload, timeout=DEFAULT_TIMEOUT)
+    """PUT — merges `body` onto the record's current full state (fetched via
+    GET) rather than sending only the changed fields, since this API's PUT
+    validates as if the whole record must be present."""
+    current = nexudus_get(entity, id)
+    payload = {k: v for k, v in current.items() if k not in _UPDATE_STRIP_FIELDS}
+    payload.update(body)
+    payload["Id"] = id
+
+    resp = _request("PUT", _url(entity), headers=_headers(), json=payload)
     return _unwrap(entity, "update", resp)
 
 
 def nexudus_delete(entity, id):
-    resp = requests.delete(f"{_url(entity)}/{id}", headers=_headers(), timeout=DEFAULT_TIMEOUT)
+    resp = _request("DELETE", f"{_url(entity)}/{id}", headers=_headers())
     if not resp.ok:
         raise NexudusApiError(entity, "delete", resp)
     return None
@@ -157,6 +196,5 @@ def nexudus_delete(entity, id):
 
 def nexudus_run_command(entity, command_key, ids, parameters=None):
     payload = {"Key": command_key, "Ids": ids, "Parameters": parameters or []}
-    resp = requests.post(f"{_url(entity)}/runcommand", headers=_headers(), json=payload,
-                          timeout=DEFAULT_TIMEOUT)
+    resp = _request("POST", f"{_url(entity)}/runcommand", headers=_headers(), json=payload)
     return _unwrap(entity, "run_command", resp)

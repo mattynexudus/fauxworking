@@ -73,12 +73,16 @@ PRODUCTS = [
     {"Name": f"{TEST_NAME_PREFIX}Printing Credits (500 pages)","Price": 25.00,   "AvailableAs": 3, "SystemProductType": 99, "FinAcctCode": "PRD-001", "TaxRate": "Standard", "Description": "500-page printing credit"},
 ]
 
-# ExtraServices — resource booking rates
+# ExtraServices — resource booking rates. ChargePeriod has no "Hours" value
+# (only Minutes/Days/Weeks/Months/Uses/FourWeekMonths) — hourly-feeling rates
+# are Minutes(1) rates that Nexudus's booking engine multiplies by actual
+# booked duration. Meeting Room/Hot Desk/Phone Booth are billed this way;
+# Private Office and Parking stay on their original daily/weekly cadence.
 EXTRA_SERVICES = [
-    {"Name": f"{TEST_NAME_PREFIX}Meeting Room Rate",   "Price": 25.00,  "ChargePeriod": 2, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room"},
-    {"Name": f"{TEST_NAME_PREFIX}Hot Desk Rate",       "Price": 15.00,  "ChargePeriod": 2, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Hot Desk"},
+    {"Name": f"{TEST_NAME_PREFIX}Meeting Room Rate",   "Price": round(25.00 / 60, 4), "ChargePeriod": 1, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room"},
+    {"Name": f"{TEST_NAME_PREFIX}Hot Desk Rate",       "Price": round(15.00 / 60, 4), "ChargePeriod": 1, "MaximumPrice": 50.00, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Hot Desk"},
     {"Name": f"{TEST_NAME_PREFIX}Private Office Rate", "Price": 50.00,  "ChargePeriod": 2, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Private Office"},
-    {"Name": f"{TEST_NAME_PREFIX}Phone Booth Rate",    "Price": 10.00,  "ChargePeriod": 2, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Phone Booth"},
+    {"Name": f"{TEST_NAME_PREFIX}Phone Booth Rate",    "Price": round(10.00 / 60, 4), "ChargePeriod": 1, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Phone Booth"},
     {"Name": f"{TEST_NAME_PREFIX}Parking Rate",        "Price": 8.00,   "ChargePeriod": 3, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Parking"},
     {"Name": f"{TEST_NAME_PREFIX}Time Credit",         "Price": 0.00,   "ChargePeriod": 1, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room"},
     {"Name": f"{TEST_NAME_PREFIX}Printing Credit",     "Price": 0.00,   "ChargePeriod": 5, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room"},
@@ -230,22 +234,24 @@ CRM_BOARD_COLUMNS = {
 }
 
 HELP_DESK_DEPARTMENTS = [
-    {"Name": f"{TEST_NAME_PREFIX}IT Support"},
-    {"Name": f"{TEST_NAME_PREFIX}Facilities"},
-    {"Name": f"{TEST_NAME_PREFIX}Billing"},
+    {"Name": f"{TEST_NAME_PREFIX}IT Support", "Description": "WiFi, hardware, and access issues"},
+    {"Name": f"{TEST_NAME_PREFIX}Facilities", "Description": "Building, cleaning, and maintenance issues"},
+    {"Name": f"{TEST_NAME_PREFIX}Billing", "Description": "Invoices, payments, and account queries"},
 ]
 
+# GroupAccess (eCommunityThreadVisibility): Restricted=1, Public=2, Private=3
 COMMUNITY_GROUPS = [
-    {"Name": f"{TEST_NAME_PREFIX}General"},
-    {"Name": f"{TEST_NAME_PREFIX}Networking"},
-    {"Name": f"{TEST_NAME_PREFIX}Announcements"},
+    {"Name": f"{TEST_NAME_PREFIX}General", "Description": "General discussion for all members", "GroupAccess": 2},
+    {"Name": f"{TEST_NAME_PREFIX}Networking", "Description": "Connect with other members", "GroupAccess": 2},
+    {"Name": f"{TEST_NAME_PREFIX}Announcements", "Description": "Official space announcements", "GroupAccess": 1},
 ]
 
+# Uses "Title", not "Name" — the one entity in this batch with a different key field.
 CALENDAR_EVENT_CATEGORIES = [
-    {"Name": f"{TEST_NAME_PREFIX}Workshop"},
-    {"Name": f"{TEST_NAME_PREFIX}Networking"},
-    {"Name": f"{TEST_NAME_PREFIX}Social"},
-    {"Name": f"{TEST_NAME_PREFIX}Wellness"},
+    {"Title": f"{TEST_NAME_PREFIX}Workshop"},
+    {"Title": f"{TEST_NAME_PREFIX}Networking"},
+    {"Title": f"{TEST_NAME_PREFIX}Social"},
+    {"Title": f"{TEST_NAME_PREFIX}Wellness"},
 ]
 
 
@@ -282,6 +288,7 @@ class StructuralGenerator(BaseGenerator):
         """
         biz = layer0_output["business_id"]
         cur = layer0_output["currency_id"]
+        admin_id = layer0_output["admin_user_id"]
         tax_ids = layer0_output["tax_rate_ids"]
         fin_ids = layer0_output["fin_account_ids"]
         rt_ids = layer0_output["resource_type_ids"]
@@ -326,10 +333,12 @@ class StructuralGenerator(BaseGenerator):
                                      filter_key="HelpDeskDepartment_Business")
         self._create_simple_entities("communitygroups", COMMUNITY_GROUPS,
                                      self.community_group_ids, biz, nexudus_list, nexudus_create,
-                                     filter_key="CommunityGroup_Business")
+                                     filter_key="CommunityGroup_Business",
+                                     extra_fields={"UserId": admin_id})
         self._create_simple_entities("calendareventcategories", CALENDAR_EVENT_CATEGORIES,
                                      self.event_category_ids, biz, nexudus_list, nexudus_create,
-                                     filter_key="CalendarEventCategory_Business")
+                                     filter_key="CalendarEventCategory_Business",
+                                     name_field="Title")
 
         self.log.info("Layer 1 complete.")
         return self._build_output(layer0_output)
@@ -359,14 +368,14 @@ class StructuralGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     def _create_simple_entities(self, entity, definitions, id_map, business_id,
                                 nexudus_list, nexudus_create, filter_key=None,
-                                extra_fields=None):
+                                extra_fields=None, name_field="Name"):
         self.log.info("--- %s ---", entity)
         filters = {filter_key: business_id} if filter_key else {}
         existing = nexudus_list(entity, filters)
-        existing_by_name = {r["Name"]: r["Id"] for r in existing}
+        existing_by_name = {r[name_field]: r["Id"] for r in existing}
 
         for defn in definitions:
-            name = defn["Name"]
+            name = defn[name_field]
             if name in existing_by_name:
                 self.log.info("'%s' already exists (id=%s)", name, existing_by_name[name])
                 id_map[name] = existing_by_name[name]
@@ -488,7 +497,10 @@ class StructuralGenerator(BaseGenerator):
                 "LastMinuteAdjustmentType": 1,
                 "FinancialAccountId": fin_ids.get(defn["FinAcctCode"]),
                 "TaxRateId": tax_ids.get(defn["TaxRate"]),
+                "ResourceTypes": [rt_ids.get(defn["ResourceType"])],
             }
+            if defn.get("MaximumPrice") is not None:
+                body["MaximumPrice"] = defn["MaximumPrice"]
 
             if self.dry_run:
                 self.log_would_create("extraservices", body)
@@ -601,7 +613,10 @@ class StructuralGenerator(BaseGenerator):
         for idx, defn in enumerate(FLOOR_PLAN_DESKS):
             name = defn["Name"]
             if self.already_created("Name", name):
-                self.log.info("Desk '%s' already tracked", name)
+                existing = next(r for r in self.get_tracked_ids()
+                                 if r.get("entity") == "floorplandesks" and r.get("Name") == name)
+                self.floor_plan_desk_ids[name] = existing["Id"]
+                self.log.info("Desk '%s' already tracked (id=%s)", name, existing["Id"])
                 continue
 
             fp_name = f"{TEST_NAME_PREFIX}{defn['FloorPlan']}"
@@ -637,6 +652,12 @@ class StructuralGenerator(BaseGenerator):
         existing = nexudus_list("inventoryassets", {"InventoryAsset_Business": biz})
         existing_by_name = {r["Name"]: r["Id"] for r in existing}
 
+        # AssignToType=3 (FloorPlanItem) requires FloorPlanDeskId; =2 (Resource)
+        # requires ResourceId — cycle through what Layer 1 already created.
+        desk_ids = list(self.floor_plan_desk_ids.values())
+        resource_ids = list(self.resource_ids.values())
+        desk_i = resource_i = 0
+
         for defn in INVENTORY_ASSETS:
             name = defn["Name"]
             if name in existing_by_name:
@@ -650,6 +671,12 @@ class StructuralGenerator(BaseGenerator):
                 "AssignToType": defn["AssignToType"],
                 "Value": defn["Value"],
             }
+            if defn["AssignToType"] == 3 and desk_ids:
+                body["FloorPlanDeskId"] = desk_ids[desk_i % len(desk_ids)]
+                desk_i += 1
+            elif defn["AssignToType"] == 2 and resource_ids:
+                body["ResourceId"] = resource_ids[resource_i % len(resource_ids)]
+                resource_i += 1
 
             if self.dry_run:
                 self.log_would_create("inventoryassets", body)
@@ -722,16 +749,25 @@ class StructuralGenerator(BaseGenerator):
             board_name = f"{TEST_NAME_PREFIX}{board_short_name}"
             board_id = self.crm_board_ids.get(board_name)
 
+            existing_cols = nexudus_list("crmboardcolumns", {"CrmBoardColumn_CrmBoard": board_id})
+            existing_cols_by_name = {r["Name"]: r["Id"] for r in existing_cols}
+
             for col_defn in columns:
                 col_name = col_defn["Name"]
                 full_key = f"{board_short_name}/{col_name}"
+
+                if col_name in existing_cols_by_name:
+                    self.crm_board_column_ids[full_key] = existing_cols_by_name[col_name]
+                    self.log.info("Column '%s' already exists (id=%s)",
+                                  full_key, existing_cols_by_name[col_name])
+                    continue
 
                 body = {
                     "CrmBoardId": board_id,
                     "Name": col_name,
                     "WinOpportunity": col_defn["WinOpportunity"],
                     "LoseOpportunity": col_defn["LoseOpportunity"],
-                    "DisplayOrder": col_defn["DisplayOrder"],
+                    "Position": col_defn["DisplayOrder"],
                 }
 
                 if self.dry_run:
