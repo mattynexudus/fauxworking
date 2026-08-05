@@ -3,8 +3,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo ""
-echo "⚠️  This will DELETE all test data (records matching test markers)."
-echo "    It will NOT touch any non-test records."
+echo "⚠️  This will DELETE every record tracked in data/created-ids/*.json."
+echo "    Deletion is strictly by tracked ID, never by name pattern — it"
+echo "    will not touch anything this project didn't create."
 echo ""
 read -rp "Type 'yes' to confirm: " confirm
 if [[ "$confirm" != "yes" ]]; then
@@ -12,8 +13,9 @@ if [[ "$confirm" != "yes" ]]; then
   exit 1
 fi
 
-echo "Teardown not yet implemented — add entity-specific delete loops here."
-# TODO: For each entity in reverse dependency order:
-#   1. Load data/created-ids/<entity>.json
-#   2. Delete each record via nexudus <entity> delete <id> --yes --agent
-#   3. Clear the tracking file
+echo "Teardown deletes real records via the Nexudus MCP connector, which"
+echo "this shell script cannot call directly (see teardown.py for why every"
+echo "live operation in this repo is agent-orchestrated, not CLI-driven)."
+echo "Ask the agent to run teardown live, or dry-run it yourself below."
+echo ""
+python3 teardown.py --dry-run

@@ -1,12 +1,13 @@
 # Test Data Seeding Strategy
 
-> **Purpose:** Define all records, volumes, and variance needed to meaningfully populate every report and dashboard spec. This was the original blueprint for this repo; Phases 1–5 (§8) are now built — Layers 0 through 4a. **§7 has been superseded by the repo's top-level `CLAUDE.md`** — that file is the source of truth for agent instructions and entity creation patterns; this doc keeps the volumes/variance/dependency-graph design plus a status log of what's built and where it diverged from the original plan.
+> **Purpose:** Define all records, volumes, and variance needed to meaningfully populate every report and dashboard spec. This was the original blueprint for this repo; **all code (Phases 1–8, §8) is now built** — every generator, `prebuild.py`, `daily_update.py`, `teardown.py`, and `scripts/verify.sh`. **Nothing has been pushed to a live Nexudus instance yet** (Phase 9) — everything below is dry-run verified only. **§7 has been superseded by the repo's top-level `CLAUDE.md`** — that file is the source of truth for agent instructions and entity creation patterns; this doc keeps the volumes/variance/dependency-graph design plus a status log of what's built and where it diverged from the original plan.
 >
 > **Key divergences from the original plan**, expanded on in §8:
 >
-> - **MCP tools, not a CLI.** All Nexudus operations go through `nexudus_list` / `nexudus_get` / `nexudus_create` / `nexudus_update` / `nexudus_delete` (the `claude.ai Nexudus` MCP server), not a `nexudus <entity> <command> --agent` shell command. Every `nexudus ...` CLI example below is illustrative of the operation, not literal syntax.
-> - **No `[TEST]` name prefixes.** Records are meant to look like real data. `config.TEST_NAME_PREFIX` is `""`. The only marker baked into a record is the coworker email (`test-{id}@seeddata.local`); teardown safety comes from `data/created-ids/<entity>.json` ID tracking, not name matching.
-> - **Two-step generation.** `prebuild.py` generates deterministic profiles into committed `data/*.json` files; the layer generators (`generators/0N_*.py`) read those files and push to Nexudus, resolving day/month offsets against `config.TODAY` at run time. This keeps faker/randomness out of the live-run path and avoids re-deriving the same data (and burning tokens) on every run.
+> - **MCP tools, not a CLI.** All Nexudus operations go through `nexudus_list` / `nexudus_get` / `nexudus_create` / `nexudus_update` / `nexudus_delete` / `nexudus_run_command` (the `claude.ai Nexudus` MCP server), not a `nexudus <entity> <command> --agent` shell command. Every `nexudus ...` CLI example below is illustrative of the operation, not literal syntax.
+> - **No `[TEST]` name prefixes.** Records are meant to look like real data. `config.TEST_NAME_PREFIX` is `""`. The only marker baked into a record is the coworker email (`test-{id}@seeddata.local`); teardown safety comes from `data/created-ids/<generator>.json` ID tracking, not name matching.
+> - **Two-step generation.** `prebuild.py` generates deterministic profiles into committed `data/*.json` files; the layer generators (`generators/0N_*.py`) read those files and push to Nexudus, resolving day/month offsets against `config.TODAY` at run time. This keeps faker/randomness out of the live-run path and avoids re-deriving the same data (and burning tokens) on every run. **Layer 5's financial script is the one exception** — invoice IDs/amounts don't exist until Nexudus generates them server-side, so `06_financial.py` discovers them live via `nexudus_list` rather than reading a pre-planned file.
+> - **Two real API gaps found, not just design choices.** No supported path exists for voiding an invoice or issuing a credit note (see §4c and §8) — the original ~15-invoice target for those states is skipped, not approximated. And `CommunityThread`/`CommunityMessage` require a `UserId` distinct from `CoworkerId` that seeded coworkers don't have (see §4t and §8).
 
 ---
 
@@ -94,7 +95,7 @@
 | **CoworkerTimePass** | `coworkertimepasses` | 40 | Used/unused. 20 marked Used via follow-up update. |
 | **CoworkerProduct** | `coworkerproducts` | 20 | Recurring product subscriptions. |
 
-### Layer 4b — Community (`05_community.py`, ⬜ not yet built)
+### Layer 4b — Community (`05_community.py`, ✅ built)
 
 | Entity | CLI command | Count | Notes |
 |--------|-------------|-------|-------|
@@ -107,19 +108,19 @@
 | **BlogPost** | `blogposts` | 10 | Published articles. Spread over 12 months. §4u. |
 | **CoworkerTask** | `coworkertasks` | 20 | Mix completed/pending. Varied due dates. §4v. |
 
-### Layer 5 — Financial Records & CRM (`06_financial.py`, `07_crm_proposals.py`, ⬜ not yet built)
+### Layer 5 — Financial Records & CRM (`06_financial.py`, `07_crm_proposals.py`, ✅ built)
 
 | Entity | CLI command | Count | Notes |
 |--------|-------------|-------|-------|
-| **Invoices** | (system-generated) | ~150 | Triggered by contract billing cycles + manual charges. |
-| **Invoice ops** | update/commands | ~35 | Pay(~90), void(~5), credit note(~10), partial(~15). Ledger entries auto-created. |
-| **CoworkerLedgerEntry** | `coworkerledgerentries` | ~200 | Mostly auto-created. Manual supplements for edge cases. |
-| **CrmOpportunity** | `crmopportunities` | 30 | Open/Won/Lost. Varied values + lead sources. |
-| **CrmOpportunityHistory** | `crmopportunityhistories` | 60 | Stage transitions for conversion reporting. |
-| **Proposal** | `proposals` | 15 | Linked to Won opps. Accepted ones create contracts. §4f. |
-| **CoworkerDataFile** | `coworkerdatafiles` | 10 | Signed/unsigned proposal documents. |
+| **Invoices** | `nexudus_run_command("coworkers", "COWORKER_BILL_RUN", [...])` | server-determined | No create endpoint; no command on `coworkercontracts` or `coworkerinvoices` either — the command lives on `coworkers` and bills that coworker's active contract(s). Count isn't planned in advance; discovered live via `nexudus_list`. |
+| **Invoice ops** | `coworkerledgerentries` | ~60% of raised invoices paid | **Void and credit note are NOT implemented** — `Void`/`CreditNote`/`Paid`/`PaidAmount`/`TotalAmount` are all read-only on `coworkerinvoices`, and it has no create/delete/commands. No API path was found; the original ~15-invoice void/credit target (§4c) is skipped rather than approximated. Payment is recorded via a `CoworkerLedgerEntry` linked by `CoworkerInvoiceId` — assumed (not guide-confirmed) to reconcile the invoice's Paid state. |
+| **CoworkerLedgerEntry** | `coworkerledgerentries` | 5 supplements | Payment entries above, plus a handful of manual adjustments (goodwill credit, damage charge, etc.) unrelated to any invoice. `Code` is free text, not an enforced enum — `"PAYM"` etc. are project conventions. |
+| **CrmOpportunity** | `crmopportunities` | 30 | Lead(6)/Qualified(5)/ProposalSent(4)/Negotiation(4)/Won(5)/Lost(6) — scaled down from §4l's 35 to hit the §2 target. |
+| **CrmOpportunityHistory** | `crmopportunityhistories` | ~87 | A full stage-path trail per opportunity (more than the original ~60 estimate, since Won opportunities trace all 5 stages). |
+| **Proposal** | `proposals` | 15 | Draft(3)/Sent(4)/Accepted(5)/Rejected(3). Accepted ones tied to a Won opportunity's coworker. §4f. |
+| **CoworkerDataFile** | `coworkerdatafiles` | 10 | Placeholder documents (a tiny synthetic text file, not a real contract) linked to proposals via `ProposalGuid`. |
 
-**Total: ~2,800+ records across 50+ entity types.**
+**Total: ~1,710 planned records across 50+ entity types**, summed from the actual counts in this section (down from the original ~2,800+ estimate) — plus however many invoices Nexudus raises server-side, which isn't knowable in advance.
 
 ---
 
@@ -188,25 +189,37 @@ Layer 4a — Activity  ✅ (04_activity.py)
 │   to set Used=true (Used is updateOnly, not settable at create)
 └── CoworkerProduct × 20 (refs: Coworker, Product)
 
-Layer 4b — Community  ⬜ (05_community.py — not yet built)
+Layer 4b — Community  ✅ (05_community.py)
 ├── CoworkerDelivery × 40 (refs: Coworker, Business)
-├── CalendarEvent × 20 (refs: Business, Resource, CalendarEventCategory)
-├── EventAttendee × 60 (refs: CalendarEvent, Coworker)
+├── CalendarEvent × 20 (refs: Business, Resource, CalendarEventCategory) — no inline children;
+│   create order is CalendarEvent -> EventProduct -> EventAttendee
+├── EventProduct × 20 (refs: CalendarEvent) — one ticket type per event, REQUIRED before any
+│   EventAttendee (not optional, despite the original plan treating it as an add-on)
+├── EventAttendee × ~60 (refs: CalendarEvent, EventProduct, Coworker) — ~70% linked to a
+│   seeded coworker (FullName/Email pulled from their record, still required fields even
+│   with CoworkerId set), rest ad-hoc guest names
 ├── HelpDeskMessage × 25 (refs: Coworker, Business, HelpDeskDepartment)
-├── CommunityThread × 15 (refs: Coworker, CommunityGroup, Business)
+├── CommunityThread × 15 (refs: Coworker, CommunityGroup, Business, UserId) — UserId is a
+│   required FK distinct from CoworkerId; uses the resolved admin user (see §4t)
 ├── CommunityMessage × 40 (refs: CommunityThread, Coworker)
 ├── BlogPost × 10 (refs: Business)
 └── CoworkerTask × 20 (refs: Coworker, Business)
 
-Layer 5 — Financial & CRM  ⬜ (06_financial.py, 07_crm_proposals.py — not yet built)
-├── Trigger invoice generation (billing cycle commands on contracts)
-├── Pay/void/credit invoices → ledger entries auto-generated
-├── CrmOpportunity × 30 (refs: CrmBoardColumn, Coworker)
-│   └── CrmOpportunityHistory × 60 (refs: CrmOpportunity, CrmBoardColumn)
-├── Proposal × 15 (refs: Coworker, Tariff, CrmOpportunity context, AdminUserId)
-│   ├── Accept proposals (status=3) → auto-creates CoworkerContract
-│   └── CoworkerDataFile × 10 (refs: Proposal)
-└── Supplemental CoworkerLedgerEntry for edge cases
+Layer 5 — Financial & CRM  ✅ (06_financial.py, 07_crm_proposals.py)
+├── Raise invoices: nexudus_run_command("coworkers", "COWORKER_BILL_RUN", [...]) for every
+│   coworker with an active contract — NOT a command on coworkercontracts/coworkerinvoices,
+│   neither of which supports commands at all. Invoice count is server-determined, discovered
+│   live via nexudus_list rather than planned in data/*.json.
+├── Pay ~60% of raised invoices → CoworkerLedgerEntry (CoworkerInvoiceId + Credit=amount)
+│   — void/credit-note NOT implemented, no supported API path found (see §4c, §8)
+├── 5 supplemental CoworkerLedgerEntry rows for edge cases (unrelated to any invoice)
+├── CrmOpportunity × 30 (refs: CrmBoardColumn, Coworker) — placed directly on its target
+│   stage's column; WonOn/LostOn set explicitly since we're not driving an incremental move
+│   └── CrmOpportunityHistory × ~87 (refs: CrmOpportunity, CrmBoardColumn) — full stage-path
+│       trail per opportunity, not just one transition
+├── Proposal × 15 (refs: Coworker, Tariff, AdminUserId) — created at status=1 (Draft), then
+│   updated to its target status (rule 13). Accepted ones (5) tied to a Won opportunity's coworker
+└── CoworkerDataFile × 10 (refs: Proposal via ProposalGuid) — placeholder text file, not a real document
 ```
 
 ---
@@ -247,15 +260,16 @@ Each tariff assigned:
 - `MinimumPrice` where applicable
 - `DiscountExtraServices` / `DiscountTimePasses` on premium plans (10–20%)
 
-### 4c. Invoice Status Distribution
+### 4c. Invoice Status Distribution — ✅ Built (partial, see below)
 
 | Status | Count | How achieved |
 |--------|-------|-------------|
-| **Paid** | ~90 | Create ledger entry (PAYM) against invoice. Update `Paid=true`. |
-| **Unpaid** | ~25 | Leave as-is after generation. DueDate in future. |
-| **Overdue** | ~20 | Leave as-is. DueDate in past (30–120 days ago). |
-| **Credit Note** | ~10 | Issue credit note against paid/unpaid invoice. |
-| **Void** | ~5 | Update invoice `Draft=true` or use void workflow. |
+| **Paid** | ~60% of raised invoices | Create a `CoworkerLedgerEntry` with `CoworkerInvoiceId` set and `Credit` = the invoice total. **`Paid=true` cannot be set directly** — it's read-only on `coworkerinvoices`. The ledger entry is expected to reconcile it server-side; this is inferred from the field design (writable ledger + FK link vs. read-only invoice fields), not confirmed in the guide text. |
+| **Unpaid / Overdue** | remainder | Left as-is after the billing command raises them — not individually engineered, since `DueDate` etc. are server-set from the contract's billing cycle, not something the generator controls directly. |
+| **Credit Note** | ❌ Not achievable | `CreditNote`/`OriginalInvoiceGuid` are read-only on `coworkerinvoices`, which has no create/delete/commands. No supported path found. |
+| **Void** | ❌ Not achievable | `Void` is read-only on `coworkerinvoices` for the same reason. `Draft` *is* writable, but flipping it isn't confirmed to mean "voided" — risked being a misleading approximation, so it's skipped rather than implemented. |
+
+See `06_financial.py` and CLAUDE.md rule 12 for the full picture of what the invoicing API surface actually supports.
 
 ### 4d. Floor Plan Desk (Unit) Distribution
 
@@ -620,8 +634,21 @@ data-generator/
 │   ├── credit_use_history.json           ← Layer 4a
 │   ├── time_passes.json                  ← Layer 4a
 │   ├── coworker_products.json            ← Layer 4a
-│   └── created-ids/             ← Runtime: every created record's Id, per entity — the actual
-│                                   safety net for teardown (gitignored, not committed)
+│   ├── deliveries.json                   ← Layer 4b
+│   ├── calendar_events.json              ← Layer 4b
+│   ├── event_products.json               ← Layer 4b
+│   ├── event_attendees.json              ← Layer 4b
+│   ├── helpdesk_messages.json            ← Layer 4b
+│   ├── community_threads.json            ← Layer 4b
+│   ├── community_messages.json           ← Layer 4b
+│   ├── blog_posts.json                   ← Layer 4b
+│   ├── coworker_tasks.json               ← Layer 4b
+│   ├── crm_opportunities.json            ← Layer 5
+│   ├── crm_opportunity_history.json      ← Layer 5
+│   ├── proposals.json                    ← Layer 5
+│   ├── coworker_data_files.json          ← Layer 5
+│   └── created-ids/             ← Runtime: every created record's Id, one file per generator
+│                                   (not per Nexudus entity — see teardown.py). Gitignored.
 ├── generators/
 │   ├── __init__.py
 │   ├── base.py                  ← BaseGenerator: idempotency, ID tracking, dry-run
@@ -630,16 +657,19 @@ data-generator/
 │   ├── 02_people.py             ← ✅ Layer 2: coworkers (engagement fields), visitors
 │   ├── 03_contracts.py          ← ✅ Layer 3: contracts (ContractTerm inline schedules), deposits, freezes, occupancy
 │   ├── 04_activity.py           ← ✅ Layer 4a: bookings, check-ins, credits, passes
-│   ├── 05_community.py          ← ⬜ Layer 4b: deliveries, events, help desk, threads, blogs, tasks
-│   ├── 06_financial.py          ← ⬜ Layer 5: invoice triggering, payments, ledger supplements
-│   ├── 07_crm_proposals.py      ← ⬜ Layer 5: opportunities, proposals, document files
-│   └── daily_update.py          ← ⬜ Daily: fresh check-ins, bookings, visitors, deliveries
+│   ├── 05_community.py          ← ✅ Layer 4b: deliveries, events, help desk, threads, blogs, tasks
+│   ├── 06_financial.py          ← ✅ Layer 5: invoice triggering (live-discovered, no data file), payments, ledger
+│   ├── 07_crm_proposals.py      ← ✅ Layer 5: opportunities, proposals, document files
+│   └── daily_update.py          ← ✅ Daily: fresh check-ins, bookings, visitors, deliveries (self-contained, no prev_output chain)
+├── teardown.py                  ← ✅ Deletes every tracked record, reverse dependency order,
+│                                   skips entities with no delete support in the API
 ├── scripts/
 │   ├── seed_all.sh              ← Run all layer generators in order
 │   ├── seed_layer.sh <N>        ← Run one specific layer
 │   ├── daily.sh                 ← Run daily_update.py (for cron/manual use)
-│   ├── teardown.sh              ← Stub — delete loops over data/created-ids/*.json still TODO
-│   └── verify.sh                ← Count records per entity, validate targets
+│   ├── teardown.sh              ← Confirmation prompt + `python teardown.py --dry-run` preview;
+│   │                               live deletion needs an agent (bash can't call MCP tools)
+│   └── verify.sh                ← Counts tracked records per Nexudus entity against config.py targets
 └── reference/
     ├── entity-dependencies.md   ← Dependency graph (copy of §3)
     ├── field-enums.md           ← Enum values, validated against live Nexudus schemas
@@ -679,16 +709,18 @@ What's worth keeping in this doc instead is the set of non-obvious Nexudus API b
 | **Phase 3** | Layer 2: Coworkers (60, with engagement fields) + Visitors (60) | Phase 2 | ✅ Done (`02_people.py`) |
 | **Phase 4** | Layer 3: Contracts (with ContractTerm), deposits, freezes, inventory assignments, occupancy | Phase 3 | ✅ Done (`03_contracts.py`) |
 | **Phase 5** | Layer 4a: Bookings (recurring + products + guests) + cancellations, check-ins, credits, passes | Phase 4 | ✅ Done (`04_activity.py`) |
-| **Phase 6** | Layer 4b: Deliveries, events + attendees, help desk, community, blogs, tasks | Phase 4 | ⬜ Not started (`05_community.py`) |
-| **Phase 7** | Layer 5: Invoice generation + payments, CRM opportunities, proposals | Phase 5 | ⬜ Not started (`06_financial.py`, `07_crm_proposals.py`) |
-| **Phase 8** | Daily update script + verification + teardown scripts | Phase 7 | ⬜ Not started (`daily_update.py`, `verify.sh`/`teardown.sh` are stubs) |
-| **Phase 9** | Run against test instance, validate all report widgets populate | Phase 8 | ⬜ Not started — nothing has been pushed live yet; every layer above is dry-run verified only |
+| **Phase 6** | Layer 4b: Deliveries, events + attendees, help desk, community, blogs, tasks | Phase 4 | ✅ Done (`05_community.py`) |
+| **Phase 7** | Layer 5: Invoice generation + payments, CRM opportunities, proposals | Phase 5 | ✅ Done (`06_financial.py`, `07_crm_proposals.py`) — void/credit-note skipped, no API path found |
+| **Phase 8** | Daily update script + verification + teardown scripts | Phase 7 | ✅ Done (`daily_update.py`, `teardown.py`, `verify.sh`) |
+| **Phase 9** | Run against test instance, validate all report widgets populate | Phase 8 | ⬜ Not started — nothing has been pushed live yet; every phase above is dry-run verified only |
 
 **Notable deviations from the original plan, by phase:**
 - **Phase 1:** `prebuild.py` added as a step that didn't exist in the original design — see §1 and §6.
 - **Phase 2:** added a Printing Credit `ExtraService` (§4e needed it, wasn't in the original Layer 1 list).
 - **Phase 4:** contract count landed at 79 from the scenario math in §4a alone; padded to 90 (matching the original target) with a few extra contracts layered onto existing scenarios — see §4a note below. `ContractSchedule` turned out to be an inline child of `CoworkerContract`, not a separate create step.
 - **Phase 5:** `CoworkerBookingCredit` and `CoworkerBookingCreditUseHistory` were originally planned for Layer 5 (§3) but have no invoice dependency, so they were built here instead, alongside the other credit/pass entities.
+- **Phase 6:** `EventProduct` (a ticket type) turned out to be a required prerequisite for `EventAttendee`, not the optional add-on the original plan treated it as; `CommunityThread`/`CommunityMessage` need a `UserId` distinct from `CoworkerId` that seeded coworkers don't have, so the admin user is used there — see §4t.
+- **Phase 7:** `06_financial.py` has no `data/*.json` file — invoice IDs/amounts are server-determined and discovered live, not pre-planned. Void and credit-note invoice states are not implemented (no supported API path — see §4c). CRM opportunity count landed at 30 by scaling down §4l's 35 proportionally.
 - **No name-prefix test markers** (all phases): `[TEST]` prefixes were removed from all generated data so records look like real data; see §1 and §6.
 
 ---
@@ -706,18 +738,21 @@ These are additional considerations surfaced during analysis. Status now disting
 | **ContractTerm (minimum term)** | ✅ Built | 27 of 90 contracts. §4p. |
 | **Contract Value field** | ✅ Built | Benchmark ≠ Price on 20 contracts. §4p. |
 | **Engagement / Churn fields** | ✅ Built (⚠️ still unvalidated) | ChurnProbability + EngagementLevel are set in `02_people.py`'s request body, but never confirmed against a live `nexudus_describe_entity("coworkers")` response — could silently no-op if the fields don't exist. §4o. |
-| **Deliveries** | 📋 Planned | Layer 4b, `05_community.py`. §4q. |
-| **Events** | 📋 Planned | Layer 4b, `05_community.py`. §4r. |
-| **Help Desk** | 📋 Planned | Layer 4b, `05_community.py`. §4s. |
-| **Blog / Articles** | 📋 Planned | Layer 4b, `05_community.py`. §4u. |
-| **Community / Message Board** | 📋 Planned | Layer 4b, `05_community.py`. §4t. |
-| **Tasks** | 📋 Planned | Layer 4b, `05_community.py`. §4v. |
-| **Daily update script** | 📋 Planned | `daily_update.py` not started. §5. |
-| **Invoice line source diversity** | 📋 Planned | Layer 5, `06_financial.py` not started. |
+| **Deliveries** | ✅ Built | 40 records, all 5 types, mixed collection outcomes. §4q. |
+| **Events** | ✅ Built | 20 CalendarEvents + 20 EventProducts (ticket types, required) + ~60 EventAttendees. §4r. |
+| **Event products (ticketing)** | ✅ Built | One `EventProduct` per event — turned out to be a *required* FK on `EventAttendee`, not an optional add-on as originally framed. |
+| **Help Desk** | ✅ Built | 25 tickets, 3 priorities, 3 departments. §4s. |
+| **Blog / Articles** | ✅ Built | 10 published articles, spread over 12 months. §4u. |
+| **Community / Message Board** | ✅ Built (⚠️ UserId workaround) | 15 threads + ~40 messages across 3 groups. `CommunityThread`/`CommunityMessage` require `UserId`, distinct from `CoworkerId` — seeded coworkers have none (`Coworker.UserId` is `updateOnly`), so the admin user's ID is used throughout, with `CoworkerId` set alongside for attribution. §4t. |
+| **Tasks** | ✅ Built | 20 tasks, 10 completed / 5 overdue / 5 upcoming. §4v. |
+| **Daily update script** | ✅ Built | `daily_update.py` — self-contained (resolves its own live context, no `prev_output` chain), date-seeded RNG for reproducible reruns. §5. |
+| **CRM opportunities & proposals** | ✅ Built | 30 opportunities across the pipeline + 15 proposals (5 accepted, tied to Won opportunities). §4l, §4f. |
+| **Invoice generation & payment** | ✅ Built (⚠️ partial) | Invoices raised via `nexudus_run_command("coworkers", "COWORKER_BILL_RUN", ...)` — not a command on `coworkercontracts`/`coworkerinvoices`, neither of which supports commands. ~60% of raised invoices marked paid via `CoworkerLedgerEntry`. **Void and credit-note are NOT implemented** — no supported API path was found (`Void`/`CreditNote`/`Paid`/`PaidAmount` are all read-only on `coworkerinvoices`, which has no create/delete/commands). The original ~15-invoice void/credit target is skipped, not approximated. |
+| **Invoice line source diversity** | ❌ Not achievable | Depended on manually varying invoice line sources, but invoices can't be created directly at all — they're 100% system-generated from the billing command. Nothing to vary. |
+| **Teardown** | ✅ Built | `teardown.py` — deletes by tracked ID in reverse dependency order, skips entities with no delete support (`cancelledbookings`, `coworkerbookingcreditusehistories`, `coworkerinvoices`), keeps failed/skipped records in the tracking file for retry. |
 | **Multiple locations** | ❌ Not applicable | The connected Nexudus MCP account (business "Explore 2.0", id 1421021016) has exactly **one** business — there's nothing to distribute across. `business_id` is used as a single scalar everywhere in the generators. Revisit if a multi-location instance is ever targeted. |
 | **Resource availability** | Not yet addressed | Original idea: set `Available=false` on 2 resources for maintenance. Not implemented in `01_structural.py` yet. |
 | **Floor plan desk variants** | Low priority | May need `FloorPlanDeskVariant` if reports use them. |
-| **Event products (ticketing)** | To add | Need `EventProduct` records (ticket types) before `EventAttendee`. |
 | **CoworkerDiscountCode** | Not needed | Discount is applied at Proposal or Booking level, not separately assigned. |
 
 ---
@@ -726,11 +761,11 @@ These are additional considerations surfaced during analysis. Status now disting
 
 | # | Question | Answer |
 |---|----------|--------|
-| 1 | Variance for item sales sources / opportunities / check-in sources? | **Yes, all covered.** Invoice lines have all 4 source types. Opportunities have 5 lead sources. Check-ins have 3 source types. See §4g, §4l, §4m. |
+| 1 | Variance for item sales sources / opportunities / check-in sources? | **Partial.** Opportunities have 5 lead sources; check-ins have 3 source types — both built. Invoice line source diversity is **not achievable**: invoices can't be created directly at all, only raised 100% system-generated via a billing command, so there's no line-source field to vary. See §4g, §4l, §4m, §9. |
 | 2 | Are deposits considered? | **Yes.** 10 ContractDeposits (mix refundable/non-refundable). Linked to deposit Products with FinancialAccount. §4k. |
 | 3 | Discounts and discount codes? | **Yes.** 6 discount codes covering percentage/fixed, plan/booking/product scope. Applied via Proposals and Booking.DiscountCode. §4i. |
-| 4 | Cancelled bookings workflow? | **Correct — create then delete.** 40 bookings created specifically to be deleted. System generates CancelledBooking snapshots. §4j. |
+| 4 | Cancelled bookings workflow? | **Correct — create then delete.** 40 bookings created specifically to be deleted. System is asserted to generate a CancelledBooking snapshot on delete, though this isn't explicitly confirmed in the `bookings` entity guide text — worth a spot-check on first live run. §4j. |
 | 5 | Floor plan desk fields? | **Area, Capacity, Size, and Price (target) all included.** See §4d. |
 | 6 | Plan target prices? | **Yes.** Tariffs have Price set as the target. Contracts can override. MinimumPrice on some plans. §4b. |
-| 7 | Proposals for opportunities? | **Yes.** Won opportunities get Proposals created → accepted (status=3) → auto-creates contracts. §4f. |
+| 7 | Proposals for opportunities? | **Built as designed, one link unconfirmed.** Won opportunities get Proposals created → accepted (status=3) → *should* auto-create a CoworkerContract, per the entity guide's statement that a `ProposalContract` "becomes" a `CoworkerContract` on acceptance — this is inferred, not an explicitly documented trigger. Everything up to and including the status update is built and dry-run verified; the resulting contract creation itself can only be confirmed on a live run. §4f. |
 | 8 | Financial accounts + tax rates? | **Yes.** 8 financial accounts (UK accounting chart), 3 UK tax rates. All assigned to Products, ExtraServices, Tariffs at creation time. §4h. |

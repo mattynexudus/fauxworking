@@ -1140,6 +1140,143 @@ def generate_coworker_tasks(rng, coworkers):
     return out
 
 
+# ---------------------------------------------------------------------------
+# Layer 5 — CRM & Proposals (shared with generators/07_crm_proposals.py)
+# ---------------------------------------------------------------------------
+
+# (stage, count) — sums to 30, scaled down from §4l's 35 to hit the §2 target
+CRM_STAGE_PLAN = [
+    ("Lead", 6), ("Qualified", 5), ("Proposal Sent", 4),
+    ("Negotiation", 4), ("Won", 5), ("Lost", 6),
+]
+# CrmBoardColumn full_key = "<board short name>/<column name>", matching
+# generators/01_structural.py's CRM_BOARD_COLUMNS
+CRM_STAGE_COLUMN_KEY = {
+    "Lead": "New Business/Lead",
+    "Qualified": "New Business/Qualified",
+    "Proposal Sent": "New Business/Proposal Sent",
+    "Negotiation": "Expansion/Negotiation",
+    "Won": "New Business/Won",
+    "Lost": "New Business/Lost",
+}
+CRM_STAGE_AVG_VALUE = {
+    "Lead": 800, "Qualified": 1200, "Proposal Sent": 1500,
+    "Negotiation": 2000, "Won": 1800, "Lost": 1000,
+}
+# eCrmOpportunitySource: Web=1, Phone=2, Referral=5, Broker=11, GoogleSearch=19
+CRM_LEAD_SOURCES = [1, 2, 5, 11, 19]
+CRM_STAGE_ORDER = ["Lead", "Qualified", "Proposal Sent", "Negotiation", "Won"]
+
+# (ProposalStatus enum, count) — Draft=1, Sent=2, Accepted=3, Rejected=4
+PROPOSAL_STATUS_PLAN = [(1, 3), (2, 4), (3, 5), (4, 3)]
+
+
+def generate_crm_opportunities(rng, coworkers):
+    """30 CrmOpportunities across the pipeline — §4l."""
+    out = []
+    idx = 0
+    for stage, count in CRM_STAGE_PLAN:
+        for _ in range(count):
+            idx += 1
+            base_value = CRM_STAGE_AVG_VALUE[stage]
+            out.append({
+                "index": idx,
+                "CoworkerIndex": rng.choice(coworkers)["index"],
+                "Stage": stage,
+                "Value": round(base_value * rng.uniform(0.8, 1.2), 2),
+                "LeadSource": rng.choice(CRM_LEAD_SOURCES),
+                "Position": idx,
+                "DueDayOffset": (rng.randint(5, 60) if stage not in ("Won", "Lost")
+                                  else -rng.randint(1, 30)),
+                "CreatedDayOffset": -rng.randint(10, 120),
+            })
+    return out
+
+
+def generate_crm_opportunity_history(rng, opportunities):
+    """2-5 CrmOpportunityHistory rows per opportunity, tracing its stage path — §4l."""
+    out = []
+    idx = 0
+    for opp in opportunities:
+        stage = opp["Stage"]
+        if stage == "Lost":
+            path = CRM_STAGE_ORDER[:rng.randint(1, 3)] + ["Lost"]
+        elif stage == "Won":
+            path = CRM_STAGE_ORDER[:]
+        else:
+            path = CRM_STAGE_ORDER[:CRM_STAGE_ORDER.index(stage) + 1]
+
+        prev = None
+        n_days_ago = abs(opp["CreatedDayOffset"])
+        steps = len(path)
+        for i, stg in enumerate(path):
+            idx += 1
+            out.append({
+                "index": idx,
+                "OpportunityIndex": opp["index"],
+                "OldStage": prev,
+                "NewStage": stg,
+                "DayOffset": -int(n_days_ago * (1 - i / max(steps, 1))),
+            })
+            prev = stg
+    return out
+
+
+def generate_proposals(rng, opportunities, coworkers):
+    """15 Proposals — §4f. Accepted ones are tied to a Won opportunity."""
+    won_pool = [o for o in opportunities if o["Stage"] == "Won"]
+    rng.shuffle(won_pool)
+
+    out = []
+    idx = 0
+    won_i = 0
+    for status, count in PROPOSAL_STATUS_PLAN:
+        for _ in range(count):
+            idx += 1
+            if status == 3 and won_i < len(won_pool):
+                opp = won_pool[won_i]
+                won_i += 1
+                cw_idx, opp_idx = opp["CoworkerIndex"], opp["index"]
+            else:
+                cw_idx, opp_idx = rng.choice(coworkers)["index"], None
+
+            tariff_name, tariff_price, _cat = rng.choice(TARIFFS_INFO)
+            out.append({
+                "index": idx,
+                "CoworkerIndex": cw_idx,
+                "OpportunityIndex": opp_idx,
+                "Reference": f"PROP-{idx:03d}",
+                "ProposalStatus": status,
+                "TariffName": f"{TEST_NAME_PREFIX}{tariff_name}",
+                "Price": round(tariff_price * rng.uniform(0.9, 1.0), 2),
+                "StartDayOffset": rng.randint(5, 60),
+                "BillingDay": rng.randint(1, 28),
+                "Quantity": 1,
+                "UseDiscountCode": status == 3 and rng.random() < 0.4,
+            })
+    return out
+
+
+def generate_coworker_data_files(rng, proposals):
+    """10 CoworkerDataFiles (placeholder documents) — §2, prefers Accepted proposals."""
+    accepted = [p for p in proposals if p["ProposalStatus"] == 3]
+    rest = [p for p in proposals if p["ProposalStatus"] != 3]
+    pool = accepted + rest
+    chosen = pool[:10]
+
+    out = []
+    for i, p in enumerate(chosen, start=1):
+        signed = p["ProposalStatus"] == 3 and rng.random() < 0.7
+        out.append({
+            "index": i,
+            "CoworkerIndex": p["CoworkerIndex"],
+            "ProposalIndex": p["index"],
+            "Name": f"Membership Agreement - {p['Reference']}",
+            "RequestSignature": signed,
+        })
+    return out
+
+
 def write_json(path, data):
     """Write data to JSON file with consistent formatting."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -1204,6 +1341,15 @@ def main():
 
     write_json(DATA_DIR / "blog_posts.json", generate_blog_posts(rng))
     write_json(DATA_DIR / "coworker_tasks.json", generate_coworker_tasks(rng, coworkers))
+
+    crm_opportunities = generate_crm_opportunities(rng, coworkers)
+    write_json(DATA_DIR / "crm_opportunities.json", crm_opportunities)
+    write_json(DATA_DIR / "crm_opportunity_history.json",
+               generate_crm_opportunity_history(rng, crm_opportunities))
+
+    proposals = generate_proposals(rng, crm_opportunities, coworkers)
+    write_json(DATA_DIR / "proposals.json", proposals)
+    write_json(DATA_DIR / "coworker_data_files.json", generate_coworker_data_files(rng, proposals))
 
     print("Done.")
 
