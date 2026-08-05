@@ -99,18 +99,28 @@ TIME_PASSES = [
 ]
 
 # Plan benefits — day passes + time/printing credit allowances included per
-# billing cycle. eTimeSpanWeekMonth renewal: Week=1, TariffMonth=3.
-# Flex plans (part-time) get a smaller time-credit-only benefit, no day
-# passes or printing — matches their lighter usage pattern.
+# billing cycle. eTimeSpanWeekMonth: Week=1, TariffMonth=3.
+#
+# Time/printing credit always renews monthly (TariffMonth) regardless of the
+# plan's own billing cadence — these are usage allowances, not access itself.
+# Day passes renew weekly and scale to how much building access the plan
+# actually implies: Private Office is effectively 24/7 access (7/week, i.e.
+# every day), Dedicated Desk is near-daily but not quite as unrestricted
+# (6/week), Hot Desk is weekday-oriented hot-desking (5/week). Quarterly/
+# Annual variants match their monthly counterpart's SystemTariffType (same
+# access level, just billed less often). Flex (part-time) plans get no day
+# passes — they're not meant for regular building access — just a modest
+# time-credit allowance.
+CREDIT_RENEWAL = 3  # TariffMonth — applies to time/printing credit on every plan
 TARIFF_BENEFITS = {
-    "Hot Desk Monthly":       {"day_passes": 2, "time_credit_minutes": 120, "printing_pages": 100, "renewal": 3},
-    "Dedicated Desk Monthly": {"day_passes": 2, "time_credit_minutes": 180, "printing_pages": 150, "renewal": 3},
-    "Private Office Small":   {"day_passes": 3, "time_credit_minutes": 240, "printing_pages": 200, "renewal": 3},
-    "Private Office Large":   {"day_passes": 4, "time_credit_minutes": 300, "printing_pages": 300, "renewal": 3},
-    "Hot Desk Quarterly":     {"day_passes": 2, "time_credit_minutes": 120, "printing_pages": 100, "renewal": 3},
-    "Private Office Annual":  {"day_passes": 4, "time_credit_minutes": 300, "printing_pages": 300, "renewal": 3},
-    "Flex Weekly":            {"time_credit_minutes": 60, "renewal": 1},
-    "Flex Fortnightly":       {"time_credit_minutes": 90, "renewal": 1},
+    "Hot Desk Monthly":       {"day_passes": 5, "time_credit_minutes": 120, "printing_pages": 100},
+    "Dedicated Desk Monthly": {"day_passes": 6, "time_credit_minutes": 180, "printing_pages": 150},
+    "Private Office Small":   {"day_passes": 7, "time_credit_minutes": 240, "printing_pages": 200},
+    "Private Office Large":   {"day_passes": 7, "time_credit_minutes": 300, "printing_pages": 300},
+    "Hot Desk Quarterly":     {"day_passes": 5, "time_credit_minutes": 120, "printing_pages": 100},
+    "Private Office Annual":  {"day_passes": 7, "time_credit_minutes": 300, "printing_pages": 300},
+    "Flex Weekly":            {"time_credit_minutes": 60},
+    "Flex Fortnightly":       {"time_credit_minutes": 90},
 }
 
 # Resources — 20 total across types
@@ -578,18 +588,17 @@ class StructuralGenerator(BaseGenerator):
             tariff_id = self.tariff_ids.get(tariff_name)
             if tariff_id is None:
                 continue
-            renewal = benefits["renewal"]
 
             if benefits.get("day_passes") and day_pass_id is not None:
                 self._create_tariff_time_pass(tariff_id, tariff_name, day_pass_id,
-                                              benefits["day_passes"], renewal, nexudus_list, nexudus_create)
+                                              benefits["day_passes"], 1, nexudus_list, nexudus_create)
             if benefits.get("time_credit_minutes") and time_credit_id is not None:
                 self._create_tariff_extra_service(tariff_id, tariff_name, time_credit_id, "Time Credit",
-                                                  benefits["time_credit_minutes"], renewal,
+                                                  benefits["time_credit_minutes"], CREDIT_RENEWAL,
                                                   nexudus_list, nexudus_create)
             if benefits.get("printing_pages") and printing_credit_id is not None:
                 self._create_tariff_extra_service(tariff_id, tariff_name, printing_credit_id, "Printing Credit",
-                                                  benefits["printing_pages"], renewal,
+                                                  benefits["printing_pages"], CREDIT_RENEWAL,
                                                   nexudus_list, nexudus_create)
 
     def _create_tariff_time_pass(self, tariff_id, tariff_name, time_pass_id, passes_included,
