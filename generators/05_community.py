@@ -124,6 +124,11 @@ class CommunityGenerator(BaseGenerator):
             if self.already_created("DeliveryIndex", track_key):
                 continue
 
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping delivery #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
+                continue
+
             body = {
                 "BusinessId": biz,
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
@@ -264,6 +269,10 @@ class CommunityGenerator(BaseGenerator):
                 continue
 
             if defn["CoworkerIndex"] is not None:
+                if defn["CoworkerIndex"] not in coworker_ids:
+                    self.log.warning("Skipping attendee #%d — coworker #%d was never created (seat limit?)",
+                                      defn["index"], defn["CoworkerIndex"])
+                    continue
                 cw = coworker_defs_by_index[defn["CoworkerIndex"]]
                 full_name, email = cw["FullName"], cw["Email"]
             else:
@@ -299,6 +308,11 @@ class CommunityGenerator(BaseGenerator):
         for defn in self.helpdesk_defs:
             track_key = str(defn["index"])
             if self.already_created("HelpDeskIndex", track_key):
+                continue
+
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping help desk message #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
                 continue
 
             body = {
@@ -337,6 +351,11 @@ class CommunityGenerator(BaseGenerator):
                 self.thread_ids[idx] = existing["Id"]
                 continue
 
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping thread #%d — coworker #%d was never created (seat limit?)",
+                                  idx, defn["CoworkerIndex"])
+                continue
+
             body = {
                 "BusinessId": biz,
                 "UserId": admin_id,
@@ -371,6 +390,11 @@ class CommunityGenerator(BaseGenerator):
 
             thread_id = self.thread_ids.get(defn["ThreadIndex"])
             if thread_id is None:
+                continue
+
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping community message #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
                 continue
 
             body = {
@@ -430,6 +454,11 @@ class CommunityGenerator(BaseGenerator):
         for defn in self.task_defs:
             track_key = str(defn["index"])
             if self.already_created("TaskIndex", track_key):
+                continue
+
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping task #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
                 continue
 
             body = {

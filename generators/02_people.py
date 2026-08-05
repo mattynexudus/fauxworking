@@ -76,8 +76,14 @@ class PeopleGenerator(BaseGenerator):
     def _create_coworkers(self, biz, country, tz, team_ids, nexudus_list, nexudus_create):
         self.log.info("--- Coworkers (%d) ---", len(self.coworker_defs))
 
-        existing = nexudus_list("coworkers", {"Coworker_Email": f"@{TEST_EMAIL_DOMAIN}"})
-        existing_by_email = {r.get("Email", ""): r["Id"] for r in existing}
+        # Coworker_Email is an exact-match filter, not a substring/contains —
+        # filtering by "@{domain}" always returns zero results. List every
+        # coworker and filter client-side by domain instead.
+        existing = nexudus_list("coworkers", {})
+        existing_by_email = {
+            r.get("Email", ""): r["Id"] for r in existing
+            if r.get("Email", "").endswith(f"@{TEST_EMAIL_DOMAIN}")
+        }
 
         for defn in self.coworker_defs:
             email = defn["Email"]
@@ -114,16 +120,26 @@ class PeopleGenerator(BaseGenerator):
                 body["Teams"] = [team_ids[defn["Team"]]]
 
             # ChurnProbability/EngagementLevel are readOnly on Coworker (confirmed
-            # via schema) — server-computed, not writable. Sending them causes a
-            # 400 "Access Denied" rather than a validation error. Data still exists
-            # per-coworker in coworkers.json (harmless, just unused here) in case
-            # a future report wants to reference the intended synthetic value.
+            # via schema) — server-computed, not writable — so they're deliberately
+            # left out of this body. Data still exists per-coworker in
+            # coworkers.json (harmless, just unused here) in case a future report
+            # wants to reference the intended synthetic value.
 
             if self.dry_run:
                 self.log_would_create("coworkers", body)
                 self.coworker_ids[idx] = f"DRY-CW-{idx}"
             else:
-                result = nexudus_create("coworkers", body)
+                try:
+                    result = nexudus_create("coworkers", body)
+                except Exception as e:  # noqa: BLE001
+                    if "Access Denied" in str(e):
+                        self.log.warning(
+                            "Coworker creation stopped at #%d — account appears to "
+                            "have hit a coworker/seat limit (%d created this run). "
+                            "Later layers will skip records tied to missing coworkers.",
+                            idx, len(self.coworker_ids))
+                        break
+                    raise
                 self.coworker_ids[idx] = result["Id"]
                 self.track_id({
                     "entity": "coworkers", "Id": result["Id"],

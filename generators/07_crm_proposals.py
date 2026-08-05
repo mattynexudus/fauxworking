@@ -91,7 +91,7 @@ class CrmProposalsGenerator(BaseGenerator):
 
         self._create_opportunities(coworker_ids, crm_board_column_ids, nexudus_create)
         self._create_opportunity_history(crm_board_column_ids, nexudus_create)
-        self._create_proposals(admin_id, coworker_ids, tariff_ids, discount_code_ids,
+        self._create_proposals(biz, admin_id, coworker_ids, tariff_ids, discount_code_ids,
                                 nexudus_create, nexudus_update)
         self._create_data_files(biz, coworker_ids, nexudus_create)
 
@@ -122,6 +122,11 @@ class CrmProposalsGenerator(BaseGenerator):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "crmopportunities" and r.get("OpportunityIndex") == track_key)
                 self.opportunity_ids[idx] = existing["Id"]
+                continue
+
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping opportunity #%d — coworker #%d was never created (seat limit?)",
+                                  idx, defn["CoworkerIndex"])
                 continue
 
             stage = defn["Stage"]
@@ -188,7 +193,7 @@ class CrmProposalsGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     # Proposal — create at Draft, then update to target status
     # ------------------------------------------------------------------
-    def _create_proposals(self, admin_id, coworker_ids, tariff_ids, discount_code_ids,
+    def _create_proposals(self, biz, admin_id, coworker_ids, tariff_ids, discount_code_ids,
                            nexudus_create, nexudus_update):
         self.log.info("--- Proposals (%d) ---", len(self.proposal_defs))
 
@@ -202,8 +207,15 @@ class CrmProposalsGenerator(BaseGenerator):
                 self.proposal_guids[idx] = existing.get("UniqueId")
                 continue
 
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping proposal #%d — coworker #%d was never created (seat limit?)",
+                                  idx, defn["CoworkerIndex"])
+                continue
+
             body = {
-                "IssuedById": admin_id,
+                # IssuedById is the Business ID, not a User ID — see the same
+                # fix/comment in 03_contracts.py._create_contracts.
+                "IssuedById": biz,
                 "ResponsibleId": admin_id,
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
                 "Reference": defn["Reference"],
@@ -248,6 +260,11 @@ class CrmProposalsGenerator(BaseGenerator):
         for defn in self.data_file_defs:
             track_key = str(defn["index"])
             if self.already_created("DataFileIndex", track_key):
+                continue
+
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping data file #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
                 continue
 
             proposal_guid = self.proposal_guids.get(defn["ProposalIndex"])

@@ -66,14 +66,13 @@ class ContractsGenerator(BaseGenerator):
 
     def run(self, nexudus_list, nexudus_create, nexudus_update, prev_output):
         biz = prev_output["business_id"]
-        admin_id = prev_output["admin_user_id"]
         coworker_ids = prev_output["coworker_ids"]
         tariff_ids = prev_output["tariff_ids"]
         product_ids = prev_output["product_ids"]
         inventory_asset_ids = prev_output["inventory_asset_ids"]
         floor_plan_desk_ids = prev_output["floor_plan_desk_ids"]
 
-        self._create_contracts(biz, admin_id, coworker_ids, tariff_ids, nexudus_create)
+        self._create_contracts(biz, coworker_ids, tariff_ids, nexudus_create)
         self._create_contract_products(product_ids, nexudus_create)
         self._create_contract_paused_periods(nexudus_create)
         self._create_contract_deposits(product_ids, nexudus_create)
@@ -104,7 +103,7 @@ class ContractsGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     # CoworkerContract (+ inline ContractSchedules)
     # ------------------------------------------------------------------
-    def _create_contracts(self, biz, admin_id, coworker_ids, tariff_ids, nexudus_create):
+    def _create_contracts(self, biz, coworker_ids, tariff_ids, nexudus_create):
         self.log.info("--- Coworker Contracts (%d) ---", len(self.contract_defs))
 
         for defn in self.contract_defs:
@@ -117,9 +116,17 @@ class ContractsGenerator(BaseGenerator):
                 self.log.info("Contract #%d already tracked (id=%s)", idx, existing["Id"])
                 continue
 
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping contract #%d — coworker #%d was never created (seat limit?)",
+                                  idx, defn["CoworkerIndex"])
+                continue
+
             start_date = self._from_day_offset(defn["StartDayOffset"])
             body = {
-                "IssuedById": admin_id,
+                # IssuedById is the Business ID, not a User ID — confirmed via
+                # a live UI-created contract's IssuedByName resolving to the
+                # business name, not the admin user's.
+                "IssuedById": biz,
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
                 "TariffId": tariff_ids[defn["TariffName"]],
                 "BillingDay": defn["BillingDay"],
@@ -284,6 +291,11 @@ class ContractsGenerator(BaseGenerator):
                 self.log.info("Inventory assignment #%d already tracked", defn["index"])
                 continue
 
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping inventory assignment #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
+                continue
+
             body = {
                 "BusinessId": biz,
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
@@ -314,6 +326,11 @@ class ContractsGenerator(BaseGenerator):
             track_key = str(defn["index"])
             if self.already_created("DeskAssignmentIndex", track_key):
                 self.log.info("Desk assignment #%d already tracked", defn["index"])
+                continue
+
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping desk assignment #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
                 continue
 
             desk_id = floor_plan_desk_ids[defn["DeskName"]]

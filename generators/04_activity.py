@@ -111,6 +111,11 @@ class ActivityGenerator(BaseGenerator):
                 self.booking_ids[idx] = existing["Id"]
                 continue
 
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping booking #%d — coworker #%d was never created (seat limit?)",
+                                  idx, defn["CoworkerIndex"])
+                continue
+
             from_time = self._at(defn["StartDayOffset"], hour=defn["FromHour"])
             to_time = to_utc_str(
                 datetime.fromisoformat(from_time.replace("Z", "+00:00"))
@@ -174,6 +179,11 @@ class ActivityGenerator(BaseGenerator):
                 if self.already_created("GuestKey", track_key):
                     continue
 
+                if visitor_idx not in visitor_ids:
+                    self.log.warning("Skipping booking guest #%s — visitor #%s was never created",
+                                      track_key, visitor_idx)
+                    continue
+
                 body = {"BookingId": booking_id, "VisitorId": visitor_ids[visitor_idx]}
 
                 if self.dry_run:
@@ -226,6 +236,11 @@ class ActivityGenerator(BaseGenerator):
             if self.already_created("CheckinIndex", track_key):
                 continue
 
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping check-in #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
+                continue
+
             from_time = self._at(defn["FromDayOffset"], hour=defn["FromHour"], minute=defn["FromMinute"])
             body = {
                 "BusinessId": biz,
@@ -254,6 +269,11 @@ class ActivityGenerator(BaseGenerator):
         for defn in self.extra_service_defs:
             track_key = str(defn["index"])
             if self.already_created("ExtraServiceIndex", track_key):
+                continue
+
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping extra service #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
                 continue
 
             body = {
@@ -297,6 +317,11 @@ class ActivityGenerator(BaseGenerator):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "coworkerbookingcredits" and r.get("CreditIndex") == track_key)
                 self.credit_ids[idx] = existing["Id"]
+                continue
+
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping booking credit #%d — coworker #%d was never created (seat limit?)",
+                                  idx, defn["CoworkerIndex"])
                 continue
 
             body = {
@@ -364,6 +389,11 @@ class ActivityGenerator(BaseGenerator):
             if self.already_created("TimePassIndex", track_key):
                 continue
 
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping time pass #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
+                continue
+
             body = {
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
                 "BusinessId": biz,
@@ -401,6 +431,11 @@ class ActivityGenerator(BaseGenerator):
         for defn in self.coworker_product_defs:
             track_key = str(defn["index"])
             if self.already_created("CoworkerProductIndex", track_key):
+                continue
+
+            if defn["CoworkerIndex"] not in coworker_ids:
+                self.log.warning("Skipping coworker product #%d — coworker #%d was never created (seat limit?)",
+                                  defn["index"], defn["CoworkerIndex"])
                 continue
 
             body = {

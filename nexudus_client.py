@@ -20,7 +20,7 @@ Every entity lives under a fixed module prefix — `https://spaces.nexudus.com
 /api/<module>/<entity>` — captured in ENTITY_MODULES below (sourced from the
 Nexudus platform's own entity catalog, not guessed).
 
-- GET    {url}            list (filters + PageNumber/PageSize as query params)
+- GET    {url}            list (filters + page/size as query params)
 - GET    {url}/{id}        get one
 - POST   {url}             create; body = fields (PascalCase, matches the
                             schemas already used throughout this codebase)
@@ -135,19 +135,32 @@ def _unwrap(entity, action, resp):
 
 
 def nexudus_list(entity, filters=None):
-    """GET — returns every matching record, auto-paginating up to MAX_PAGES."""
+    """GET — returns every matching record, auto-paginating up to MAX_PAGES.
+
+    Pagination query params are "page" and "size", NOT "PageNumber"/
+    "PageSize" — confirmed live that the latter are silently ignored
+    (unrecognized params), so every request fell back to the API's
+    defaults (page 1, size 25) regardless of what was sent. That made
+    every previous version of this function under-fetch (silently
+    truncated at 25 records) or, combined with a since-fixed
+    HasNextPage-trusting loop, over-fetch by re-reading page 1 forever.
+    Confirmed via https://learn.nexudus.com/rest-api/spaces/get-coworkers.md.
+    Paginates on TotalPages/CurrentPage, which behave correctly with the
+    right param names.
+    """
     params = dict(filters or {})
-    params.setdefault("PageSize", 100)
+    params.setdefault("size", 100)
     records = []
     page = 1
     while page <= MAX_PAGES:
-        params["PageNumber"] = page
+        params["page"] = page
         resp = _request("GET", _url(entity), headers=_headers(), params=params)
         if not resp.ok:
             raise NexudusApiError(entity, "list", resp)
         body = resp.json()
         records.extend(body.get("Records", []))
-        if not body.get("HasNextPage"):
+        total_pages = body.get("TotalPages", 1)
+        if page >= total_pages:
             break
         page += 1
     return records

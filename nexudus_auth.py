@@ -67,7 +67,7 @@ def _check_admin_access(access_token, email):
     resp = requests.get(
         f"{base_url()}/api/spaces/users",
         headers={"Authorization": f"Bearer {access_token}"},
-        params={"User_Email": email, "PageSize": 1},
+        params={"User_Email": email, "size": 1},
         timeout=30,
     )
     resp.raise_for_status()

@@ -253,8 +253,14 @@ def resolve_context(nexudus_list):
     businesses = nexudus_list("businesses", {})
     business_id = businesses[0]["Id"] if businesses else None
 
-    all_coworkers = nexudus_list("coworkers", {"Coworker_Email": f"@{TEST_EMAIL_DOMAIN}"})
-    active_coworkers = [{"Id": c["Id"], "Email": c.get("Email")} for c in all_coworkers]
+    # Coworker_Email is an exact-match filter, not a substring/contains —
+    # filtering by "@{domain}" always returns zero results. List every
+    # coworker and filter client-side by domain instead.
+    all_coworkers = nexudus_list("coworkers", {})
+    active_coworkers = [
+        {"Id": c["Id"], "Email": c.get("Email")} for c in all_coworkers
+        if c.get("Email", "").endswith(f"@{TEST_EMAIL_DOMAIN}")
+    ]
 
     resources = nexudus_list("resources", {"Resource_Business": business_id})
     resource_ids = {r["Name"]: r["Id"] for r in resources}
