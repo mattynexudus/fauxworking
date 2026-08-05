@@ -187,5 +187,5 @@ if __name__ == "__main__":
     if args.dry_run:
         run_teardown(nexudus_delete=None, dry_run=True)
     else:
-        print("Live mode requires MCP context. Run via agent or use --dry-run.")
-        sys.exit(1)
+        import nexudus_client as client
+        run_teardown(nexudus_delete=client.nexudus_delete, dry_run=False)

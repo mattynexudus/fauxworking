@@ -1,2 +1,4 @@
 faker
 python-dateutil
+requests
+python-dotenv

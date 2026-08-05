@@ -2,5 +2,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+if [[ ! -f .env ]]; then
+  echo "No .env found. Run 'python nexudus_auth.py setup' first (one-time login)."
+  exit 1
+fi
+
 echo "--- Running daily update ---"
 python generators/daily_update.py "$@"

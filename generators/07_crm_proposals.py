@@ -311,5 +311,5 @@ if __name__ == "__main__":
             prev_output=mock_prev,
         )
     else:
-        print("Live mode requires MCP context. Run via agent or use --dry-run.")
-        sys.exit(1)
+        import pipeline
+        pipeline.run_up_to(7)

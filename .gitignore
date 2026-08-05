@@ -1,6 +1,10 @@
 # Runtime output — created by generators at upload time
 data/created-ids/*.json
 
+# Credentials — never committed. See nexudus_auth.py.
+.env
+.env.*
+
 # Python
 __pycache__/
 *.pyc

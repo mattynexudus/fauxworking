@@ -2,14 +2,16 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-echo "=== Nexudus Test Data Seeder ==="
-echo "Running all layers in order..."
+if [[ ! -f .env ]]; then
+  echo "No .env found. Run 'python nexudus_auth.py setup' first (one-time login)."
+  exit 1
+fi
 
-for gen in generators/0{0,1,2,3,4,5,6,7}_*.py; do
-  echo ""
-  echo "--- Running $gen ---"
-  python "$gen"
-done
+echo "=== Nexudus Test Data Seeder ==="
+echo "Running all layers 0-7 in one pass..."
+echo ""
+
+python pipeline.py
 
 echo ""
 echo "=== All layers complete ==="

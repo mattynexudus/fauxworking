@@ -768,5 +768,5 @@ if __name__ == "__main__":
             layer0_output=mock_layer0,
         )
     else:
-        print("Live mode requires MCP context. Run via agent or use --dry-run.")
-        sys.exit(1)
+        import pipeline
+        pipeline.run_up_to(1)

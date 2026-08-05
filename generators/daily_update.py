@@ -303,5 +303,15 @@ if __name__ == "__main__":
                 context=mock_context,
             )
     else:
-        print("Live mode requires MCP context. Run via agent or use --dry-run.")
-        sys.exit(1)
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        import nexudus_client as client
+
+        context = resolve_context(client.nexudus_list)
+        for d in dates:
+            gen = DailyUpdateGenerator(target_date=d, dry_run=False)
+            gen.run(
+                nexudus_list=client.nexudus_list,
+                nexudus_create=client.nexudus_create,
+                nexudus_update=client.nexudus_update,
+                context=context,
+            )

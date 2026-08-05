@@ -1,0 +1,148 @@
+"""
+Nexudus authentication — one-time interactive login, then silent token refresh.
+
+Run this yourself, in your own terminal:
+
+    python nexudus_auth.py setup
+
+It prompts for your Nexudus email and password (hidden input, via getpass —
+never echoed, never passed as a command-line argument, never seen by an
+agent). It exchanges them for an OAuth2 access/refresh token pair and writes
+ONLY the tokens to .env (gitignored, chmod 600) — your password is never
+written to disk or stored anywhere after this script exits.
+
+Every other script in this repo calls `get_access_token()` from here, which
+transparently refreshes the access token via the refresh token when it's
+close to expiring — no password re-entry needed for the life of the refresh
+token (~30-90 days per Nexudus; re-run `setup` when it finally expires).
+
+This account needs to be a Nexudus admin with API access. `setup` checks
+this immediately and fails with a clear error otherwise, rather than letting
+every subsequent script fail confusingly deep into a seeding run.
+"""
+
+import getpass
+import os
+import stat
+import sys
+import time
+from pathlib import Path
+
+import requests
+from dotenv import load_dotenv, set_key
+
+PROJECT_ROOT = Path(__file__).parent
+ENV_PATH = PROJECT_ROOT / ".env"
+DEFAULT_BASE_URL = "https://spaces.nexudus.com"
+
+# Refresh proactively if the access token has less than this long left.
+REFRESH_MARGIN_SECONDS = 300
+
+
+def base_url():
+    return os.environ.get("NEXUDUS_BASE_URL", DEFAULT_BASE_URL)
+
+
+def _secure_env_file():
+    if ENV_PATH.exists():
+        os.chmod(ENV_PATH, stat.S_IRUSR | stat.S_IWUSR)  # chmod 600
+
+
+def _save_tokens(access_token, refresh_token, expires_in):
+    ENV_PATH.touch(exist_ok=True)
+    expires_at = str(int(time.time()) + int(expires_in))
+    set_key(str(ENV_PATH), "NEXUDUS_ACCESS_TOKEN", access_token)
+    set_key(str(ENV_PATH), "NEXUDUS_REFRESH_TOKEN", refresh_token)
+    set_key(str(ENV_PATH), "NEXUDUS_TOKEN_EXPIRES_AT", expires_at)
+    _secure_env_file()
+
+
+def _check_admin_access(access_token):
+    """Fail loudly, at setup time, if this account can't actually do the job."""
+    resp = requests.get(
+        f"{base_url()}/api/spaces/users",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params={"PageSize": 1},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    records = resp.json().get("Records", [])
+    if not records:
+        raise SystemExit("Could not resolve the logged-in user — unexpected API response.")
+
+    me = records[0]
+    if not me.get("IsAdmin"):
+        raise SystemExit(
+            f"Error: {me.get('Email')} is not a Nexudus admin. "
+            "This tool needs an admin account to create records across all entities."
+        )
+    if me.get("APIAccess") is False:
+        raise SystemExit(
+            f"Error: {me.get('Email')} does not have API access enabled. "
+            "Enable it for this user in Nexudus (Settings > Users) and try again."
+        )
+    print(f"✓ Authenticated as {me.get('Email')} — admin with API access.")
+
+
+def setup():
+    print(f"Nexudus login ({base_url()})")
+    email = input("Email: ").strip()
+    password = getpass.getpass("Password: ")
+
+    resp = requests.post(
+        f"{base_url()}/api/token",
+        data={"grant_type": "password", "username": email, "password": password},
+        timeout=30,
+    )
+    del password  # out of memory as soon as we're done with it
+
+    if resp.status_code != 200:
+        raise SystemExit(f"Login failed ({resp.status_code}): {resp.text[:300]}")
+
+    payload = resp.json()
+    _save_tokens(payload["access_token"], payload["refresh_token"], payload["expires_in"])
+    print(f"✓ Tokens saved to {ENV_PATH} (chmod 600, gitignored).")
+
+    _check_admin_access(payload["access_token"])
+    print(f"✓ Access token valid for ~{int(payload['expires_in']) // 3600}h; "
+          "will auto-refresh on future runs.")
+
+
+def get_access_token():
+    """Return a valid access token, refreshing via the refresh token if needed.
+
+    Called by nexudus_client.py — not meant to be run directly.
+    """
+    load_dotenv(ENV_PATH, override=True)
+
+    access_token = os.environ.get("NEXUDUS_ACCESS_TOKEN")
+    refresh_token = os.environ.get("NEXUDUS_REFRESH_TOKEN")
+    expires_at = int(os.environ.get("NEXUDUS_TOKEN_EXPIRES_AT", "0"))
+
+    if not access_token or not refresh_token:
+        raise SystemExit("Not authenticated. Run 'python nexudus_auth.py setup' first.")
+
+    if time.time() < expires_at - REFRESH_MARGIN_SECONDS:
+        return access_token
+
+    resp = requests.post(
+        f"{base_url()}/api/token",
+        data={"grant_type": "refresh_token", "refresh_token": refresh_token},
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        raise SystemExit(
+            f"Token refresh failed ({resp.status_code}). "
+            "Run 'python nexudus_auth.py setup' again to re-authenticate."
+        )
+
+    payload = resp.json()
+    _save_tokens(payload["access_token"], payload["refresh_token"], payload["expires_in"])
+    return payload["access_token"]
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2 or sys.argv[1] != "setup":
+        print("Usage: python nexudus_auth.py setup")
+        sys.exit(1)
+    setup()
