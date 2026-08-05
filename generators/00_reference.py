@@ -65,6 +65,7 @@ class ReferenceGenerator(BaseGenerator):
         self.tax_rate_ids = {}       # name -> id
         self.fin_account_ids = {}    # code -> id
         self.resource_type_ids = {}  # name -> id
+        self.admin_user_id = None
 
     def run(self, nexudus_list, nexudus_create, whoami_data):
         """
@@ -74,12 +75,17 @@ class ReferenceGenerator(BaseGenerator):
             nexudus_list: callable(entity, filters) -> list of records
             nexudus_create: callable(entity, body) -> created record
             whoami_data: dict from nexudus whoami with DefaultBusinessId, etc.
+                Also carries "AdminUserId" — resolved by the caller at run time
+                from whichever admin user is authenticated (e.g. nexudus_list("users",
+                {}) filtered to IsAdmin=true), not a hardcoded value. Later layers
+                need it for CoworkerContract.IssuedById / Proposal.IssuedById.
         """
         # Step 1: Extract defaults from whoami
         self.business_id = whoami_data["DefaultBusinessId"]
         self.currency_id = whoami_data["DefaultCurrencyId"]
         self.country_id = whoami_data.get("DefaultCountryId")
         self.timezone_id = whoami_data.get("DefaultSimpleTimeZoneId")
+        self.admin_user_id = whoami_data.get("AdminUserId")
         self.log.info("Business: %s, Currency: %s", self.business_id, self.currency_id)
 
         # Step 2: Tax Rates
@@ -99,6 +105,7 @@ class ReferenceGenerator(BaseGenerator):
             "currency_id": self.currency_id,
             "country_id": self.country_id,
             "timezone_id": self.timezone_id,
+            "admin_user_id": self.admin_user_id,
             "tax_rate_ids": self.tax_rate_ids,
             "fin_account_ids": self.fin_account_ids,
             "resource_type_ids": self.resource_type_ids,
@@ -182,6 +189,7 @@ if __name__ == "__main__":
             "DefaultCurrencyId": "DRY-CUR-1",
             "DefaultCountryId": "DRY-COUNTRY-1",
             "DefaultSimpleTimeZoneId": "DRY-TZ-1",
+            "AdminUserId": "DRY-ADMIN-1",
         }
         gen.run(
             nexudus_list=lambda entity, filters: [],

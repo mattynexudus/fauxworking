@@ -1,0 +1,3002 @@
+[
+  {
+    "CoworkerIndex": 56,
+    "FromDayOffset": -151,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 3.8,
+    "Source": 1,
+    "Open": false,
+    "index": 1
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -52,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 4.3,
+    "Source": 2,
+    "Open": false,
+    "index": 2
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -23,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 6.2,
+    "Source": 2,
+    "Open": false,
+    "index": 3
+  },
+  {
+    "CoworkerIndex": 32,
+    "FromDayOffset": -135,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 7.8,
+    "Source": 2,
+    "Open": false,
+    "index": 4
+  },
+  {
+    "CoworkerIndex": 26,
+    "FromDayOffset": -125,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 9.3,
+    "Source": 2,
+    "Open": false,
+    "index": 5
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -5,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 4.0,
+    "Source": 2,
+    "Open": false,
+    "index": 6
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -68,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 9.5,
+    "Source": 3,
+    "Open": false,
+    "index": 7
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -68,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 2.6,
+    "Source": 2,
+    "Open": false,
+    "index": 8
+  },
+  {
+    "CoworkerIndex": 42,
+    "FromDayOffset": -104,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 6.7,
+    "Source": 2,
+    "Open": false,
+    "index": 9
+  },
+  {
+    "CoworkerIndex": 24,
+    "FromDayOffset": -79,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 3.4,
+    "Source": 2,
+    "Open": false,
+    "index": 10
+  },
+  {
+    "CoworkerIndex": 3,
+    "FromDayOffset": -105,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 7.8,
+    "Source": 2,
+    "Open": false,
+    "index": 11
+  },
+  {
+    "CoworkerIndex": 60,
+    "FromDayOffset": -88,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 7.0,
+    "Source": 3,
+    "Open": false,
+    "index": 12
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -161,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 9.5,
+    "Source": 2,
+    "Open": false,
+    "index": 13
+  },
+  {
+    "CoworkerIndex": 13,
+    "FromDayOffset": -155,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 5.2,
+    "Source": 2,
+    "Open": false,
+    "index": 14
+  },
+  {
+    "CoworkerIndex": 8,
+    "FromDayOffset": -177,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 2.5,
+    "Source": 1,
+    "Open": false,
+    "index": 15
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -155,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 2.8,
+    "Source": 1,
+    "Open": false,
+    "index": 16
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -20,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 4.2,
+    "Source": 2,
+    "Open": false,
+    "index": 17
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -100,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 8.2,
+    "Source": 2,
+    "Open": false,
+    "index": 18
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -179,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 6.2,
+    "Source": 2,
+    "Open": false,
+    "index": 19
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -16,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 2.1,
+    "Source": 3,
+    "Open": false,
+    "index": 20
+  },
+  {
+    "CoworkerIndex": 1,
+    "FromDayOffset": -142,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 6.2,
+    "Source": 1,
+    "Open": false,
+    "index": 21
+  },
+  {
+    "CoworkerIndex": 12,
+    "FromDayOffset": -60,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 7.8,
+    "Source": 2,
+    "Open": false,
+    "index": 22
+  },
+  {
+    "CoworkerIndex": 3,
+    "FromDayOffset": -122,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 7.5,
+    "Source": 2,
+    "Open": false,
+    "index": 23
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -129,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 7.2,
+    "Source": 2,
+    "Open": false,
+    "index": 24
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -28,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 9.9,
+    "Source": 1,
+    "Open": false,
+    "index": 25
+  },
+  {
+    "CoworkerIndex": 32,
+    "FromDayOffset": -145,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 2.1,
+    "Source": 3,
+    "Open": false,
+    "index": 26
+  },
+  {
+    "CoworkerIndex": 26,
+    "FromDayOffset": -35,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 9.8,
+    "Source": 2,
+    "Open": false,
+    "index": 27
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -110,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 7.1,
+    "Source": 1,
+    "Open": false,
+    "index": 28
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -153,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 8.1,
+    "Source": 2,
+    "Open": false,
+    "index": 29
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -83,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 3.5,
+    "Source": 2,
+    "Open": false,
+    "index": 30
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -72,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 8.2,
+    "Source": 2,
+    "Open": false,
+    "index": 31
+  },
+  {
+    "CoworkerIndex": 32,
+    "FromDayOffset": -16,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 3.8,
+    "Source": 1,
+    "Open": false,
+    "index": 32
+  },
+  {
+    "CoworkerIndex": 50,
+    "FromDayOffset": -89,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 9.8,
+    "Source": 2,
+    "Open": false,
+    "index": 33
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -32,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 6.6,
+    "Source": 1,
+    "Open": false,
+    "index": 34
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -103,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 6.7,
+    "Source": 2,
+    "Open": false,
+    "index": 35
+  },
+  {
+    "CoworkerIndex": 12,
+    "FromDayOffset": -160,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 3.5,
+    "Source": 2,
+    "Open": false,
+    "index": 36
+  },
+  {
+    "CoworkerIndex": 11,
+    "FromDayOffset": -3,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 9.7,
+    "Source": 2,
+    "Open": true,
+    "index": 37
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -99,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 6.4,
+    "Source": 3,
+    "Open": false,
+    "index": 38
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -64,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 2.9,
+    "Source": 3,
+    "Open": false,
+    "index": 39
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -155,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 5.6,
+    "Source": 1,
+    "Open": false,
+    "index": 40
+  },
+  {
+    "CoworkerIndex": 51,
+    "FromDayOffset": -133,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 4.9,
+    "Source": 3,
+    "Open": false,
+    "index": 41
+  },
+  {
+    "CoworkerIndex": 12,
+    "FromDayOffset": -127,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 6.4,
+    "Source": 3,
+    "Open": false,
+    "index": 42
+  },
+  {
+    "CoworkerIndex": 50,
+    "FromDayOffset": -74,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 4.2,
+    "Source": 2,
+    "Open": false,
+    "index": 43
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -180,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 9.9,
+    "Source": 2,
+    "Open": false,
+    "index": 44
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -140,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 9.1,
+    "Source": 2,
+    "Open": false,
+    "index": 45
+  },
+  {
+    "CoworkerIndex": 50,
+    "FromDayOffset": -63,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 8.9,
+    "Source": 2,
+    "Open": false,
+    "index": 46
+  },
+  {
+    "CoworkerIndex": 38,
+    "FromDayOffset": -52,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 4.3,
+    "Source": 3,
+    "Open": false,
+    "index": 47
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -25,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 4.6,
+    "Source": 1,
+    "Open": false,
+    "index": 48
+  },
+  {
+    "CoworkerIndex": 8,
+    "FromDayOffset": -164,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 3.8,
+    "Source": 1,
+    "Open": false,
+    "index": 49
+  },
+  {
+    "CoworkerIndex": 20,
+    "FromDayOffset": -59,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 8.9,
+    "Source": 2,
+    "Open": false,
+    "index": 50
+  },
+  {
+    "CoworkerIndex": 59,
+    "FromDayOffset": -112,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 5.4,
+    "Source": 3,
+    "Open": false,
+    "index": 51
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -29,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 6.7,
+    "Source": 3,
+    "Open": false,
+    "index": 52
+  },
+  {
+    "CoworkerIndex": 6,
+    "FromDayOffset": -177,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 9.9,
+    "Source": 2,
+    "Open": false,
+    "index": 53
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -64,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 4.5,
+    "Source": 2,
+    "Open": false,
+    "index": 54
+  },
+  {
+    "CoworkerIndex": 31,
+    "FromDayOffset": -2,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 4.7,
+    "Source": 2,
+    "Open": true,
+    "index": 55
+  },
+  {
+    "CoworkerIndex": 59,
+    "FromDayOffset": -37,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 4.0,
+    "Source": 3,
+    "Open": false,
+    "index": 56
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -12,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 8.5,
+    "Source": 3,
+    "Open": false,
+    "index": 57
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -150,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 6.3,
+    "Source": 1,
+    "Open": false,
+    "index": 58
+  },
+  {
+    "CoworkerIndex": 38,
+    "FromDayOffset": -103,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 8.0,
+    "Source": 2,
+    "Open": false,
+    "index": 59
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -41,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 4.8,
+    "Source": 1,
+    "Open": false,
+    "index": 60
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -75,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 3.9,
+    "Source": 3,
+    "Open": false,
+    "index": 61
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -65,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 2.0,
+    "Source": 3,
+    "Open": false,
+    "index": 62
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -80,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 8.5,
+    "Source": 1,
+    "Open": false,
+    "index": 63
+  },
+  {
+    "CoworkerIndex": 14,
+    "FromDayOffset": -147,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 9.8,
+    "Source": 2,
+    "Open": false,
+    "index": 64
+  },
+  {
+    "CoworkerIndex": 38,
+    "FromDayOffset": -119,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 3.3,
+    "Source": 3,
+    "Open": false,
+    "index": 65
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -111,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 2.7,
+    "Source": 1,
+    "Open": false,
+    "index": 66
+  },
+  {
+    "CoworkerIndex": 10,
+    "FromDayOffset": -39,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 8.9,
+    "Source": 1,
+    "Open": false,
+    "index": 67
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -32,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 6.8,
+    "Source": 3,
+    "Open": false,
+    "index": 68
+  },
+  {
+    "CoworkerIndex": 44,
+    "FromDayOffset": -81,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 6.7,
+    "Source": 1,
+    "Open": false,
+    "index": 69
+  },
+  {
+    "CoworkerIndex": 18,
+    "FromDayOffset": -99,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 3.2,
+    "Source": 2,
+    "Open": false,
+    "index": 70
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -120,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 9.6,
+    "Source": 2,
+    "Open": false,
+    "index": 71
+  },
+  {
+    "CoworkerIndex": 56,
+    "FromDayOffset": -109,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 2.1,
+    "Source": 2,
+    "Open": false,
+    "index": 72
+  },
+  {
+    "CoworkerIndex": 56,
+    "FromDayOffset": -17,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 4.1,
+    "Source": 2,
+    "Open": false,
+    "index": 73
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -46,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 3.0,
+    "Source": 1,
+    "Open": false,
+    "index": 74
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -101,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 9.6,
+    "Source": 2,
+    "Open": false,
+    "index": 75
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -177,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 4.6,
+    "Source": 2,
+    "Open": false,
+    "index": 76
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -26,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 7.1,
+    "Source": 2,
+    "Open": false,
+    "index": 77
+  },
+  {
+    "CoworkerIndex": 31,
+    "FromDayOffset": -129,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 7.0,
+    "Source": 3,
+    "Open": false,
+    "index": 78
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -171,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 2.4,
+    "Source": 1,
+    "Open": false,
+    "index": 79
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -9,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 3.0,
+    "Source": 2,
+    "Open": false,
+    "index": 80
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -63,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 6.4,
+    "Source": 2,
+    "Open": false,
+    "index": 81
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -32,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 5.3,
+    "Source": 3,
+    "Open": false,
+    "index": 82
+  },
+  {
+    "CoworkerIndex": 6,
+    "FromDayOffset": -77,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 2.2,
+    "Source": 1,
+    "Open": false,
+    "index": 83
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -169,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 3.5,
+    "Source": 1,
+    "Open": false,
+    "index": 84
+  },
+  {
+    "CoworkerIndex": 56,
+    "FromDayOffset": -72,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 5.3,
+    "Source": 2,
+    "Open": false,
+    "index": 85
+  },
+  {
+    "CoworkerIndex": 24,
+    "FromDayOffset": -132,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 3.0,
+    "Source": 1,
+    "Open": false,
+    "index": 86
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -104,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 5.9,
+    "Source": 2,
+    "Open": false,
+    "index": 87
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -103,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 3.1,
+    "Source": 1,
+    "Open": false,
+    "index": 88
+  },
+  {
+    "CoworkerIndex": 60,
+    "FromDayOffset": -122,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 5.5,
+    "Source": 2,
+    "Open": false,
+    "index": 89
+  },
+  {
+    "CoworkerIndex": 51,
+    "FromDayOffset": -47,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 3.1,
+    "Source": 2,
+    "Open": false,
+    "index": 90
+  },
+  {
+    "CoworkerIndex": 60,
+    "FromDayOffset": -47,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 8.9,
+    "Source": 2,
+    "Open": false,
+    "index": 91
+  },
+  {
+    "CoworkerIndex": 1,
+    "FromDayOffset": -59,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 2.2,
+    "Source": 2,
+    "Open": false,
+    "index": 92
+  },
+  {
+    "CoworkerIndex": 8,
+    "FromDayOffset": -129,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 2.2,
+    "Source": 2,
+    "Open": false,
+    "index": 93
+  },
+  {
+    "CoworkerIndex": 38,
+    "FromDayOffset": -18,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 7.5,
+    "Source": 2,
+    "Open": false,
+    "index": 94
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -59,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 7.2,
+    "Source": 2,
+    "Open": false,
+    "index": 95
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -80,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 7.1,
+    "Source": 1,
+    "Open": false,
+    "index": 96
+  },
+  {
+    "CoworkerIndex": 10,
+    "FromDayOffset": -61,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 6.8,
+    "Source": 1,
+    "Open": false,
+    "index": 97
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -151,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 9.6,
+    "Source": 2,
+    "Open": false,
+    "index": 98
+  },
+  {
+    "CoworkerIndex": 18,
+    "FromDayOffset": -179,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 2.7,
+    "Source": 2,
+    "Open": false,
+    "index": 99
+  },
+  {
+    "CoworkerIndex": 14,
+    "FromDayOffset": -175,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 2.7,
+    "Source": 2,
+    "Open": false,
+    "index": 100
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -8,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 7.0,
+    "Source": 3,
+    "Open": false,
+    "index": 101
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -53,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 5.2,
+    "Source": 2,
+    "Open": false,
+    "index": 102
+  },
+  {
+    "CoworkerIndex": 13,
+    "FromDayOffset": -79,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 3.8,
+    "Source": 2,
+    "Open": false,
+    "index": 103
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -134,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 2.0,
+    "Source": 3,
+    "Open": false,
+    "index": 104
+  },
+  {
+    "CoworkerIndex": 31,
+    "FromDayOffset": -18,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 6.1,
+    "Source": 2,
+    "Open": false,
+    "index": 105
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -88,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 9.6,
+    "Source": 2,
+    "Open": false,
+    "index": 106
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -111,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 7.9,
+    "Source": 2,
+    "Open": false,
+    "index": 107
+  },
+  {
+    "CoworkerIndex": 32,
+    "FromDayOffset": -123,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 7.7,
+    "Source": 3,
+    "Open": false,
+    "index": 108
+  },
+  {
+    "CoworkerIndex": 60,
+    "FromDayOffset": -18,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 4.1,
+    "Source": 3,
+    "Open": false,
+    "index": 109
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -101,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 6.9,
+    "Source": 2,
+    "Open": false,
+    "index": 110
+  },
+  {
+    "CoworkerIndex": 50,
+    "FromDayOffset": -25,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 9.1,
+    "Source": 1,
+    "Open": false,
+    "index": 111
+  },
+  {
+    "CoworkerIndex": 2,
+    "FromDayOffset": -168,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 3.2,
+    "Source": 1,
+    "Open": false,
+    "index": 112
+  },
+  {
+    "CoworkerIndex": 2,
+    "FromDayOffset": -130,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 6.9,
+    "Source": 3,
+    "Open": false,
+    "index": 113
+  },
+  {
+    "CoworkerIndex": 60,
+    "FromDayOffset": -28,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 9.3,
+    "Source": 2,
+    "Open": false,
+    "index": 114
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -172,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 4.4,
+    "Source": 2,
+    "Open": false,
+    "index": 115
+  },
+  {
+    "CoworkerIndex": 44,
+    "FromDayOffset": -65,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 2.5,
+    "Source": 1,
+    "Open": false,
+    "index": 116
+  },
+  {
+    "CoworkerIndex": 56,
+    "FromDayOffset": -88,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 9.6,
+    "Source": 1,
+    "Open": false,
+    "index": 117
+  },
+  {
+    "CoworkerIndex": 1,
+    "FromDayOffset": -164,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 4.0,
+    "Source": 2,
+    "Open": false,
+    "index": 118
+  },
+  {
+    "CoworkerIndex": 2,
+    "FromDayOffset": -76,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 5.5,
+    "Source": 1,
+    "Open": false,
+    "index": 119
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -58,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 3.1,
+    "Source": 3,
+    "Open": false,
+    "index": 120
+  },
+  {
+    "CoworkerIndex": 11,
+    "FromDayOffset": -60,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 8.0,
+    "Source": 1,
+    "Open": false,
+    "index": 121
+  },
+  {
+    "CoworkerIndex": 52,
+    "FromDayOffset": -55,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 4.6,
+    "Source": 2,
+    "Open": false,
+    "index": 122
+  },
+  {
+    "CoworkerIndex": 60,
+    "FromDayOffset": -99,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 9.6,
+    "Source": 1,
+    "Open": false,
+    "index": 123
+  },
+  {
+    "CoworkerIndex": 13,
+    "FromDayOffset": -137,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 7.0,
+    "Source": 2,
+    "Open": false,
+    "index": 124
+  },
+  {
+    "CoworkerIndex": 13,
+    "FromDayOffset": -83,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 6.0,
+    "Source": 2,
+    "Open": false,
+    "index": 125
+  },
+  {
+    "CoworkerIndex": 18,
+    "FromDayOffset": -150,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 7.0,
+    "Source": 2,
+    "Open": false,
+    "index": 126
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -88,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 8.2,
+    "Source": 2,
+    "Open": false,
+    "index": 127
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -31,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 7.6,
+    "Source": 3,
+    "Open": false,
+    "index": 128
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -39,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 8.5,
+    "Source": 1,
+    "Open": false,
+    "index": 129
+  },
+  {
+    "CoworkerIndex": 31,
+    "FromDayOffset": -118,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 4.0,
+    "Source": 2,
+    "Open": false,
+    "index": 130
+  },
+  {
+    "CoworkerIndex": 8,
+    "FromDayOffset": -134,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 7.5,
+    "Source": 2,
+    "Open": false,
+    "index": 131
+  },
+  {
+    "CoworkerIndex": 38,
+    "FromDayOffset": -89,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 6.2,
+    "Source": 2,
+    "Open": false,
+    "index": 132
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -27,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 9.6,
+    "Source": 2,
+    "Open": false,
+    "index": 133
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -149,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 2.8,
+    "Source": 3,
+    "Open": false,
+    "index": 134
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -87,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 8.7,
+    "Source": 2,
+    "Open": false,
+    "index": 135
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -167,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 4.2,
+    "Source": 3,
+    "Open": false,
+    "index": 136
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -123,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 9.9,
+    "Source": 2,
+    "Open": false,
+    "index": 137
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -33,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 5.2,
+    "Source": 2,
+    "Open": false,
+    "index": 138
+  },
+  {
+    "CoworkerIndex": 4,
+    "FromDayOffset": -111,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 4.9,
+    "Source": 1,
+    "Open": false,
+    "index": 139
+  },
+  {
+    "CoworkerIndex": 11,
+    "FromDayOffset": -48,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 3.1,
+    "Source": 2,
+    "Open": false,
+    "index": 140
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -4,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 3.0,
+    "Source": 2,
+    "Open": false,
+    "index": 141
+  },
+  {
+    "CoworkerIndex": 13,
+    "FromDayOffset": -82,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 4.1,
+    "Source": 1,
+    "Open": false,
+    "index": 142
+  },
+  {
+    "CoworkerIndex": 10,
+    "FromDayOffset": -99,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 6.8,
+    "Source": 2,
+    "Open": false,
+    "index": 143
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -120,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 3.4,
+    "Source": 1,
+    "Open": false,
+    "index": 144
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -76,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 4.2,
+    "Source": 2,
+    "Open": false,
+    "index": 145
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -8,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 5.0,
+    "Source": 2,
+    "Open": false,
+    "index": 146
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -7,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 2.7,
+    "Source": 1,
+    "Open": false,
+    "index": 147
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -148,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 2.5,
+    "Source": 1,
+    "Open": false,
+    "index": 148
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -149,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 9.2,
+    "Source": 2,
+    "Open": false,
+    "index": 149
+  },
+  {
+    "CoworkerIndex": 18,
+    "FromDayOffset": -166,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 5.0,
+    "Source": 2,
+    "Open": false,
+    "index": 150
+  },
+  {
+    "CoworkerIndex": 44,
+    "FromDayOffset": -28,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 8.1,
+    "Source": 2,
+    "Open": false,
+    "index": 151
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -164,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 7.0,
+    "Source": 2,
+    "Open": false,
+    "index": 152
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -172,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 7.1,
+    "Source": 1,
+    "Open": false,
+    "index": 153
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -86,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 2.3,
+    "Source": 2,
+    "Open": false,
+    "index": 154
+  },
+  {
+    "CoworkerIndex": 12,
+    "FromDayOffset": -80,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 3.2,
+    "Source": 1,
+    "Open": false,
+    "index": 155
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -45,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 3.6,
+    "Source": 2,
+    "Open": false,
+    "index": 156
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -17,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 4.9,
+    "Source": 1,
+    "Open": false,
+    "index": 157
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -145,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 4.8,
+    "Source": 3,
+    "Open": false,
+    "index": 158
+  },
+  {
+    "CoworkerIndex": 2,
+    "FromDayOffset": -6,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 4.0,
+    "Source": 2,
+    "Open": false,
+    "index": 159
+  },
+  {
+    "CoworkerIndex": 12,
+    "FromDayOffset": -69,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 7.1,
+    "Source": 2,
+    "Open": false,
+    "index": 160
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -31,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 2.1,
+    "Source": 1,
+    "Open": false,
+    "index": 161
+  },
+  {
+    "CoworkerIndex": 8,
+    "FromDayOffset": -146,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 9.7,
+    "Source": 2,
+    "Open": false,
+    "index": 162
+  },
+  {
+    "CoworkerIndex": 24,
+    "FromDayOffset": -138,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 9.4,
+    "Source": 3,
+    "Open": false,
+    "index": 163
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -68,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 2.1,
+    "Source": 3,
+    "Open": false,
+    "index": 164
+  },
+  {
+    "CoworkerIndex": 52,
+    "FromDayOffset": -127,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 6.1,
+    "Source": 2,
+    "Open": false,
+    "index": 165
+  },
+  {
+    "CoworkerIndex": 48,
+    "FromDayOffset": -92,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 3.8,
+    "Source": 1,
+    "Open": false,
+    "index": 166
+  },
+  {
+    "CoworkerIndex": 10,
+    "FromDayOffset": -101,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 2.4,
+    "Source": 1,
+    "Open": false,
+    "index": 167
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -3,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 8.7,
+    "Source": 2,
+    "Open": true,
+    "index": 168
+  },
+  {
+    "CoworkerIndex": 2,
+    "FromDayOffset": -138,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 4.2,
+    "Source": 2,
+    "Open": false,
+    "index": 169
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -69,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 5.9,
+    "Source": 2,
+    "Open": false,
+    "index": 170
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -116,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 7.1,
+    "Source": 2,
+    "Open": false,
+    "index": 171
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -37,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 8.0,
+    "Source": 2,
+    "Open": false,
+    "index": 172
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -23,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 2.7,
+    "Source": 1,
+    "Open": false,
+    "index": 173
+  },
+  {
+    "CoworkerIndex": 10,
+    "FromDayOffset": -105,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 3.0,
+    "Source": 1,
+    "Open": false,
+    "index": 174
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -110,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 7.8,
+    "Source": 1,
+    "Open": false,
+    "index": 175
+  },
+  {
+    "CoworkerIndex": 51,
+    "FromDayOffset": -7,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 3.8,
+    "Source": 2,
+    "Open": false,
+    "index": 176
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -6,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 3.0,
+    "Source": 3,
+    "Open": false,
+    "index": 177
+  },
+  {
+    "CoworkerIndex": 2,
+    "FromDayOffset": -8,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 7.7,
+    "Source": 3,
+    "Open": false,
+    "index": 178
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -137,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 7.5,
+    "Source": 2,
+    "Open": false,
+    "index": 179
+  },
+  {
+    "CoworkerIndex": 11,
+    "FromDayOffset": -95,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 4.6,
+    "Source": 1,
+    "Open": false,
+    "index": 180
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -33,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 2.6,
+    "Source": 1,
+    "Open": false,
+    "index": 181
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -139,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 9.4,
+    "Source": 2,
+    "Open": false,
+    "index": 182
+  },
+  {
+    "CoworkerIndex": 44,
+    "FromDayOffset": -100,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 9.9,
+    "Source": 2,
+    "Open": false,
+    "index": 183
+  },
+  {
+    "CoworkerIndex": 31,
+    "FromDayOffset": -8,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 9.7,
+    "Source": 2,
+    "Open": false,
+    "index": 184
+  },
+  {
+    "CoworkerIndex": 14,
+    "FromDayOffset": -71,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 9.9,
+    "Source": 2,
+    "Open": false,
+    "index": 185
+  },
+  {
+    "CoworkerIndex": 2,
+    "FromDayOffset": -50,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 3.6,
+    "Source": 1,
+    "Open": false,
+    "index": 186
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -138,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 9.4,
+    "Source": 3,
+    "Open": false,
+    "index": 187
+  },
+  {
+    "CoworkerIndex": 31,
+    "FromDayOffset": -106,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 4.8,
+    "Source": 3,
+    "Open": false,
+    "index": 188
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -66,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 7.3,
+    "Source": 3,
+    "Open": false,
+    "index": 189
+  },
+  {
+    "CoworkerIndex": 24,
+    "FromDayOffset": -27,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 4.9,
+    "Source": 1,
+    "Open": false,
+    "index": 190
+  },
+  {
+    "CoworkerIndex": 31,
+    "FromDayOffset": -163,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 6.2,
+    "Source": 2,
+    "Open": false,
+    "index": 191
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -8,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 7.6,
+    "Source": 2,
+    "Open": false,
+    "index": 192
+  },
+  {
+    "CoworkerIndex": 31,
+    "FromDayOffset": -178,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 6.2,
+    "Source": 2,
+    "Open": false,
+    "index": 193
+  },
+  {
+    "CoworkerIndex": 11,
+    "FromDayOffset": -83,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 5.6,
+    "Source": 1,
+    "Open": false,
+    "index": 194
+  },
+  {
+    "CoworkerIndex": 14,
+    "FromDayOffset": -164,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 4.7,
+    "Source": 2,
+    "Open": false,
+    "index": 195
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -47,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 6.5,
+    "Source": 1,
+    "Open": false,
+    "index": 196
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -102,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 8.7,
+    "Source": 2,
+    "Open": false,
+    "index": 197
+  },
+  {
+    "CoworkerIndex": 11,
+    "FromDayOffset": -73,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 3.8,
+    "Source": 2,
+    "Open": false,
+    "index": 198
+  },
+  {
+    "CoworkerIndex": 59,
+    "FromDayOffset": -87,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 3.1,
+    "Source": 2,
+    "Open": false,
+    "index": 199
+  },
+  {
+    "CoworkerIndex": 32,
+    "FromDayOffset": -73,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 6.3,
+    "Source": 2,
+    "Open": false,
+    "index": 200
+  },
+  {
+    "CoworkerIndex": 18,
+    "FromDayOffset": -35,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 2.1,
+    "Source": 2,
+    "Open": false,
+    "index": 201
+  },
+  {
+    "CoworkerIndex": 52,
+    "FromDayOffset": -27,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 6.6,
+    "Source": 1,
+    "Open": false,
+    "index": 202
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -92,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 5.0,
+    "Source": 2,
+    "Open": false,
+    "index": 203
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -82,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 9.5,
+    "Source": 3,
+    "Open": false,
+    "index": 204
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -18,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 4.5,
+    "Source": 2,
+    "Open": false,
+    "index": 205
+  },
+  {
+    "CoworkerIndex": 60,
+    "FromDayOffset": -100,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 4.4,
+    "Source": 2,
+    "Open": false,
+    "index": 206
+  },
+  {
+    "CoworkerIndex": 56,
+    "FromDayOffset": -1,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 8.2,
+    "Source": 3,
+    "Open": true,
+    "index": 207
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -12,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 4.2,
+    "Source": 2,
+    "Open": false,
+    "index": 208
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -40,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 5.8,
+    "Source": 3,
+    "Open": false,
+    "index": 209
+  },
+  {
+    "CoworkerIndex": 24,
+    "FromDayOffset": -161,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 5.0,
+    "Source": 2,
+    "Open": false,
+    "index": 210
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -69,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 6.0,
+    "Source": 3,
+    "Open": false,
+    "index": 211
+  },
+  {
+    "CoworkerIndex": 41,
+    "FromDayOffset": -18,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 4.6,
+    "Source": 2,
+    "Open": false,
+    "index": 212
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -109,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 4.1,
+    "Source": 2,
+    "Open": false,
+    "index": 213
+  },
+  {
+    "CoworkerIndex": 18,
+    "FromDayOffset": -71,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 7.5,
+    "Source": 1,
+    "Open": false,
+    "index": 214
+  },
+  {
+    "CoworkerIndex": 11,
+    "FromDayOffset": -13,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 4.6,
+    "Source": 2,
+    "Open": false,
+    "index": 215
+  },
+  {
+    "CoworkerIndex": 52,
+    "FromDayOffset": -154,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 6.6,
+    "Source": 2,
+    "Open": false,
+    "index": 216
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -157,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 5.4,
+    "Source": 3,
+    "Open": false,
+    "index": 217
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -170,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 9.2,
+    "Source": 2,
+    "Open": false,
+    "index": 218
+  },
+  {
+    "CoworkerIndex": 1,
+    "FromDayOffset": -74,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 7.9,
+    "Source": 2,
+    "Open": false,
+    "index": 219
+  },
+  {
+    "CoworkerIndex": 52,
+    "FromDayOffset": -22,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 2.8,
+    "Source": 2,
+    "Open": false,
+    "index": 220
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -88,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 7.5,
+    "Source": 1,
+    "Open": false,
+    "index": 221
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -58,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 4.7,
+    "Source": 2,
+    "Open": false,
+    "index": 222
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -146,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 7.3,
+    "Source": 2,
+    "Open": false,
+    "index": 223
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -70,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 6.9,
+    "Source": 2,
+    "Open": false,
+    "index": 224
+  },
+  {
+    "CoworkerIndex": 11,
+    "FromDayOffset": -43,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 9.6,
+    "Source": 2,
+    "Open": false,
+    "index": 225
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -60,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 5.5,
+    "Source": 1,
+    "Open": false,
+    "index": 226
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -124,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 4.1,
+    "Source": 1,
+    "Open": false,
+    "index": 227
+  },
+  {
+    "CoworkerIndex": 10,
+    "FromDayOffset": -69,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 5.8,
+    "Source": 1,
+    "Open": false,
+    "index": 228
+  },
+  {
+    "CoworkerIndex": 8,
+    "FromDayOffset": -72,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 2.5,
+    "Source": 1,
+    "Open": false,
+    "index": 229
+  },
+  {
+    "CoworkerIndex": 44,
+    "FromDayOffset": -99,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 9.0,
+    "Source": 2,
+    "Open": false,
+    "index": 230
+  },
+  {
+    "CoworkerIndex": 56,
+    "FromDayOffset": -80,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 3.9,
+    "Source": 1,
+    "Open": false,
+    "index": 231
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -82,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 9.7,
+    "Source": 1,
+    "Open": false,
+    "index": 232
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -92,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 2.2,
+    "Source": 1,
+    "Open": false,
+    "index": 233
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -168,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 9.9,
+    "Source": 2,
+    "Open": false,
+    "index": 234
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -161,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 9.9,
+    "Source": 3,
+    "Open": false,
+    "index": 235
+  },
+  {
+    "CoworkerIndex": 13,
+    "FromDayOffset": -147,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 5.7,
+    "Source": 1,
+    "Open": false,
+    "index": 236
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -34,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 4.7,
+    "Source": 1,
+    "Open": false,
+    "index": 237
+  },
+  {
+    "CoworkerIndex": 48,
+    "FromDayOffset": -157,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 8.6,
+    "Source": 1,
+    "Open": false,
+    "index": 238
+  },
+  {
+    "CoworkerIndex": 38,
+    "FromDayOffset": -61,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 5.0,
+    "Source": 3,
+    "Open": false,
+    "index": 239
+  },
+  {
+    "CoworkerIndex": 11,
+    "FromDayOffset": -172,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 8.4,
+    "Source": 2,
+    "Open": false,
+    "index": 240
+  },
+  {
+    "CoworkerIndex": 42,
+    "FromDayOffset": -120,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 7.1,
+    "Source": 1,
+    "Open": false,
+    "index": 241
+  },
+  {
+    "CoworkerIndex": 38,
+    "FromDayOffset": -134,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 2.6,
+    "Source": 2,
+    "Open": false,
+    "index": 242
+  },
+  {
+    "CoworkerIndex": 42,
+    "FromDayOffset": -171,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 4.9,
+    "Source": 2,
+    "Open": false,
+    "index": 243
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -68,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 7.9,
+    "Source": 1,
+    "Open": false,
+    "index": 244
+  },
+  {
+    "CoworkerIndex": 38,
+    "FromDayOffset": -66,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 8.8,
+    "Source": 2,
+    "Open": false,
+    "index": 245
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -8,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 7.6,
+    "Source": 3,
+    "Open": false,
+    "index": 246
+  },
+  {
+    "CoworkerIndex": 58,
+    "FromDayOffset": -46,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 9.1,
+    "Source": 3,
+    "Open": false,
+    "index": 247
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -124,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 8.4,
+    "Source": 3,
+    "Open": false,
+    "index": 248
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -138,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 4.3,
+    "Source": 2,
+    "Open": false,
+    "index": 249
+  },
+  {
+    "CoworkerIndex": 42,
+    "FromDayOffset": -132,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 3.7,
+    "Source": 2,
+    "Open": false,
+    "index": 250
+  },
+  {
+    "CoworkerIndex": 25,
+    "FromDayOffset": -118,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 8.8,
+    "Source": 2,
+    "Open": false,
+    "index": 251
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -32,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 2.2,
+    "Source": 2,
+    "Open": false,
+    "index": 252
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -151,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 3.0,
+    "Source": 1,
+    "Open": false,
+    "index": 253
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -176,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 2.2,
+    "Source": 1,
+    "Open": false,
+    "index": 254
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -38,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 6.4,
+    "Source": 1,
+    "Open": false,
+    "index": 255
+  },
+  {
+    "CoworkerIndex": 1,
+    "FromDayOffset": -148,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 5.2,
+    "Source": 1,
+    "Open": false,
+    "index": 256
+  },
+  {
+    "CoworkerIndex": 59,
+    "FromDayOffset": -90,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 4.6,
+    "Source": 1,
+    "Open": false,
+    "index": 257
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -158,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 7.0,
+    "Source": 1,
+    "Open": false,
+    "index": 258
+  },
+  {
+    "CoworkerIndex": 4,
+    "FromDayOffset": -38,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 2.7,
+    "Source": 3,
+    "Open": false,
+    "index": 259
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -143,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 2.5,
+    "Source": 2,
+    "Open": false,
+    "index": 260
+  },
+  {
+    "CoworkerIndex": 35,
+    "FromDayOffset": -76,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 3.1,
+    "Source": 2,
+    "Open": false,
+    "index": 261
+  },
+  {
+    "CoworkerIndex": 4,
+    "FromDayOffset": -104,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 3.0,
+    "Source": 2,
+    "Open": false,
+    "index": 262
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -172,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 7.4,
+    "Source": 2,
+    "Open": false,
+    "index": 263
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -161,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 9.6,
+    "Source": 1,
+    "Open": false,
+    "index": 264
+  },
+  {
+    "CoworkerIndex": 56,
+    "FromDayOffset": -104,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 8.4,
+    "Source": 1,
+    "Open": false,
+    "index": 265
+  },
+  {
+    "CoworkerIndex": 20,
+    "FromDayOffset": -50,
+    "FromHour": 9,
+    "FromMinute": 30,
+    "DurationHours": 3.6,
+    "Source": 1,
+    "Open": false,
+    "index": 266
+  },
+  {
+    "CoworkerIndex": 44,
+    "FromDayOffset": -71,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 8.8,
+    "Source": 1,
+    "Open": false,
+    "index": 267
+  },
+  {
+    "CoworkerIndex": 14,
+    "FromDayOffset": -54,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 9.9,
+    "Source": 2,
+    "Open": false,
+    "index": 268
+  },
+  {
+    "CoworkerIndex": 1,
+    "FromDayOffset": -179,
+    "FromHour": 7,
+    "FromMinute": 0,
+    "DurationHours": 4.8,
+    "Source": 2,
+    "Open": false,
+    "index": 269
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -52,
+    "FromHour": 8,
+    "FromMinute": 30,
+    "DurationHours": 9.9,
+    "Source": 2,
+    "Open": false,
+    "index": 270
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -84,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 6.8,
+    "Source": 2,
+    "Open": false,
+    "index": 271
+  },
+  {
+    "CoworkerIndex": 22,
+    "FromDayOffset": -6,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 6.4,
+    "Source": 3,
+    "Open": false,
+    "index": 272
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -112,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 6.2,
+    "Source": 2,
+    "Open": false,
+    "index": 273
+  },
+  {
+    "CoworkerIndex": 42,
+    "FromDayOffset": -180,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 4.0,
+    "Source": 2,
+    "Open": false,
+    "index": 274
+  },
+  {
+    "CoworkerIndex": 47,
+    "FromDayOffset": -76,
+    "FromHour": 7,
+    "FromMinute": 30,
+    "DurationHours": 10.0,
+    "Source": 2,
+    "Open": false,
+    "index": 275
+  },
+  {
+    "CoworkerIndex": 16,
+    "FromDayOffset": -56,
+    "FromHour": 8,
+    "FromMinute": 0,
+    "DurationHours": 4.9,
+    "Source": 3,
+    "Open": false,
+    "index": 276
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -36,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 3.2,
+    "Source": 3,
+    "Open": false,
+    "index": 277
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -151,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 9.5,
+    "Source": 2,
+    "Open": false,
+    "index": 278
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -8,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 3.0,
+    "Source": 2,
+    "Open": false,
+    "index": 279
+  },
+  {
+    "CoworkerIndex": 24,
+    "FromDayOffset": -65,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 3.8,
+    "Source": 3,
+    "Open": false,
+    "index": 280
+  },
+  {
+    "CoworkerIndex": 28,
+    "FromDayOffset": -88,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 7.6,
+    "Source": 2,
+    "Open": false,
+    "index": 281
+  },
+  {
+    "CoworkerIndex": 26,
+    "FromDayOffset": -81,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 3.6,
+    "Source": 1,
+    "Open": false,
+    "index": 282
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -130,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 5.0,
+    "Source": 1,
+    "Open": false,
+    "index": 283
+  },
+  {
+    "CoworkerIndex": 8,
+    "FromDayOffset": -174,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 5.5,
+    "Source": 1,
+    "Open": false,
+    "index": 284
+  },
+  {
+    "CoworkerIndex": 31,
+    "FromDayOffset": -13,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 8.0,
+    "Source": 2,
+    "Open": false,
+    "index": 285
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -112,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 7.5,
+    "Source": 1,
+    "Open": false,
+    "index": 286
+  },
+  {
+    "CoworkerIndex": 8,
+    "FromDayOffset": -109,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 4.0,
+    "Source": 2,
+    "Open": false,
+    "index": 287
+  },
+  {
+    "CoworkerIndex": 43,
+    "FromDayOffset": -34,
+    "FromHour": 10,
+    "FromMinute": 15,
+    "DurationHours": 5.6,
+    "Source": 2,
+    "Open": false,
+    "index": 288
+  },
+  {
+    "CoworkerIndex": 46,
+    "FromDayOffset": -165,
+    "FromHour": 9,
+    "FromMinute": 15,
+    "DurationHours": 2.3,
+    "Source": 2,
+    "Open": false,
+    "index": 289
+  },
+  {
+    "CoworkerIndex": 18,
+    "FromDayOffset": -99,
+    "FromHour": 10,
+    "FromMinute": 30,
+    "DurationHours": 4.5,
+    "Source": 2,
+    "Open": false,
+    "index": 290
+  },
+  {
+    "CoworkerIndex": 13,
+    "FromDayOffset": -178,
+    "FromHour": 7,
+    "FromMinute": 15,
+    "DurationHours": 9.1,
+    "Source": 2,
+    "Open": false,
+    "index": 291
+  },
+  {
+    "CoworkerIndex": 60,
+    "FromDayOffset": -8,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 5.5,
+    "Source": 2,
+    "Open": false,
+    "index": 292
+  },
+  {
+    "CoworkerIndex": 21,
+    "FromDayOffset": -72,
+    "FromHour": 9,
+    "FromMinute": 45,
+    "DurationHours": 2.5,
+    "Source": 3,
+    "Open": false,
+    "index": 293
+  },
+  {
+    "CoworkerIndex": 24,
+    "FromDayOffset": -144,
+    "FromHour": 7,
+    "FromMinute": 45,
+    "DurationHours": 5.7,
+    "Source": 1,
+    "Open": false,
+    "index": 294
+  },
+  {
+    "CoworkerIndex": 8,
+    "FromDayOffset": -18,
+    "FromHour": 10,
+    "FromMinute": 0,
+    "DurationHours": 4.9,
+    "Source": 1,
+    "Open": false,
+    "index": 295
+  },
+  {
+    "CoworkerIndex": 60,
+    "FromDayOffset": -31,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 8.6,
+    "Source": 2,
+    "Open": false,
+    "index": 296
+  },
+  {
+    "CoworkerIndex": 44,
+    "FromDayOffset": -78,
+    "FromHour": 10,
+    "FromMinute": 45,
+    "DurationHours": 7.8,
+    "Source": 3,
+    "Open": false,
+    "index": 297
+  },
+  {
+    "CoworkerIndex": 39,
+    "FromDayOffset": -84,
+    "FromHour": 8,
+    "FromMinute": 15,
+    "DurationHours": 3.0,
+    "Source": 1,
+    "Open": false,
+    "index": 298
+  },
+  {
+    "CoworkerIndex": 18,
+    "FromDayOffset": -3,
+    "FromHour": 8,
+    "FromMinute": 45,
+    "DurationHours": 4.9,
+    "Source": 1,
+    "Open": true,
+    "index": 299
+  },
+  {
+    "CoworkerIndex": 44,
+    "FromDayOffset": -5,
+    "FromHour": 9,
+    "FromMinute": 0,
+    "DurationHours": 5.1,
+    "Source": 1,
+    "Open": false,
+    "index": 300
+  }
+]

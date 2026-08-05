@@ -1,0 +1,142 @@
+[
+  {
+    "index": 1,
+    "CoworkerIndex": 58,
+    "ProductName": "Parking Space",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 2,
+    "CoworkerIndex": 16,
+    "ProductName": "Parking Space",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 3,
+    "CoworkerIndex": 14,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 4,
+    "CoworkerIndex": 55,
+    "ProductName": "Mail Handling",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 5,
+    "CoworkerIndex": 48,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 6,
+    "CoworkerIndex": 34,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 7,
+    "CoworkerIndex": 10,
+    "ProductName": "Mail Handling",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 8,
+    "CoworkerIndex": 9,
+    "ProductName": "Mail Handling",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 9,
+    "CoworkerIndex": 53,
+    "ProductName": "Mail Handling",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 10,
+    "CoworkerIndex": 52,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 11,
+    "CoworkerIndex": 18,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 12,
+    "CoworkerIndex": 3,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 13,
+    "CoworkerIndex": 49,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 14,
+    "CoworkerIndex": 21,
+    "ProductName": "Parking Space",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 15,
+    "CoworkerIndex": 15,
+    "ProductName": "Mail Handling",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 16,
+    "CoworkerIndex": 38,
+    "ProductName": "Parking Space",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 17,
+    "CoworkerIndex": 51,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 18,
+    "CoworkerIndex": 12,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 19,
+    "CoworkerIndex": 43,
+    "ProductName": "Mail Handling",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  },
+  {
+    "index": 20,
+    "CoworkerIndex": 4,
+    "ProductName": "Storage Locker",
+    "Quantity": 1,
+    "RepeatCycle": 4
+  }
+]

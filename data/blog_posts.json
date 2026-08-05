@@ -1,0 +1,72 @@
+[
+  {
+    "index": 1,
+    "Title": "Welcome to Our New Space",
+    "PublishDayOffset": -365,
+    "OnlyForMembers": true,
+    "ShowInHomePage": true
+  },
+  {
+    "index": 2,
+    "Title": "Summer Networking Tips",
+    "PublishDayOffset": -326,
+    "OnlyForMembers": true,
+    "ShowInHomePage": true
+  },
+  {
+    "index": 3,
+    "Title": "How to Maximise Your Hot Desk",
+    "PublishDayOffset": -286,
+    "OnlyForMembers": true,
+    "ShowInHomePage": false
+  },
+  {
+    "index": 4,
+    "Title": "New Facilities Announcement",
+    "PublishDayOffset": -247,
+    "OnlyForMembers": false,
+    "ShowInHomePage": false
+  },
+  {
+    "index": 5,
+    "Title": "Member Spotlight: Community Champion",
+    "PublishDayOffset": -207,
+    "OnlyForMembers": false,
+    "ShowInHomePage": true
+  },
+  {
+    "index": 6,
+    "Title": "Community Guidelines Update",
+    "PublishDayOffset": -168,
+    "OnlyForMembers": false,
+    "ShowInHomePage": true
+  },
+  {
+    "index": 7,
+    "Title": "Year in Review",
+    "PublishDayOffset": -128,
+    "OnlyForMembers": false,
+    "ShowInHomePage": true
+  },
+  {
+    "index": 8,
+    "Title": "New Plans Available",
+    "PublishDayOffset": -89,
+    "OnlyForMembers": true,
+    "ShowInHomePage": true
+  },
+  {
+    "index": 9,
+    "Title": "Booking Best Practices",
+    "PublishDayOffset": -49,
+    "OnlyForMembers": false,
+    "ShowInHomePage": false
+  },
+  {
+    "index": 10,
+    "Title": "Upcoming Events This Quarter",
+    "PublishDayOffset": -10,
+    "OnlyForMembers": false,
+    "ShowInHomePage": false
+  }
+]

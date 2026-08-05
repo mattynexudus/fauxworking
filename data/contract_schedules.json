@@ -1,0 +1,50 @@
+[
+  {
+    "index": 1,
+    "ContractIndex": 90,
+    "ApplyOnDayOffset": 138,
+    "NewPrice": 1302.71
+  },
+  {
+    "index": 2,
+    "ContractIndex": 1,
+    "ApplyOnDayOffset": 34,
+    "NewPrice": 430.15
+  },
+  {
+    "index": 3,
+    "ContractIndex": 17,
+    "ApplyOnDayOffset": 76,
+    "NewPrice": 2233.16
+  },
+  {
+    "index": 4,
+    "ContractIndex": 68,
+    "ApplyOnDayOffset": 117,
+    "NewPrice": 167.45
+  },
+  {
+    "index": 5,
+    "ContractIndex": 37,
+    "ApplyOnDayOffset": 154,
+    "NewPrice": 159.52
+  },
+  {
+    "index": 6,
+    "ContractIndex": 75,
+    "ApplyOnDayOffset": 65,
+    "NewPrice": 2121.69
+  },
+  {
+    "index": 7,
+    "ContractIndex": 10,
+    "ApplyOnDayOffset": 105,
+    "NewPrice": 388.19
+  },
+  {
+    "index": 8,
+    "ContractIndex": 41,
+    "ApplyOnDayOffset": 55,
+    "NewPrice": 434.22
+  }
+]

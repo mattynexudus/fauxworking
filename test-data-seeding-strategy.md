@@ -1,6 +1,12 @@
 # Test Data Seeding Strategy
 
-> **Purpose:** Define all records, volumes, and variance needed to meaningfully populate every report and dashboard spec. This document is the blueprint for a standalone `nexudus-test-data` repo where the Nexudus CLI + agent skills will create the data programmatically.
+> **Purpose:** Define all records, volumes, and variance needed to meaningfully populate every report and dashboard spec. This was the original blueprint for this repo; Phases 1–5 (§8) are now built — Layers 0 through 4a. **§7 has been superseded by the repo's top-level `CLAUDE.md`** — that file is the source of truth for agent instructions and entity creation patterns; this doc keeps the volumes/variance/dependency-graph design plus a status log of what's built and where it diverged from the original plan.
+>
+> **Key divergences from the original plan**, expanded on in §8:
+>
+> - **MCP tools, not a CLI.** All Nexudus operations go through `nexudus_list` / `nexudus_get` / `nexudus_create` / `nexudus_update` / `nexudus_delete` (the `claude.ai Nexudus` MCP server), not a `nexudus <entity> <command> --agent` shell command. Every `nexudus ...` CLI example below is illustrative of the operation, not literal syntax.
+> - **No `[TEST]` name prefixes.** Records are meant to look like real data. `config.TEST_NAME_PREFIX` is `""`. The only marker baked into a record is the coworker email (`test-{id}@seeddata.local`); teardown safety comes from `data/created-ids/<entity>.json` ID tracking, not name matching.
+> - **Two-step generation.** `prebuild.py` generates deterministic profiles into committed `data/*.json` files; the layer generators (`generators/0N_*.py`) read those files and push to Nexudus, resolving day/month offsets against `config.TODAY` at run time. This keeps faker/randomness out of the live-run path and avoids re-deriving the same data (and burning tokens) on every run.
 
 ---
 
@@ -13,7 +19,8 @@
 | **Layered creation order** | Entities have FK dependencies. Strict dependency order (§3). |
 | **Idempotent scripts** | Query before creating (by email/name key). Safe to re-run. |
 | **Configurable scale** | `config.py` sets volumes. Default = "small". Optional 3× "large" multiplier. |
-| **CLI-first** | All ops via `nexudus <entity> <command> --agent`. Operator already authenticated. |
+| **MCP-first** | All ops via the `claude.ai Nexudus` MCP server's `nexudus_list`/`nexudus_create`/`nexudus_update`/`nexudus_delete` tools, called by the agent — not a shell CLI. Operator already authenticated via the MCP connector. |
+| **No name markers** | Records look like real data (no `[TEST]` prefixes). Safety comes from `data/created-ids/<entity>.json`, which tracks every created record's Id for teardown. |
 | **Additive** | Creates new data regardless of existing records. No clean-slate assumption. |
 | **Workflow-aware** | Cancelled bookings come from deleting active bookings. Invoices from billing cycles. Ledger entries from invoice/payment actions. Proposals accepted via status update. |
 
@@ -21,23 +28,25 @@
 
 ## 2. Target Volumes (Small Profile)
 
-### Layer 0 — Reference & Configuration
+> This table is the original target; the `CLI command` column is illustrative of the operation (translate to `nexudus_list`/`nexudus_create`/etc. — see §1). Actual built counts match unless noted; see §3 for the few that shifted.
+
+### Layer 0 — Reference & Configuration (`00_reference.py`, ✅ built)
 
 | Entity | CLI command | Count | Notes |
 |--------|-------------|-------|-------|
-| **Business** | `businesses list` | 3 | Query existing IDs. Multi-location filtering. |
+| **Business** | `businesses list` | 3 | Query existing IDs. Multi-location filtering. Note: the connected test account currently has exactly 1 business (§9). |
 | **TaxRate** | `taxrates` | 3 | UK: Standard 20%, Reduced 5%, Zero-rated 0%. |
 | **FinancialAccount** | `financialaccounts` | 8 | See §4h. Assigned to products/services/tariffs. |
 | **ResourceType** | `resourcetypes` | 5 | Meeting Room, Hot Desk, Private Office, Phone Booth, Parking. |
 
-### Layer 1 — Structural Setup
+### Layer 1 — Structural Setup (`01_structural.py`, ✅ built)
 
 | Entity | CLI command | Count | Notes |
 |--------|-------------|-------|-------|
 | **Team** | `teams` | 5 | Across locations. |
 | **Tariff** (Plan) | `tariffs` | 8 | Varied billing frequency + target prices. FinancialAccount + TaxRate assigned. §4b. |
-| **Product** | `products` | 15 | Add-ons, deposits, day passes, credit bundles, event tickets. Each has FinancialAccount + TaxRate. §4h. |
-| **ExtraService** | `extraservices` | 6 | Per resource type. FinancialAccount + TaxRate linked. |
+| **Product** | `products` | 12 (built 12, not 15 — see §4h's actual list) | Add-ons, deposits, day passes, credit bundles. Each has FinancialAccount + TaxRate. §4h. |
+| **ExtraService** | `extraservices` | 7 (was 6 — added Printing Credit for §4e) | Per resource type + Time/Printing Credit. FinancialAccount + TaxRate linked. |
 | **TimePass** | `timepasses` | 4 | Day pass and timed pass definitions. |
 | **Resource** | `resources` | 20 | Mix of SystemResourceType. Across locations. |
 | **FloorPlan** | `floorplans` | 3 | One per business. |
@@ -51,39 +60,44 @@
 | **CommunityGroup** | `communitygroups` | 3 | General, Networking, Announcements. |
 | **CalendarEventCategory** | `calendareventcategories` | 4 | Workshop, Networking, Social, Wellness. |
 
-### Layer 2 — People
+### Layer 2 — People (`02_people.py`, ✅ built)
 
 | Entity | CLI command | Count | Notes |
 |--------|-------------|-------|-------|
 | **Coworker** | `coworkers` | 60 | Spread across teams/locations. Mix lifecycle states. Engagement fields set. §4o. |
 | **Visitor** | `visitors` | 60 | VisitorSource 1/2/3. Mix departed/on-site. |
 
-### Layer 3 — Contracts & Assignments
+### Layer 3 — Contracts & Occupancy (`03_contracts.py`, ✅ built)
 
 | Entity | CLI command | Count | Notes |
 |--------|-------------|-------|-------|
-| **CoworkerContract** | `coworkercontracts` | 90 | All lifecycle scenarios §4a. ~30% have ContractTerm set (6/12mo). §4p. |
+| **CoworkerContract** | `coworkercontracts` | 90 | All lifecycle scenarios §4a. 27 have ContractTerm set (6/12/24mo). §4p. |
 | **ContractProduct** | `contractproducts` | 30 | Recurring add-ons. Linked to Products with FinancialAccount. |
-| **ContractSchedule** | `contractschedules` | 8 | Future price changes. |
-| **ContractPausedPeriod** | `contractpausedperiods` | 12 | Past, current, future freezes. |
+| **ContractSchedule** | `contractschedules` | 8 | Future price changes. Attached inline via `CoworkerContract.ContractSchedules` at create time, not a separate call. |
+| **ContractPausedPeriod** | `contractpausedperiods` | 12 | Past, current, future freezes, month-boundary aligned. |
 | **ContractDeposit** | `contractdeposits` | 10 | Mix refundable/non-refundable. Linked to deposit Product. §4k. |
 | **CoworkerInventoryAsset** | `coworkerinventoryassets` | 12 | Lockers/equipment assigned to members. §4n. |
 | **FloorPlanDesk assign** | `floorplandesks update` | ~28 | Set CoworkerId on occupied units. |
 
-### Layer 4 — Activity & Transactions
+### Layer 4a — Activity (`04_activity.py`, ✅ built)
 
 | Entity | CLI command | Count | Notes |
 |--------|-------------|-------|-------|
-| **Booking** | `bookings` | 240 | 200 kept + 40 to be cancelled. §4g + §4j. |
+| **Booking** | `bookings` | 240 | 200 kept + 40 to be cancelled, 10 recurring. §4g + §4j. |
 | **Booking → Cancel** | `bookings delete` | 40 | Deleting creates CancelledBooking snapshots. §4j. |
-| **BookingProduct** | (inline on booking) | 30 | Add-ons at booking creation. |
-| **BookingVisitor** | `bookingvisitors` | 50 | External attendees. |
-| **CheckIn** | `checkins` | 300 | Daily over 12 months. Some open (no ToTime). |
-| **CoworkerExtraService** | `coworkerextraservices` | 80 | Booking charges + time credits + printing credits. §4e. |
-| **CoworkerBookingCredit** | `coworkerbookingcredits` | 25 | Monetary wallets. Active/expired/near-expiry. |
-| **CoworkerBookingCreditUseHistory** | `coworkerbookingcreditusehistories` | 50 | Spend transactions. |
-| **CoworkerTimePass** | `coworkertimepasses` | 40 | Used/unused. Plan-issued/purchased. |
+| **BookingProduct** | (inline on booking) | 36 | Add-ons at booking creation. |
+| **BookingVisitor** | `bookingvisitors` | ~82 links on 50 bookings | External attendees (1–3 per applicable booking). Standalone create with a real VisitorId, not inline. |
+| **CheckIn** | `checkins` | 300 | ~40 of 60 coworkers, heavy/light frequency. Some open (no ToTime). |
+| **CoworkerExtraService** | `coworkerextraservices` | 80 | 47 booking charges + 25 time credits + 8 printing credits. §4e. |
+| **CoworkerBookingCredit** | `coworkerbookingcredits` | 25 | Monetary wallets. Active/expired/near-expiry. Moved here from Layer 5. |
+| **CoworkerBookingCreditUseHistory** | `coworkerbookingcreditusehistories` | 50 | Spend transactions. Moved here from Layer 5. |
+| **CoworkerTimePass** | `coworkertimepasses` | 40 | Used/unused. 20 marked Used via follow-up update. |
 | **CoworkerProduct** | `coworkerproducts` | 20 | Recurring product subscriptions. |
+
+### Layer 4b — Community (`05_community.py`, ⬜ not yet built)
+
+| Entity | CLI command | Count | Notes |
+|--------|-------------|-------|-------|
 | **CoworkerDelivery** | `coworkerdeliveries` | 40 | Mix of DeliveryType 1–5. Some collected, some pending. §4q. |
 | **CalendarEvent** | `calendarevents` | 20 | Mix: one-off + recurring. Past + upcoming. §4r. |
 | **EventAttendee** | `eventattendees` | 60 | 3–5 per event. Mix checked-in/not. |
@@ -93,7 +107,7 @@
 | **BlogPost** | `blogposts` | 10 | Published articles. Spread over 12 months. §4u. |
 | **CoworkerTask** | `coworkertasks` | 20 | Mix completed/pending. Varied due dates. §4v. |
 
-### Layer 5 — Financial Records & CRM
+### Layer 5 — Financial Records & CRM (`06_financial.py`, `07_crm_proposals.py`, ⬜ not yet built)
 
 | Entity | CLI command | Count | Notes |
 |--------|-------------|-------|-------|
@@ -111,18 +125,23 @@
 
 ## 3. Creation Order (Dependency Graph)
 
+**Status:** ✅ built = generator exists and dry-run verified; ⬜ not yet built. See §8 for the phase log.
+
 ```
-Layer 0 — Reference (query or create once)
-├── Business (query existing IDs via `nexudus whoami`)
+Layer 0 — Reference  ✅ (00_reference.py)
+├── Business (query via nexudus_list("businesses", {}) — no dedicated "whoami" MCP tool)
 ├── TaxRate × 3
 ├── FinancialAccount × 8
-└── ResourceType × 5
+├── ResourceType × 5
+└── AdminUserId (resolved from nexudus_list("users", {}) — needed for IssuedById on
+    CoworkerContract/Proposal in later layers; not in the original plan)
 
-Layer 1 — Structural Setup
+Layer 1 — Structural Setup  ✅ (01_structural.py)
 ├── Team × 5
 ├── Tariff × 8 (refs: Business, TaxRate, FinancialAccount)
-├── Product × 15 (refs: Business, TaxRate, FinancialAccount)
-├── ExtraService × 6 (refs: Business, ResourceType, TaxRate, FinancialAccount)
+├── Product × 12 (refs: Business, TaxRate, FinancialAccount)
+├── ExtraService × 7 (refs: Business, ResourceType, TaxRate, FinancialAccount)
+│   — includes a Printing Credit rate, added to cover §4e (missing from the original plan)
 ├── TimePass × 4 (refs: Business)
 ├── Resource × 20 (refs: Business, ResourceType)
 ├── FloorPlan × 3 (refs: Business)
@@ -136,27 +155,40 @@ Layer 1 — Structural Setup
 ├── CommunityGroup × 3 (refs: Business)
 └── CalendarEventCategory × 4 (refs: Business)
 
-Layer 2 — People
+Layer 2 — People  ✅ (02_people.py)
 ├── Coworker × 60 (refs: Business, Team) — set engagement fields
 └── Visitor × 60 (refs: Business, Coworker as host)
 
-Layer 3 — Contracts & Occupancy
-├── CoworkerContract × 90 (refs: Coworker, Tariff, Business) — ~30% with ContractTerm
+Layer 3 — Contracts & Occupancy  ✅ (03_contracts.py)
+├── CoworkerContract × 90 (refs: Coworker, Tariff, Business, AdminUserId) — 27 with ContractTerm,
+│   20 with Value ≠ Price. ContractSchedule (8) is attached INLINE at create time via the
+│   `ContractSchedules` child array — it's the only inline child CoworkerContract supports;
+│   ContractDeposit and ContractPausedPeriod are NOT inline and need separate calls.
 ├── ContractProduct × 30 (refs: CoworkerContract, Product)
-├── ContractSchedule × 8 (refs: CoworkerContract)
-├── ContractPausedPeriod × 12 (refs: CoworkerContract)
+├── ContractPausedPeriod × 12 (refs: CoworkerContract) — dates aligned to month boundaries
 ├── ContractDeposit × 10 (refs: CoworkerContract, Product)
 ├── CoworkerInventoryAsset × 12 (refs: Coworker, InventoryAsset)
-└── FloorPlanDesk.CoworkerId updates (refs: FloorPlanDesk, Coworker)
+└── FloorPlanDesk.CoworkerId updates × 28 (refs: FloorPlanDesk, Coworker; also sets Available=false)
 
-Layer 4 — Activity
-├── Booking × 240 (refs: Coworker, Resource) — includes BookingProducts inline, ~10 recurring
-├── BookingVisitor × 50 (refs: Booking, Visitor)
+Layer 4a — Activity  ✅ (04_activity.py)
+├── Booking × 240 (refs: Coworker, Resource) — 10 recurring, includes BookingProducts inline (~36)
+├── BookingVisitor × ~82 guest links (refs: Booking, Visitor) — created STANDALONE with a real
+│   VisitorId, not via Booking's inline `BookingVisitors` (that path writes VisitorFullName/
+│   VisitorEmail, which are read-only on the standalone entity — ambiguous, avoided)
+├── Cancel bookings × 40 (nexudus_delete after products/guests exist → CancelledBooking
+│   auto-created; recurring bookings are never in this set)
 ├── CheckIn × 300 (refs: Coworker, Business)
-├── CoworkerExtraService × 80 (refs: Coworker, ExtraService, Booking)
-├── CoworkerBookingCredit × 25 (refs: Coworker, Business)
-├── CoworkerTimePass × 40 (refs: Coworker, TimePass)
-├── CoworkerProduct × 20 (refs: Coworker, Product)
+├── CoworkerExtraService × 80 (refs: Coworker, ExtraService, Booking) — 47 booking charges +
+│   25 time credits + 8 printing credits
+├── CoworkerBookingCredit × 25 (refs: Coworker, Business) — moved here from Layer 5; no
+│   dependency on invoices, fits naturally with the other credit/pass entities
+├── CoworkerBookingCreditUseHistory × 50 (refs: CoworkerBookingCredit, Booking) — moved here
+│   from Layer 5 for the same reason
+├── CoworkerTimePass × 40 (refs: Coworker, TimePass) — 20 get a follow-up nexudus_update
+│   to set Used=true (Used is updateOnly, not settable at create)
+└── CoworkerProduct × 20 (refs: Coworker, Product)
+
+Layer 4b — Community  ⬜ (05_community.py — not yet built)
 ├── CoworkerDelivery × 40 (refs: Coworker, Business)
 ├── CalendarEvent × 20 (refs: Business, Resource, CalendarEventCategory)
 ├── EventAttendee × 60 (refs: CalendarEvent, Coworker)
@@ -164,16 +196,14 @@ Layer 4 — Activity
 ├── CommunityThread × 15 (refs: Coworker, CommunityGroup, Business)
 ├── CommunityMessage × 40 (refs: CommunityThread, Coworker)
 ├── BlogPost × 10 (refs: Business)
-├── CoworkerTask × 20 (refs: Coworker, Business)
-├── Cancel bookings × 40 (delete selected Bookings → CancelledBooking auto-created)
-└── CrmOpportunity × 30 (refs: CrmBoardColumn, Coworker)
-    └── CrmOpportunityHistory × 60 (refs: CrmOpportunity, CrmBoardColumn)
+└── CoworkerTask × 20 (refs: Coworker, Business)
 
-Layer 5 — Financial & Proposals
+Layer 5 — Financial & CRM  ⬜ (06_financial.py, 07_crm_proposals.py — not yet built)
 ├── Trigger invoice generation (billing cycle commands on contracts)
 ├── Pay/void/credit invoices → ledger entries auto-generated
-├── CoworkerBookingCreditUseHistory × 50 (refs: CoworkerBookingCredit, Booking)
-├── Proposal × 15 (refs: Coworker, Tariff, CrmOpportunity context)
+├── CrmOpportunity × 30 (refs: CrmBoardColumn, Coworker)
+│   └── CrmOpportunityHistory × 60 (refs: CrmOpportunity, CrmBoardColumn)
+├── Proposal × 15 (refs: Coworker, Tariff, CrmOpportunity context, AdminUserId)
 │   ├── Accept proposals (status=3) → auto-creates CoworkerContract
 │   └── CoworkerDataFile × 10 (refs: Proposal)
 └── Supplemental CoworkerLedgerEntry for edge cases
@@ -195,6 +225,8 @@ Layer 5 — Financial & Proposals
 | **Multi-contract (subscribed)** | 6 | Two active contracts simultaneously. |
 | **Unsubscribed** | 3 | Had 2 contracts, one ended, one remains. |
 | **Ending soon** | 3 | CancellationDate within 30–90 days. |
+
+**Implementation note:** the pattern above alone produces 79 contracts (60 coworkers, several with 2). To hit the original 90-contract target, `prebuild.py` pads a handful of coworkers with one extra contract each, staying inside each scenario's narrative: 3 long-term-actives get a secondary add-on plan, 2 churned members get a prior plan that fed into the one they churned from, 3 multi-contract members get a third concurrent contract, and all 3 ending-soon members get the earlier contract they renewed from (`CancellationReason=Renewed`). Also note: `CoworkerContract` has no `EndDate` field — "contract ends" in this table means setting `CancellationDate`.
 
 ### 4b. Tariff Configuration (DEF-1 normalisation + target prices)
 
@@ -275,8 +307,8 @@ Some accepted proposals use a `DiscountCodeId` to apply plan discounts.
 | Month distribution | Heavier in recent 6mo, lighter in older months |
 | Admin-booked | ~10% have BookedByAdminUserId |
 | **Recurring** | ~10 bookings have `Repeats` > 0 (weekly repeating room bookings) |
-| **With products** | ~15% (36 bookings) have BookingProduct records — catering, AV, etc. |
-| **With guests** | ~25% (50 bookings) have BookingVisitor records — external attendees |
+| **With products** | ~15% (36 bookings) have BookingProduct records — catering, AV, etc. Attached inline on the booking create call. |
+| **With guests** | ~25% (50 bookings) have 1–3 BookingVisitor records each (~82 links total) — external attendees. Created standalone with a real `VisitorId`, not via Booking's inline `BookingVisitors` (that path writes `VisitorFullName`/`VisitorEmail`, which are read-only on the standalone entity, so the inline route's actual resolution behavior is ambiguous — safer to link an existing Visitor directly). |
 | With discount | ~5% have DiscountCode text field set |
 | Tentative | ~5% have Tentative=true (pending approval) |
 
@@ -342,10 +374,11 @@ Some accepted proposals use a `DiscountCodeId` to apply plan discounts.
 **Important:** `CancelledBooking` records cannot be created directly. They are system-generated snapshots when a booking is deleted.
 
 **Process:**
-1. Create 240 bookings total (200 to keep + 40 to cancel)
-2. After all bookings and booking visitors/products are created on the 40 designated ones
-3. Delete the 40 selected bookings via `nexudus bookings delete <id> --yes --agent`
-4. System automatically creates CancelledBooking records preserving all metadata
+1. Create 240 bookings total (200 to keep + 40 to cancel), including inline BookingProducts and standalone BookingVisitor guests where applicable
+2. Delete the 40 selected bookings via `nexudus_delete("bookings", <id>)` — recurring bookings are never in this set (they're deleted via `WhichBookingsToUpdate`, not a plain delete, and aren't part of this workflow)
+3. System automatically creates CancelledBooking records preserving all metadata
+
+**Implementation status:** built in `04_activity.py`, dry-run verified for the create + delete call sequence. Not yet confirmed against a live instance that delete actually produces a CancelledBooking snapshot — the Nexudus entity guide for `bookings` doesn't explicitly document this behavior (see gotcha below); it's asserted by house convention (originally CLAUDE.md rule 11). Worth a spot-check once this layer runs live.
 
 **Cancellation reasons to cover:**
 - No longer needed (~15)
@@ -553,428 +586,136 @@ python generators/daily_update.py --date 2026-08-01  # Specific date
 Can be run manually or via cron/launchd:
 ```bash
 # Daily at 09:00 local time
-0 9 * * * cd /path/to/nexudus-test-data && python generators/daily_update.py
+0 9 * * * cd /path/to/data-generator && python generators/daily_update.py
 ```
 
 Or run on-demand before reviewing dashboards that show "today" data.
 
 ---
 
-## 6. Repo Structure (nexudus-test-data)
+## 6. Repo Structure (as built)
 
 ```
-nexudus-test-data/
-├── CLAUDE.md                    ← Agent instructions (see §7)
+data-generator/
+├── CLAUDE.md                    ← Agent instructions — source of truth, supersedes §7 below
 ├── README.md                    ← Human overview
-├── config.py                    ← Volumes, date ranges, business IDs, scale multiplier
-├── requirements.txt             ← faker, etc.
+├── config.py                    ← Volumes, rolling date helpers, TEST_NAME_PREFIX="", scale multiplier
+├── requirements.txt             ← faker, python-dateutil
+├── prebuild.py                  ← Generates every data/*.json below from faker + scenario logic.
+│                                   Run once (or on re-seed with a new --seed); output is committed.
 ├── data/
-│   ├── members.json             ← Generated member profiles
-│   ├── contracts.json           ← Contract lifecycle scenarios
-│   ├── bookings.json            ← Booking records
-│   ├── invoices.json            ← Invoice + line items
-│   └── created-ids/             ← ID tracking per entity per run
-│       ├── coworkers.json
-│       ├── contracts.json
-│       └── ...
+│   ├── coworkers.json                    ← Layer 2
+│   ├── visitors.json                     ← Layer 2
+│   ├── contracts.json                    ← Layer 3
+│   ├── contract_products.json            ← Layer 3
+│   ├── contract_schedules.json           ← Layer 3 (attached inline, not a separate API call)
+│   ├── contract_paused_periods.json      ← Layer 3
+│   ├── contract_deposits.json            ← Layer 3
+│   ├── coworker_inventory_assets.json    ← Layer 3
+│   ├── desk_assignments.json             ← Layer 3
+│   ├── bookings.json                     ← Layer 4a
+│   ├── checkins.json                     ← Layer 4a
+│   ├── extra_services.json               ← Layer 4a
+│   ├── booking_credits.json              ← Layer 4a
+│   ├── credit_use_history.json           ← Layer 4a
+│   ├── time_passes.json                  ← Layer 4a
+│   ├── coworker_products.json            ← Layer 4a
+│   └── created-ids/             ← Runtime: every created record's Id, per entity — the actual
+│                                   safety net for teardown (gitignored, not committed)
 ├── generators/
 │   ├── __init__.py
-│   ├── base.py                  ← BaseGenerator with idempotency + ID tracking
-│   ├── 00_reference.py          ← Layer 0: Tax rates, financial accounts, resource types
-│   ├── 01_structural.py         ← Layer 1: Tariffs, products, resources, desks, inventory, discounts, CRM
-│   ├── 02_people.py             ← Layer 2: Coworkers (with engagement fields), visitors
-│   ├── 03_contracts.py          ← Layer 3: Contracts (with ContractTerm), deposits, freezes, occupancy
-│   ├── 04_activity.py           ← Layer 4: Bookings (recurring + products + guests), check-ins, credits
-│   ├── 05_community.py          ← Layer 4: Deliveries, events, help desk, threads, blogs, tasks
-│   ├── 06_financial.py          ← Layer 5: Invoice triggering, payments, ledger supplements
-│   ├── 07_crm_proposals.py      ← Layer 5: Opportunities, proposals, document files
-│   └── daily_update.py          ← Daily: fresh check-ins, bookings, visitors, deliveries
+│   ├── base.py                  ← BaseGenerator: idempotency, ID tracking, dry-run
+│   ├── 00_reference.py          ← ✅ Layer 0: tax rates, financial accounts, resource types, admin user id
+│   ├── 01_structural.py         ← ✅ Layer 1: tariffs, products, resources, desks, inventory, discounts, CRM
+│   ├── 02_people.py             ← ✅ Layer 2: coworkers (engagement fields), visitors
+│   ├── 03_contracts.py          ← ✅ Layer 3: contracts (ContractTerm inline schedules), deposits, freezes, occupancy
+│   ├── 04_activity.py           ← ✅ Layer 4a: bookings, check-ins, credits, passes
+│   ├── 05_community.py          ← ⬜ Layer 4b: deliveries, events, help desk, threads, blogs, tasks
+│   ├── 06_financial.py          ← ⬜ Layer 5: invoice triggering, payments, ledger supplements
+│   ├── 07_crm_proposals.py      ← ⬜ Layer 5: opportunities, proposals, document files
+│   └── daily_update.py          ← ⬜ Daily: fresh check-ins, bookings, visitors, deliveries
 ├── scripts/
-│   ├── seed_all.sh              ← Run all layers in order
+│   ├── seed_all.sh              ← Run all layer generators in order
 │   ├── seed_layer.sh <N>        ← Run one specific layer
 │   ├── daily.sh                 ← Run daily_update.py (for cron/manual use)
-│   ├── teardown.sh              ← Delete all test data (with safety prompt)
-│   └── verify.sh               ← Count records per entity, validate targets
-├── reference/
-│   ├── entity-dependencies.md   ← Dependency graph (copy of §3)
-│   ├── variance-scenarios.md    ← All scenarios (copy of §4)
-│   ├── field-enums.md           ← Required enum values per entity
-│   ├── financial-accounts.md    ← Account chart with codes
-│   ├── tax-rates.md             ← UK tax rate definitions
-│   ├── cli-patterns.md          ← Common CLI patterns per entity
-│   └── invoice-workflows.md     ← How invoices are generated and adjusted
-└── .claude/
-    └── skills/
-        └── nexudus/             ← Symlink or copy of the nexudus skill
+│   ├── teardown.sh              ← Stub — delete loops over data/created-ids/*.json still TODO
+│   └── verify.sh                ← Count records per entity, validate targets
+└── reference/
+    ├── entity-dependencies.md   ← Dependency graph (copy of §3)
+    ├── field-enums.md           ← Enum values, validated against live Nexudus schemas
+    ├── financial-accounts.md    ← Account chart with codes
+    └── tax-rates.md             ← UK tax rate definitions
 ```
+
+Each layer generator's `run()` takes `nexudus_list`/`nexudus_create`/`nexudus_update`/(`nexudus_delete` where needed) callables plus the previous layer's output dict, and returns its own output dict merged on top — chaining IDs (business_id, admin_user_id, tariff_ids, coworker_ids, ...) forward through the pipeline. In dry-run mode each file's `__main__` block builds a mock chain and no-op callables so it's independently testable; live mode requires an agent with the Nexudus MCP connector to supply real callables (there's no standalone "run everything end-to-end" entry point yet — `seed_all.sh` invokes each script's dry-run-capable path, but a live run is currently agent-orchestrated, not a single shell command).
 
 ---
 
-## 7. CLAUDE.md for the Test Data Repo
+## 7. Agent Instructions
 
-```markdown
-# Nexudus Test Data — Agent Instructions
+Superseded by the repo's top-level `CLAUDE.md` — that file is the live, MCP-based source of truth for key commands and standing rules, and is kept current as generators are built (it does not go stale the way a doc-embedded copy would). Refer to it directly rather than to a snapshot here.
 
-## What this repo does
+What's worth keeping in this doc instead is the set of non-obvious Nexudus API behaviors discovered while building Layers 0-4a, since they informed real code decisions and aren't written down anywhere else:
 
-Generates and seeds realistic test data into a Nexudus instance via the `nexudus` CLI.
-The data populates all reports and dashboards defined in the `reports` repo.
-
-## Key commands
-
-- `python generators/00_reference.py` — Tax rates, financial accounts, resource types
-- `python generators/01_structural.py` — Tariffs, products, resources, desks, inventory, discounts, CRM boards
-- `python generators/02_people.py` — Coworkers (with engagement fields) and visitors
-- `python generators/03_contracts.py` — Contracts (with ContractTerm), deposits, freezes, occupancy
-- `python generators/04_activity.py` — Bookings (recurring + products + guests), check-ins, credits, passes
-- `python generators/05_community.py` — Deliveries, events, help desk, threads, blogs, tasks
-- `python generators/06_financial.py` — Trigger invoices, pay/void/credit, ledger supplements
-- `python generators/07_crm_proposals.py` — Opportunities, proposals (accept some → auto contracts)
-- `python generators/daily_update.py` — Create today's check-ins, bookings, visitors, deliveries
-- `bash scripts/seed_all.sh` — Run all generators in order
-- `bash scripts/daily.sh` — Run daily update (fresh records for today)
-- `bash scripts/verify.sh` — Count created records and validate targets
-
-## Standing rules
-
-1. **Always use `nexudus <entity> <command> --agent`** for CLI calls.
-2. **Check idempotency** — before creating, query for existing records with same key.
-3. **Respect dependency order** — never create a child before its parent.
-4. **Use config.py** for all magic numbers (volumes, dates, business IDs).
-5. **Dates must be UTC with Z suffix** — e.g. `"2025-06-15T09:00:00Z"`.
-6. **Never delete production data** — teardown only deletes records matching test markers.
-7. **Test markers** — naming conventions:
-   - Coworkers: email `test-{id}@seeddata.local`
-   - Resources: name prefix `[TEST]`
-   - Products: name prefix `[TEST]`
-   - InventoryAssets: name prefix `[TEST]`
-   - HelpDesk: subject prefix `[TEST]`
-   - Events: name prefix `[TEST]`
-   - BlogPosts: title prefix `[TEST]`
-   - Other entities: linked to test coworkers/resources
-8. **Run `nexudus whoami --agent` first** to get DefaultBusinessId and defaults.
-9. **Log all created IDs** — append to `data/created-ids/<entity>.json`.
-10. **One CLI call at a time** — do not parallelise nexudus CLI calls.
-11. **Cancelled bookings** — create booking first, then delete it. System creates CancelledBooking.
-12. **Invoices** — cannot be created directly. Trigger via billing cycle commands on contracts.
-    Adjustments (pay, void, credit) create ledger entries automatically.
-13. **Proposals** — create at status=1, then update to status=3 to accept (auto-creates contract).
-14. **Financial accounts** — assign to Products, ExtraServices, and Tariffs at creation time.
-15. **Tax rates** — assign to Products, ExtraServices, and Tariffs at creation time.
-16. **Discount codes** — apply via Proposal.DiscountCodeId or Booking.DiscountCode text field.
-17. **Recurring bookings** — set `Repeats` (enum: 1=Daily, 2=Weekly, 3=Monthly) + `RepeatEvery`.
-18. **Booking products** — create BookingProduct records after the booking exists.
-19. **Booking guests** — create BookingVisitor records linking Booking → Visitor.
-20. **Daily update** — run `daily_update.py` for fresh daily records (check-ins, bookings, visitors, deliveries).
-21. **Events** — CalendarEvent creates the event; EventAttendee adds people to it.
-22. **Deliveries** — create as pending, then update `Collected=true` + `CollectedOn` to mark collected.
-23. **Community threads** — create CommunityThread, then CommunityMessage as replies.
-24. **Engagement fields** — ⚠️ ChurnProbability/EngagementLevel unconfirmed via CLI. Validate first.
-25. **ContractTerm** — set on ~30% of contracts. This is the minimum term end date.
-
-## Entity creation patterns
-
-### Tax Rate (Layer 0)
-```bash
-nexudus taxrates create --business <BusinessId> --name "Standard" --rate 20 --agent
-nexudus taxrates create --business <BusinessId> --name "Reduced" --rate 5 --agent
-nexudus taxrates create --business <BusinessId> --name "Zero-rated" --rate 0 --agent
-```
-
-### Financial Account (Layer 0)
-```bash
-nexudus financialaccounts create --business <BusinessId> --name "Membership Revenue" --code "MEM-001" --account-type 1 --agent
-```
-
-### Tariff with financial + tax links (Layer 1)
-```bash
-nexudus tariffs create \
-  --business <BusinessId> \
-  --name "Hot Desk Monthly" \
-  --system-tariff-type 5 \
-  --price 150.00 \
-  --invoice-every 1 \
-  --invoice-every-weeks 0 \
-  --currency-id <CurrencyId> \
-  --financial-account-id <FinAcctId> \
-  --tax-rate-id <StandardTaxId> \
-  --cancellation-period 30 \
-  --agent
-```
-
-### Product with financial + tax (Layer 1)
-```bash
-nexudus products create \
-  --business <BusinessId> \
-  --name "[TEST] Catering - Lunch" \
-  --price 15.00 \
-  --available-as 3 \
-  --system-product-type 5 \
-  --currency-id <CurrencyId> \
-  --financial-account-id <ProdSalesAcctId> \
-  --tax-rate-id <StandardTaxId> \
-  --agent
-```
-
-### Coworker (Layer 2)
-```bash
-nexudus coworkers create \
-  --full-name "Alice Johnson" \
-  --email "test-001@seeddata.local" \
-  --business <BusinessId> \
-  --team <TeamId> \
-  --agent
-```
-
-### CoworkerContract (Layer 3)
-```bash
-nexudus coworkercontracts create \
-  --coworker <CoworkerId> \
-  --tariff <TariffId> \
-  --start-date "2025-01-01T00:00:00Z" \
-  --price 350.00 \
-  --business <BusinessId> \
-  --agent
-```
-
-### Contract Deposit (Layer 3)
-```bash
-nexudus contractdeposits create \
-  --coworker-contract-id <ContractId> \
-  --product-id <DepositProductId> \
-  --refundable true \
-  --agent
-```
-
-### Booking with add-ons (Layer 4)
-```bash
-nexudus bookings create \
-  --coworker <CoworkerId> \
-  --resource <ResourceId> \
-  --from-time "2025-06-15T09:00:00Z" \
-  --to-time "2025-06-15T10:00:00Z" \
-  --agent
-```
-
-### Cancel a booking → creates CancelledBooking (Layer 4)
-```bash
-nexudus bookings delete <BookingId> --yes --agent
-```
-
-### CoworkerExtraService — Time Credit (Layer 4)
-```bash
-nexudus coworkerextraservices create \
-  --coworker-id <CoworkerId> \
-  --business-id <BusinessId> \
-  --extra-service-id <TimeCreditExtraServiceId> \
-  --total-uses 600 \
-  --charge-period 1 \
-  --agent
-```
-
-### Pay invoice via ledger entry (Layer 5)
-```bash
-nexudus coworkerledgerentries create \
-  --business-id <BusinessId> \
-  --coworker-id <CoworkerId> \
-  --coworker-invoice-id <InvoiceId> \
-  --description "PAYM-Payment received" \
-  --code "PAYM" \
-  --debit 0 \
-  --credit 350.00 \
-  --balance 0 \
-  --agent
-```
-
-### Proposal → Accept → Auto-creates contract (Layer 5)
-```bash
-# Create
-nexudus proposals create \
-  --coworker-id <CoworkerId> \
-  --tariff-id <TariffId> \
-  --issued-by-id <AdminUserId> \
-  --responsible-id <AdminUserId> \
-  --reference "PROP-001" \
-  --proposal-status 1 \
-  --billing-day 1 \
-  --quantity 1 \
-  --price 350.00 \
-  --start-date "2026-07-01T00:00:00Z" \
-  --agent
-
-# Accept (creates contract automatically)
-nexudus proposals update <ProposalId> --proposal-status 3 --agent
-```
-
-### Delivery (Layer 4)
-```bash
-nexudus coworkerdeliveries create \
-  --business-id <BusinessId> \
-  --coworker-id <CoworkerId> \
-  --name "Amazon parcel" \
-  --location "Reception" \
-  --delivery-type 2 \
-  --handling-preference StoreForCollection \
-  --agent
-```
-
-### Event + Attendee (Layer 4)
-```bash
-nexudus calendarevents create \
-  --business-id <BusinessId> \
-  --name "[TEST] Weekly Networking Lunch" \
-  --start-date "2026-08-06T12:00:00Z" \
-  --end-date "2026-08-06T13:30:00Z" \
-  --repeats 2 \
-  --repeat-every 1 \
-  --which-events-to-update 1 \
-  --resource-id <RoomResourceId> \
-  --agent
-
-nexudus eventattendees create \
-  --business-id <BusinessId> \
-  --calendar-event-id <EventId> \
-  --event-product-id <EventProductId> \
-  --full-name "Alice Johnson" \
-  --email "test-001@seeddata.local" \
-  --coworker-id <CoworkerId> \
-  --agent
-```
-
-### Help Desk Ticket (Layer 4)
-```bash
-nexudus helpdeskmessages create \
-  --business-id <BusinessId> \
-  --coworker-id <CoworkerId> \
-  --subject "[TEST] WiFi not working in meeting room 3" \
-  --message-text "Cannot connect to WiFi since this morning." \
-  --priority 1 \
-  --help-desk-department-id <ITDeptId> \
-  --ai-processing-result "" \
-  --agent
-```
-
-### Community Thread + Reply (Layer 4)
-```bash
-nexudus communitythreads create \
-  --business-id <BusinessId> \
-  --user-id <UserId> \
-  --coworker-id <CoworkerId> \
-  --community-group-id <GroupId> \
-  --subject "Anyone up for lunch today?" \
-  --message "Thinking of trying the new café next door." \
-  --agent
-
-nexudus communitymessages create \
-  --community-thread-id <ThreadId> \
-  --user-id <UserId> \
-  --coworker-id <CoworkerId> \
-  --message "Count me in! 12:30?" \
-  --agent
-```
-
-### Inventory Asset + Assignment (Layer 1 + 3)
-```bash
-nexudus inventoryassets create \
-  --business-id <BusinessId> \
-  --name "[TEST] Locker A-01" \
-  --assign-to-type 3 \
-  --floor-plan-desk-id <DeskId> \
-  --value 0 \
-  --agent
-
-nexudus coworkerinventoryassets create \
-  --coworker-id <CoworkerId> \
-  --business-id <BusinessId> \
-  --inventory-asset-id <AssetId> \
-  --assigned-from "2026-01-15T00:00:00Z" \
-  --agent
-```
-
-### Task (Layer 4)
-```bash
-nexudus coworkertasks create \
-  --business-id <BusinessId> \
-  --coworker-id <CoworkerId> \
-  --name "Complete induction checklist" \
-  --responsible-id <AdminUserId> \
-  --due-date "2026-08-15T00:00:00Z" \
-  --agent
-```
-
-### Recurring Booking (Layer 4)
-```bash
-nexudus bookings create \
-  --coworker <CoworkerId> \
-  --resource <ResourceId> \
-  --from-time "2026-08-04T09:00:00Z" \
-  --to-time "2026-08-04T10:00:00Z" \
-  --repeats 2 \
-  --repeat-every 1 \
-  --which-bookings-to-update 1 \
-  --agent
-```
-
-### Daily Update (run daily or on-demand)
-```bash
-python generators/daily_update.py          # Today's records
-python generators/daily_update.py --days 7 # Backfill last 7 days
-```
-
-## Verification
-
-After seeding, run `bash scripts/verify.sh`:
-```bash
-nexudus coworkers list --page-size 1 --agent | jq '.meta.total'
-nexudus coworkercontracts list --page-size 1 --agent | jq '.meta.total'
-nexudus bookings list --page-size 1 --agent | jq '.meta.total'
-nexudus cancelledbookings list --page-size 1 --agent | jq '.meta.total'
-nexudus coworkerinvoices list --page-size 1 --agent | jq '.meta.total'
-# ... etc for each entity
-```
-```
+- **No "whoami" MCP tool.** Business/currency/country/timezone defaults come from `nexudus_list("businesses", {})` on the single business this account is scoped to, not a dedicated whoami call.
+- **`CoworkerContract.IssuedById` is required** and has no sensible default -- resolve it from `nexudus_list("users", {})`, picking the `IsAdmin=true` record tied to the business, at run time (not hardcoded). Same field is required on `Proposal` (Layer 5, not yet built).
+- **`ContractSchedule` is the only inline child `CoworkerContract` supports** (`ContractSchedules: [{Price, ApplyOn}]` on create). `ContractDeposit` and `ContractPausedPeriod` looked like plausible inline candidates but are NOT -- they need separate `nexudus_create` calls after the parent contract exists.
+- **`ContractPausedPeriod` dates must align to billing-cycle boundaries** (first-of-month for monthly plans), not arbitrary dates -- the entity guide is explicit about this.
+- **`Booking` supports two real inline children**, `BookingProducts` and `BookingVisitors` -- but the inline `BookingVisitors` path writes `VisitorFullName`/`VisitorEmail`, fields that are read-only on the standalone `BookingVisitor` entity. That mismatch means the inline path's resolution behavior isn't fully pinned down from the schema alone, so guests are created standalone with a real `VisitorId` instead once each booking has an Id.
+- **`CoworkerTimePass.Used` is `updateOnly`** -- you cannot mark a pass used at create time; create it, then a follow-up `nexudus_update` sets `Used=true` + `UsedDate`.
+- **`CoworkerBookingCredit` has a literal typo baked into the API**: the field is `CaneBeUsedForBookings`, not `CanBeUsedForBookings`. Not a bug in generator code -- matches the live schema.
+- **`CoworkerExtraService` does not require a `BookingId`** -- time/printing credits are free-standing allowances (`TotalUses`, no booking link); `BookingId` is only set when the record represents a specific per-booking charge.
+- **Deleting a `Booking` to produce a `CancelledBooking`** (§4j) is asserted by house convention, not confirmed in the `bookings` entity guide text -- worth a spot-check on first live run.
+- **`FloorPlanDesk.CoworkerId`** is a plain writable field, settable via `nexudus_update`; there's no separate "occupied" boolean, so `Available=false` is set alongside it to represent occupancy.
 
 ---
 
 ## 8. Implementation Phases
 
-| Phase | What | Dependencies |
-|-------|------|-------------|
-| **Phase 1** | Repo setup: structure, config.py, base.py, reference docs | None |
-| **Phase 2** | Layer 0 + Layer 1: Tax, accounts, tariffs, products, resources, desks, inventory, discounts, events setup, help desk depts | None |
-| **Phase 3** | Layer 2: Coworkers (60, with engagement fields) + Visitors (60) | Phase 2 |
-| **Phase 4** | Layer 3: Contracts (with ContractTerm), deposits, freezes, inventory assignments, occupancy | Phase 3 |
-| **Phase 5** | Layer 4a: Bookings (recurring + products + guests) + cancellations, check-ins, credits, passes | Phase 4 |
-| **Phase 6** | Layer 4b: Deliveries, events + attendees, help desk, community, blogs, tasks | Phase 4 |
-| **Phase 7** | Layer 5: Invoice generation + payments, CRM opportunities, proposals | Phase 5 |
-| **Phase 8** | Daily update script + verification + teardown scripts | Phase 7 |
-| **Phase 9** | Run against test instance, validate all report widgets populate | Phase 8 |
+| Phase | What | Dependencies | Status |
+|-------|------|-------------|--------|
+| **Phase 1** | Repo setup: structure, config.py, base.py, reference docs | None | ✅ Done |
+| **Phase 2** | Layer 0 + Layer 1: Tax, accounts, tariffs, products, resources, desks, inventory, discounts, CRM boards, help desk depts | None | ✅ Done (`00_reference.py`, `01_structural.py`) |
+| **Phase 3** | Layer 2: Coworkers (60, with engagement fields) + Visitors (60) | Phase 2 | ✅ Done (`02_people.py`) |
+| **Phase 4** | Layer 3: Contracts (with ContractTerm), deposits, freezes, inventory assignments, occupancy | Phase 3 | ✅ Done (`03_contracts.py`) |
+| **Phase 5** | Layer 4a: Bookings (recurring + products + guests) + cancellations, check-ins, credits, passes | Phase 4 | ✅ Done (`04_activity.py`) |
+| **Phase 6** | Layer 4b: Deliveries, events + attendees, help desk, community, blogs, tasks | Phase 4 | ⬜ Not started (`05_community.py`) |
+| **Phase 7** | Layer 5: Invoice generation + payments, CRM opportunities, proposals | Phase 5 | ⬜ Not started (`06_financial.py`, `07_crm_proposals.py`) |
+| **Phase 8** | Daily update script + verification + teardown scripts | Phase 7 | ⬜ Not started (`daily_update.py`, `verify.sh`/`teardown.sh` are stubs) |
+| **Phase 9** | Run against test instance, validate all report widgets populate | Phase 8 | ⬜ Not started — nothing has been pushed live yet; every layer above is dry-run verified only |
+
+**Notable deviations from the original plan, by phase:**
+- **Phase 1:** `prebuild.py` added as a step that didn't exist in the original design — see §1 and §6.
+- **Phase 2:** added a Printing Credit `ExtraService` (§4e needed it, wasn't in the original Layer 1 list).
+- **Phase 4:** contract count landed at 79 from the scenario math in §4a alone; padded to 90 (matching the original target) with a few extra contracts layered onto existing scenarios — see §4a note below. `ContractSchedule` turned out to be an inline child of `CoworkerContract`, not a separate create step.
+- **Phase 5:** `CoworkerBookingCredit` and `CoworkerBookingCreditUseHistory` were originally planned for Layer 5 (§3) but have no invoice dependency, so they were built here instead, alongside the other credit/pass entities.
+- **No name-prefix test markers** (all phases): `[TEST]` prefixes were removed from all generated data so records look like real data; see §1 and §6.
 
 ---
 
 ## 9. Things You Might Have Missed
 
-These are additional considerations surfaced during analysis:
+These are additional considerations surfaced during analysis. Status now distinguishes **✅ Built** (code exists, dry-run verified) from **📋 Planned** (designed here, not yet built):
 
 | Item | Status | Notes |
 |------|--------|-------|
-| **Recurring bookings** | ✅ Covered | ~10 bookings with `Repeats` > 0. §4g. |
-| **Booking products (sold with booking)** | ✅ Covered | ~36 bookings with inline BookingProduct records. §4g. |
-| **Booking guests** | ✅ Covered | ~50 BookingVisitor records. §4g. |
-| **Deliveries** | ✅ Covered | 40 records, all 5 types, handling preferences. §4q. |
-| **Events** | ✅ Covered | 20 CalendarEvents + 60 attendees. §4r. |
-| **Help Desk** | ✅ Covered | 25 tickets, 3 priorities, 3 departments. §4s. |
-| **Blog / Articles** | ✅ Covered | 10 published articles. §4u. |
-| **Community / Message Board** | ✅ Covered | 15 threads + 40 messages across 3 groups. §4t. |
-| **Lockers & Equipment** | ✅ Covered | 15 InventoryAssets + 12 assignments. §4n. |
-| **Tasks** | ✅ Covered | 20 tasks, mix completed/pending/overdue. §4v. |
-| **Engagement / Churn fields** | ✅ Covered (⚠️ validate) | ChurnProbability + EngagementLevel. §4o. |
-| **ContractTerm (minimum term)** | ✅ Covered | ~30% of contracts. §4p. |
-| **Daily update script** | ✅ Covered | Creates fresh daily records. §5. |
-| **Multiple locations** | ✅ Covered | Distribute ~50%/30%/20% across 3 locations. |
-| **Invoice line source diversity** | ✅ Covered | All 4 source UniqueIds represented. |
-| **Contract Value field** | ✅ Covered | Benchmark ≠ Price on ~20 contracts. §4p. |
-| **Resource availability** | Partially | Set `Available=false` on 2 resources for maintenance. |
+| **Recurring bookings** | ✅ Built | 10 bookings with `Repeats` > 0. §4g. |
+| **Booking products (sold with booking)** | ✅ Built | 36 bookings with inline BookingProduct records. §4g. |
+| **Booking guests** | ✅ Built | ~82 BookingVisitor records across 50 bookings (1–3 each), created standalone. §4g. |
+| **Lockers & Equipment** | ✅ Built | 15 InventoryAssets + 12 assignments. §4n. |
+| **ContractTerm (minimum term)** | ✅ Built | 27 of 90 contracts. §4p. |
+| **Contract Value field** | ✅ Built | Benchmark ≠ Price on 20 contracts. §4p. |
+| **Engagement / Churn fields** | ✅ Built (⚠️ still unvalidated) | ChurnProbability + EngagementLevel are set in `02_people.py`'s request body, but never confirmed against a live `nexudus_describe_entity("coworkers")` response — could silently no-op if the fields don't exist. §4o. |
+| **Deliveries** | 📋 Planned | Layer 4b, `05_community.py`. §4q. |
+| **Events** | 📋 Planned | Layer 4b, `05_community.py`. §4r. |
+| **Help Desk** | 📋 Planned | Layer 4b, `05_community.py`. §4s. |
+| **Blog / Articles** | 📋 Planned | Layer 4b, `05_community.py`. §4u. |
+| **Community / Message Board** | 📋 Planned | Layer 4b, `05_community.py`. §4t. |
+| **Tasks** | 📋 Planned | Layer 4b, `05_community.py`. §4v. |
+| **Daily update script** | 📋 Planned | `daily_update.py` not started. §5. |
+| **Invoice line source diversity** | 📋 Planned | Layer 5, `06_financial.py` not started. |
+| **Multiple locations** | ❌ Not applicable | The connected Nexudus MCP account (business "Explore 2.0", id 1421021016) has exactly **one** business — there's nothing to distribute across. `business_id` is used as a single scalar everywhere in the generators. Revisit if a multi-location instance is ever targeted. |
+| **Resource availability** | Not yet addressed | Original idea: set `Available=false` on 2 resources for maintenance. Not implemented in `01_structural.py` yet. |
 | **Floor plan desk variants** | Low priority | May need `FloorPlanDeskVariant` if reports use them. |
 | **Event products (ticketing)** | To add | Need `EventProduct` records (ticket types) before `EventAttendee`. |
 | **CoworkerDiscountCode** | Not needed | Discount is applied at Proposal or Booking level, not separately assigned. |

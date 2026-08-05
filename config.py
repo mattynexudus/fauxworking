@@ -125,7 +125,11 @@ VOLUMES = {k: v * SCALE_MULTIPLIER for k, v in VOLUMES.items()}
 # ---------------------------------------------------------------------------
 TEST_EMAIL_DOMAIN = "seeddata.local"
 TEST_EMAIL_PREFIX = "test-"
-TEST_NAME_PREFIX = "[TEST] "
+# No name prefix — records should look like real data. Safe teardown relies
+# on data/created-ids/<entity>.json (every created record's Id is tracked
+# there), not on a naming convention. Coworker emails remain the one
+# marker baked into the record itself (test-NNN@seeddata.local).
+TEST_NAME_PREFIX = ""
 
 # ---------------------------------------------------------------------------
 # Seed for reproducibility

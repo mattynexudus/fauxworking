@@ -57,8 +57,8 @@ Default is "small" profile. Change `SCALE = "large"` in `config.py` for 3× volu
 
 All test records use identifiable prefixes for safe teardown:
 - Coworker emails: `test-NNN@seeddata.local`
-- Resource/product/asset names: `[TEST] ...`
-- Help desk subjects: `[TEST] ...`
+- Resource/product/asset names: `...`
+- Help desk subjects: `...`
 
 ## Teardown
 

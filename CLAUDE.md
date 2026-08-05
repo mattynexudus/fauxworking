@@ -27,16 +27,8 @@ The data populates all reports and dashboards defined in the reports repo.
 3. **Respect dependency order** — never create a child before its parent.
 4. **Use config.py** for all magic numbers (volumes, dates, business IDs).
 5. **Dates must be UTC with Z suffix** — use `config.to_utc_str()`.
-6. **Never delete production data** — teardown only deletes records matching test markers.
-7. **Test markers** — naming conventions:
-   - Coworkers: email `test-{id}@seeddata.local`
-   - Resources: name prefix `[TEST]`
-   - Products: name prefix `[TEST]`
-   - InventoryAssets: name prefix `[TEST]`
-   - HelpDesk: subject prefix `[TEST]`
-   - Events: name prefix `[TEST]`
-   - BlogPosts: title prefix `[TEST]`
-   - Other entities: linked to test coworkers/resources
+6. **Never delete production data** — teardown only deletes IDs logged in `data/created-ids/<entity>.json`, never by name pattern.
+7. **No `[TEST]` name prefixes** — records should look like real data (reports/dashboards are demoed off this). `TEST_NAME_PREFIX` in `config.py` is `""`. The only marker baked into a record is the coworker email (`test-{id}@seeddata.local`); everything else is identified purely by its tracked ID.
 8. **Run `nexudus whoami` first** to get DefaultBusinessId and defaults.
 9. **Log all created IDs** — append to `data/created-ids/<entity>.json`.
 10. **One MCP call at a time** — do not parallelise Nexudus calls.

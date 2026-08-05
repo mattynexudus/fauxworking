@@ -189,6 +189,7 @@ if __name__ == "__main__":
             "currency_id": "DRY-CUR-1",
             "country_id": "DRY-COUNTRY-1",
             "timezone_id": "DRY-TZ-1",
+            "admin_user_id": "DRY-ADMIN-1",
             "tax_rate_ids": {"Standard": "DRY-TAX-STD"},
             "fin_account_ids": {c["Code"]: f"DRY-FA-{c['Code']}" for c in ref.FINANCIAL_ACCOUNTS},
             "resource_type_ids": {r["Name"]: f"DRY-RT-{r['Name']}" for r in ref.RESOURCE_TYPES},

@@ -1,0 +1,152 @@
+[
+  {
+    "index": 1,
+    "GroupName": "General",
+    "CoworkerIndex": 19,
+    "Subject": "Numquam optio commodi tempore magni pariatur",
+    "Message": "Illo eos consectetur in velit perspiciatis temporibus nulla error molestias a enim.",
+    "DayOffset": -150,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 2,
+    "GroupName": "General",
+    "CoworkerIndex": 54,
+    "Subject": "Ratione non eum ipsam perferendis maiores",
+    "Message": "Omnis eligendi optio nulla at veritatis doloremque est rem.",
+    "DayOffset": -128,
+    "MessageCount": 5,
+    "Private": true
+  },
+  {
+    "index": 3,
+    "GroupName": "General",
+    "CoworkerIndex": 18,
+    "Subject": "Ad doloribus labore sed",
+    "Message": "Iste suscipit nemo quaerat fugit id corporis porro.",
+    "DayOffset": -43,
+    "MessageCount": 4,
+    "Private": false
+  },
+  {
+    "index": 4,
+    "GroupName": "General",
+    "CoworkerIndex": 16,
+    "Subject": "Quod dolor rem possimus",
+    "Message": "Amet dolorum sed itaque reiciendis pariatur voluptates nisi veniam tempora nostrum quaerat magnam rerum.",
+    "DayOffset": -55,
+    "MessageCount": 3,
+    "Private": false
+  },
+  {
+    "index": 5,
+    "GroupName": "General",
+    "CoworkerIndex": 40,
+    "Subject": "Ipsum culpa similique ipsum quibusdam saepe eius",
+    "Message": "Laborum dolores ipsam quae doloremque excepturi tempora aspernatur corrupti fugit corrupti distinctio impedit ex iure.",
+    "DayOffset": -87,
+    "MessageCount": 4,
+    "Private": false
+  },
+  {
+    "index": 6,
+    "GroupName": "General",
+    "CoworkerIndex": 60,
+    "Subject": "Dignissimos in temporibus nesciunt",
+    "Message": "Sequi quisquam fugit ab explicabo quidem sequi.",
+    "DayOffset": -57,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 7,
+    "GroupName": "Networking",
+    "CoworkerIndex": 35,
+    "Subject": "Modi quasi reiciendis tempore laborum earum",
+    "Message": "Adipisci excepturi perspiciatis illo cumque iusto consectetur numquam ad hic natus ad odit consequatur.",
+    "DayOffset": -36,
+    "MessageCount": 4,
+    "Private": false
+  },
+  {
+    "index": 8,
+    "GroupName": "Networking",
+    "CoworkerIndex": 3,
+    "Subject": "Delectus ea eveniet iste excepturi sunt eius",
+    "Message": "Dolorum aspernatur accusantium molestiae voluptatum expedita officiis quos officiis quidem veniam dicta accusantium.",
+    "DayOffset": -72,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 9,
+    "GroupName": "Networking",
+    "CoworkerIndex": 9,
+    "Subject": "Dolores labore beatae veniam",
+    "Message": "Praesentium quisquam cumque non quibusdam beatae reprehenderit vitae autem ad est perspiciatis vero id.",
+    "DayOffset": -155,
+    "MessageCount": 3,
+    "Private": false
+  },
+  {
+    "index": 10,
+    "GroupName": "Networking",
+    "CoworkerIndex": 58,
+    "Subject": "Asperiores porro occaecati aut quo",
+    "Message": "Rem recusandae natus aliquam minus optio architecto officia accusamus in laudantium inventore facere tempora itaque corrupti.",
+    "DayOffset": -177,
+    "MessageCount": 4,
+    "Private": false
+  },
+  {
+    "index": 11,
+    "GroupName": "Networking",
+    "CoworkerIndex": 29,
+    "Subject": "Quasi vitae earum repellat",
+    "Message": "Quo iure repudiandae nihil eum doloribus vel eius iste quibusdam necessitatibus pariatur excepturi laudantium eveniet.",
+    "DayOffset": -41,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 12,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 11,
+    "Subject": "Distinctio reiciendis excepturi sunt praesentium eius ab",
+    "Message": "Assumenda quam laborum quidem porro officia laudantium recusandae at dolore.",
+    "DayOffset": -154,
+    "MessageCount": 1,
+    "Private": false
+  },
+  {
+    "index": 13,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 2,
+    "Subject": "Esse neque labore minus incidunt",
+    "Message": "Ex praesentium earum dolorum blanditiis deserunt blanditiis modi quis delectus dolor laborum quam voluptate minima.",
+    "DayOffset": -78,
+    "MessageCount": 1,
+    "Private": false
+  },
+  {
+    "index": 14,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 35,
+    "Subject": "Voluptatem rerum eos facere esse",
+    "Message": "Consectetur aliquid amet eos velit odit quidem aut accusamus eligendi laboriosam exercitationem vitae dolorum similique.",
+    "DayOffset": -46,
+    "MessageCount": 1,
+    "Private": false
+  },
+  {
+    "index": 15,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 16,
+    "Subject": "Reprehenderit id asperiores occaecati",
+    "Message": "Corrupti repellat veniam assumenda dolorum nam impedit.",
+    "DayOffset": -152,
+    "MessageCount": 1,
+    "Private": false
+  }
+]

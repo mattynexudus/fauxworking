@@ -81,6 +81,7 @@ EXTRA_SERVICES = [
     {"Name": f"{TEST_NAME_PREFIX}Phone Booth Rate",    "Price": 10.00,  "ChargePeriod": 2, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Phone Booth"},
     {"Name": f"{TEST_NAME_PREFIX}Parking Rate",        "Price": 8.00,   "ChargePeriod": 3, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Parking"},
     {"Name": f"{TEST_NAME_PREFIX}Time Credit",         "Price": 0.00,   "ChargePeriod": 1, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room"},
+    {"Name": f"{TEST_NAME_PREFIX}Printing Credit",     "Price": 0.00,   "ChargePeriod": 5, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room"},
 ]
 
 # TimePasses
@@ -756,6 +757,7 @@ if __name__ == "__main__":
             "currency_id": "DRY-CUR-1",
             "country_id": "DRY-COUNTRY-1",
             "timezone_id": "DRY-TZ-1",
+            "admin_user_id": "DRY-ADMIN-1",
             "tax_rate_ids": {"Standard": "DRY-TAX-STD", "Reduced": "DRY-TAX-RED", "Zero-rated": "DRY-TAX-ZERO"},
             "fin_account_ids": {c["Code"]: f"DRY-FA-{c['Code']}" for c in ref.FINANCIAL_ACCOUNTS},
             "resource_type_ids": {r["Name"]: f"DRY-RT-{r['Name']}" for r in ref.RESOURCE_TYPES},
