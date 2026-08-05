@@ -1,0 +1,8 @@
+# Runtime output — created by generators
+data/created-ids/*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
