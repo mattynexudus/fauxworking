@@ -42,6 +42,7 @@ ENTITY_DELETE_ORDER = [
     "crmopportunityhistories",
     "crmopportunities",
     "coworkerledgerentries",
+    "coworkerinvoicehistories",
     # Layer 4b
     "coworkertasks",
     "blogposts",

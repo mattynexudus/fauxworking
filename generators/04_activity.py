@@ -123,6 +123,10 @@ class ActivityGenerator(BaseGenerator):
                 "FromTime": from_time,
                 "ToTime": to_time,
                 "Tentative": defn["Tentative"],
+                # Bill this booking's own coworker rather than their team's payer —
+                # the resulting charge is swept into that coworker's next invoice
+                # by 06_financial.py's COWORKER_BILL_RUN, alongside their plan fee.
+                "InvoiceThisCoworker": True,
             }
             if defn["Repeats"]:
                 body["RepeatBooking"] = True
@@ -258,6 +262,7 @@ class ActivityGenerator(BaseGenerator):
                 "ExtraServiceId": extra_service_ids[defn["ExtraServiceName"]],
                 "TotalUses": defn["TotalUses"],
                 "ChargePeriod": defn["ChargePeriod"],
+                "InvoiceThisCoworker": True,
             }
             if defn["Price"] is not None:
                 body["Price"] = defn["Price"]
@@ -404,6 +409,7 @@ class ActivityGenerator(BaseGenerator):
                 "ProductId": product_ids[defn["ProductName"]],
                 "Quantity": defn["Quantity"],
                 "RepeatCycle": defn["RepeatCycle"],
+                "InvoiceThisCoworker": True,
                 "CreditAmount": 0,
                 "DiscountAmount": 0,
             }

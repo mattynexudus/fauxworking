@@ -12,26 +12,40 @@ What it does:
    output and raises their next invoice via the `COWORKER_BILL_RUN` command
    on the `coworkers` entity (there is no create endpoint or command on
    `coworkercontracts`/`coworkerinvoices` themselves — see gotchas below).
+   Bookings, CoworkerExtraServices, and CoworkerProducts are all created
+   with `InvoiceThisCoworker=True` (04_activity.py) so their charges are
+   swept into that coworker's next invoice alongside their plan fee —
+   this is the "item sales" invoicing path, distinct from the contract
+   renewal itself.
 2. Lists the resulting `coworkerinvoices` and marks ~60% of them paid by
    creating a `CoworkerLedgerEntry` linked via `CoworkerInvoiceId`.
-3. Creates a handful of supplemental ledger entries (manual adjustments)
+3. Voids ~5 and issues a credit note against ~10 more, via
+   `CoworkerInvoiceHistory` (see below) plus an offsetting
+   `CoworkerLedgerEntry`.
+4. Creates a handful of supplemental ledger entries (manual adjustments)
    unrelated to any invoice.
 
-**Known gap — Void / CreditNote invoice states are NOT implemented.**
-`coworkerinvoices` supports list/get/update only (no create, no commands),
-and `Void`, `CreditNote`, `OriginalInvoiceGuid`, `Paid`, `PaidAmount`,
-`TotalAmount` are all read-only on that entity. No API path was found for
-voiding an invoice or issuing a credit note through this MCP surface. The
-original plan's ~5 void + ~10 credit-note invoices (§4c) are skipped rather
-than approximated with something misleading.
+**Void / credit note — corrected.** An earlier version of this generator
+declared these unsupported, having tried to flip `Void`/`CreditNote` on
+`coworkerinvoices` directly — those fields really are read-only, and that
+entity really has no create/commands. But paid/void/credit-note are all
+*actions recorded against an invoice*, and the entity built for exactly that
+is `CoworkerInvoiceHistory` (full CRUD, `CoworkerInvoiceId` + `Name` +
+`Description`, e.g. "Invoice voided" / "Credit note issued") — an audit
+trail, not a field flip. Implemented here as: a `CoworkerInvoiceHistory`
+entry narrating the action, plus a `CoworkerLedgerEntry` to reflect the
+balance impact (matching how "Paid" already works).
 
 **Unverified assumptions, flagged for a live spot-check:**
 - That creating a `CoworkerLedgerEntry` with `CoworkerInvoiceId` set actually
   reconciles the invoice's (read-only) `Paid`/`PaidAmount` fields. This is
   inferred from the field design (writable ledger + FK link, but read-only
   invoice fields), not confirmed in the entity guide text.
-- The ledger `Code` value `"PAYM"` is a project convention, not an
-  API-enforced enum — `Code` is a free-text field on `CoworkerLedgerEntry`.
+- Same inference for `CoworkerInvoiceHistory` reconciling `Void`/`CreditNote`
+  — plausible from the field design, not explicitly confirmed in the guide.
+- The ledger `Code` values (`"PAYM"`, `"VOID"`, `"CRNT"`) are a project
+  convention, not an API-enforced enum — `Code` is a free-text field on
+  `CoworkerLedgerEntry`.
 - Whether `COWORKER_BILL_RUN` on a coworker with multiple active contracts
   bills all of them or just one is undocumented.
 
@@ -66,27 +80,33 @@ LEDGER_SUPPLEMENTS = [
 class FinancialGenerator(BaseGenerator):
     entity_name = "financial"
 
-    PAID_FRACTION = 0.6  # ~90 of ~150 target from §4c
+    PAID_FRACTION = 0.6   # ~90 of ~150 target from §4c
+    VOID_COUNT = 5
+    CREDIT_NOTE_COUNT = 10
 
     def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_run_command, prev_output):
         biz = prev_output["business_id"]
         contract_defs = prev_output["contract_defs"]
         coworker_ids = prev_output["coworker_ids"]
 
-        self.log.info(
-            "NOTE: Void/CreditNote invoice states are not implemented — no supported "
-            "API path was found (see module docstring). Skipping those targets."
-        )
-
         billing_coworker_ids = self._billable_coworker_ids(contract_defs, coworker_ids)
         self._raise_invoices(billing_coworker_ids, nexudus_run_command)
         invoices = self._list_invoices(biz, nexudus_list)
-        self._pay_invoices(biz, invoices, nexudus_create)
+
+        paid, remainder = self._split_invoices(invoices)
+        self._pay_invoices(biz, paid, nexudus_create)
+        self._void_and_credit_invoices(biz, remainder, nexudus_create)
         self._create_ledger_supplements(biz, coworker_ids, nexudus_create)
 
         self.log.info("Layer 5 Financial complete. Billed coworkers: %d, invoices seen: %d",
                       len(billing_coworker_ids), len(invoices))
         return {**prev_output}
+
+    def _split_invoices(self, invoices):
+        """Partition invoices into disjoint pools for paid / void / credit-note,
+        so the same invoice never gets two conflicting actions."""
+        paid_count = round(len(invoices) * self.PAID_FRACTION)
+        return invoices[:paid_count], invoices[paid_count:]
 
     # ------------------------------------------------------------------
     # Which coworkers to bill
@@ -131,14 +151,12 @@ class FinancialGenerator(BaseGenerator):
         return invoices
 
     # ------------------------------------------------------------------
-    # Pay a fraction of them
+    # Pay invoices
     # ------------------------------------------------------------------
     def _pay_invoices(self, biz, invoices, nexudus_create):
-        target_count = round(len(invoices) * self.PAID_FRACTION)
-        self.log.info("--- Paying %d of %d invoices (~%.0f%%) ---",
-                      target_count, len(invoices), self.PAID_FRACTION * 100)
+        self.log.info("--- Paying %d invoices ---", len(invoices))
 
-        for inv in invoices[:target_count]:
+        for inv in invoices:
             track_key = str(inv.get("Id"))
             if self.already_created("PaidInvoiceId", track_key):
                 continue
@@ -163,6 +181,72 @@ class FinancialGenerator(BaseGenerator):
                     "entity": "coworkerledgerentries", "Id": result["Id"], "PaidInvoiceId": track_key,
                 })
                 self.log.info("Paid invoice %s (id=%s)", inv.get("Id"), result["Id"])
+
+    # ------------------------------------------------------------------
+    # Void / credit note — via CoworkerInvoiceHistory + an offsetting
+    # CoworkerLedgerEntry, not by flipping fields on coworkerinvoices
+    # itself (those are read-only — see module docstring).
+    # ------------------------------------------------------------------
+    def _void_and_credit_invoices(self, biz, invoices, nexudus_create):
+        to_void = invoices[:self.VOID_COUNT]
+        to_credit = invoices[self.VOID_COUNT:self.VOID_COUNT + self.CREDIT_NOTE_COUNT]
+
+        self.log.info("--- Voiding %d invoices ---", len(to_void))
+        for inv in to_void:
+            self._record_invoice_action(
+                biz, inv, action="void", track_field="VoidedInvoiceId",
+                history_name="Invoice voided", ledger_code="VOID",
+                ledger_description="Invoice voided - test data",
+                nexudus_create=nexudus_create,
+            )
+
+        self.log.info("--- Issuing credit notes for %d invoices ---", len(to_credit))
+        for inv in to_credit:
+            self._record_invoice_action(
+                biz, inv, action="credit", track_field="CreditedInvoiceId",
+                history_name="Credit note issued", ledger_code="CRNT",
+                ledger_description="Credit note issued - test data",
+                nexudus_create=nexudus_create,
+            )
+
+    def _record_invoice_action(self, biz, inv, action, track_field, history_name,
+                                ledger_code, ledger_description, nexudus_create):
+        track_key = str(inv.get("Id"))
+        if self.already_created(track_field, track_key):
+            return
+
+        history_body = {
+            "CoworkerInvoiceId": inv.get("Id"),
+            "Name": history_name,
+            "Description": f"{ledger_description} (invoice total: {inv.get('TotalAmount', 0)})",
+            "IsProblem": False,
+        }
+        ledger_body = {
+            "BusinessId": biz,
+            "CoworkerId": inv.get("CoworkerId"),
+            "CoworkerInvoiceId": inv.get("Id"),
+            "Description": ledger_description,
+            "Code": ledger_code,
+            "Debit": 0,
+            "Credit": inv.get("TotalAmount", 0),
+            "Balance": 0,
+        }
+
+        if self.dry_run:
+            self.log_would_create("coworkerinvoicehistories", history_body)
+            self.log_would_create("coworkerledgerentries", ledger_body)
+            return
+
+        history_result = nexudus_create("coworkerinvoicehistories", history_body)
+        ledger_result = nexudus_create("coworkerledgerentries", ledger_body)
+        self.track_id({
+            "entity": "coworkerinvoicehistories", "Id": history_result["Id"], track_field: track_key,
+        })
+        self.track_id({
+            "entity": "coworkerledgerentries", "Id": ledger_result["Id"],
+        })
+        self.log.info("%s invoice %s (history id=%s, ledger id=%s)",
+                      action.capitalize(), inv.get("Id"), history_result["Id"], ledger_result["Id"])
 
     # ------------------------------------------------------------------
     # Ledger supplements

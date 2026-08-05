@@ -7,7 +7,7 @@
 > - **MCP tools, not a CLI.** All Nexudus operations go through `nexudus_list` / `nexudus_get` / `nexudus_create` / `nexudus_update` / `nexudus_delete` / `nexudus_run_command` (the `claude.ai Nexudus` MCP server), not a `nexudus <entity> <command> --agent` shell command. Every `nexudus ...` CLI example below is illustrative of the operation, not literal syntax.
 > - **No `[TEST]` name prefixes.** Records are meant to look like real data. `config.TEST_NAME_PREFIX` is `""`. The only marker baked into a record is the coworker email (`test-{id}@seeddata.local`); teardown safety comes from `data/created-ids/<generator>.json` ID tracking, not name matching.
 > - **Two-step generation.** `prebuild.py` generates deterministic profiles into committed `data/*.json` files; the layer generators (`generators/0N_*.py`) read those files and push to Nexudus, resolving day/month offsets against `config.TODAY` at run time. This keeps faker/randomness out of the live-run path and avoids re-deriving the same data (and burning tokens) on every run. **Layer 5's financial script is the one exception** — invoice IDs/amounts don't exist until Nexudus generates them server-side, so `06_financial.py` discovers them live via `nexudus_list` rather than reading a pre-planned file.
-> - **Two real API gaps found, not just design choices.** No supported path exists for voiding an invoice or issuing a credit note (see §4c and §8) — the original ~15-invoice target for those states is skipped, not approximated. And `CommunityThread`/`CommunityMessage` require a `UserId` distinct from `CoworkerId` that seeded coworkers don't have (see §4t and §8).
+> - **Void/credit-note aren't field flips — they're audit-trail entries.** `Void`/`CreditNote`/`Paid` are read-only on `coworkerinvoices` directly, but `CoworkerInvoiceHistory` (full CRUD) is the entity built for recording exactly these actions against an invoice — paired with an offsetting `CoworkerLedgerEntry` for the balance impact (see §4c and §8). And `CommunityThread`/`CommunityMessage` require a `UserId` distinct from `CoworkerId` that seeded coworkers don't have (see §4t and §8).
 
 ---
 
@@ -113,7 +113,7 @@
 | Entity | CLI command | Count | Notes |
 |--------|-------------|-------|-------|
 | **Invoices** | `nexudus_run_command("coworkers", "COWORKER_BILL_RUN", [...])` | server-determined | No create endpoint; no command on `coworkercontracts` or `coworkerinvoices` either — the command lives on `coworkers` and bills that coworker's active contract(s). Count isn't planned in advance; discovered live via `nexudus_list`. |
-| **Invoice ops** | `coworkerledgerentries` | ~60% of raised invoices paid | **Void and credit note are NOT implemented** — `Void`/`CreditNote`/`Paid`/`PaidAmount`/`TotalAmount` are all read-only on `coworkerinvoices`, and it has no create/delete/commands. No API path was found; the original ~15-invoice void/credit target (§4c) is skipped rather than approximated. Payment is recorded via a `CoworkerLedgerEntry` linked by `CoworkerInvoiceId` — assumed (not guide-confirmed) to reconcile the invoice's Paid state. |
+| **Invoice ops** | `coworkerledgerentries` + `coworkerinvoicehistories` | ~60% paid, 5 voided, 10 credit-noted | `Void`/`CreditNote`/`Paid`/`PaidAmount` are read-only on `coworkerinvoices` directly (no create/delete/commands there), but paid/void/credit-note are all actions recorded *against* the invoice via `CoworkerInvoiceHistory` (full CRUD, audit-trail entity) — paired with an offsetting `CoworkerLedgerEntry` for the balance impact. Assumed (not guide-confirmed) that this reconciles the invoice's read-only state. §4c. |
 | **CoworkerLedgerEntry** | `coworkerledgerentries` | 5 supplements | Payment entries above, plus a handful of manual adjustments (goodwill credit, damage charge, etc.) unrelated to any invoice. `Code` is free text, not an enforced enum — `"PAYM"` etc. are project conventions. |
 | **CrmOpportunity** | `crmopportunities` | 30 | Lead(6)/Qualified(5)/ProposalSent(4)/Negotiation(4)/Won(5)/Lost(6) — scaled down from §4l's 35 to hit the §2 target. |
 | **CrmOpportunityHistory** | `crmopportunityhistories` | ~87 | A full stage-path trail per opportunity (more than the original ~60 estimate, since Won opportunities trace all 5 stages). |
@@ -208,10 +208,13 @@ Layer 4b — Community  ✅ (05_community.py)
 Layer 5 — Financial & CRM  ✅ (06_financial.py, 07_crm_proposals.py)
 ├── Raise invoices: nexudus_run_command("coworkers", "COWORKER_BILL_RUN", [...]) for every
 │   coworker with an active contract — NOT a command on coworkercontracts/coworkerinvoices,
-│   neither of which supports commands at all. Invoice count is server-determined, discovered
-│   live via nexudus_list rather than planned in data/*.json.
+│   neither of which supports commands at all. Sweeps in plan fee + any InvoiceThisCoworker=true
+│   item sales (bookings/extra services/products from Layer 4a). Invoice count is server-determined,
+│   discovered live via nexudus_list rather than planned in data/*.json.
 ├── Pay ~60% of raised invoices → CoworkerLedgerEntry (CoworkerInvoiceId + Credit=amount)
-│   — void/credit-note NOT implemented, no supported API path found (see §4c, §8)
+├── Void 5 + credit-note 10 more → CoworkerInvoiceHistory (audit-trail action against the
+│   invoice, since Void/CreditNote/Paid are read-only on coworkerinvoices itself) + an
+│   offsetting CoworkerLedgerEntry for the balance impact
 ├── 5 supplemental CoworkerLedgerEntry rows for edge cases (unrelated to any invoice)
 ├── CrmOpportunity × 30 (refs: CrmBoardColumn, Coworker) — placed directly on its target
 │   stage's column; WonOn/LostOn set explicitly since we're not driving an incremental move
@@ -260,16 +263,20 @@ Each tariff assigned:
 - `MinimumPrice` where applicable
 - `DiscountExtraServices` / `DiscountTimePasses` on premium plans (10–20%)
 
-### 4c. Invoice Status Distribution — ✅ Built (partial, see below)
+### 4c. Invoice Status Distribution — ✅ Built
+
+`CoworkerInvoice`'s own lifecycle fields (`Paid`, `Void`, `CreditNote`, `PaidAmount`, `TotalAmount`) are all **read-only** — that entity supports list/get/update only, no create/delete/commands. But paid/void/credit-note are all *actions recorded against an invoice*, and `CoworkerInvoiceHistory` (full CRUD, `CoworkerInvoiceId` + `Name`/`Description`) is the entity built for exactly that — an audit-trail record, not a field flip.
 
 | Status | Count | How achieved |
 |--------|-------|-------------|
-| **Paid** | ~60% of raised invoices | Create a `CoworkerLedgerEntry` with `CoworkerInvoiceId` set and `Credit` = the invoice total. **`Paid=true` cannot be set directly** — it's read-only on `coworkerinvoices`. The ledger entry is expected to reconcile it server-side; this is inferred from the field design (writable ledger + FK link vs. read-only invoice fields), not confirmed in the guide text. |
-| **Unpaid / Overdue** | remainder | Left as-is after the billing command raises them — not individually engineered, since `DueDate` etc. are server-set from the contract's billing cycle, not something the generator controls directly. |
-| **Credit Note** | ❌ Not achievable | `CreditNote`/`OriginalInvoiceGuid` are read-only on `coworkerinvoices`, which has no create/delete/commands. No supported path found. |
-| **Void** | ❌ Not achievable | `Void` is read-only on `coworkerinvoices` for the same reason. `Draft` *is* writable, but flipping it isn't confirmed to mean "voided" — risked being a misleading approximation, so it's skipped rather than implemented. |
+| **Paid** | ~60% of raised invoices | `CoworkerLedgerEntry` with `CoworkerInvoiceId` set and `Credit` = invoice total, `Code="PAYM"`. |
+| **Unpaid / Overdue** | remainder | Left as-is after the billing command raises them — not individually engineered, since `DueDate` etc. are server-set from the contract's billing cycle. |
+| **Void** | 5 | `CoworkerInvoiceHistory` (`Name="Invoice voided"`) + an offsetting `CoworkerLedgerEntry` (`Code="VOID"`). |
+| **Credit Note** | 10 | `CoworkerInvoiceHistory` (`Name="Credit note issued"`) + an offsetting `CoworkerLedgerEntry` (`Code="CRNT"`). |
 
-See `06_financial.py` and CLAUDE.md rule 12 for the full picture of what the invoicing API surface actually supports.
+Every invoice gets at most one action — paid/void/credit-note pools are disjoint, drawn from the same discovered invoice list. Whether these actions actually reconcile the invoice's read-only `Paid`/`Void`/`CreditNote` fields server-side is inferred from field design (writable history/ledger + FK link vs. read-only invoice fields), not confirmed in the guide text — worth a spot-check on first live run.
+
+See `06_financial.py` and CLAUDE.md rule 12 for the full picture of what the invoicing API surface supports.
 
 ### 4d. Floor Plan Desk (Unit) Distribution
 
@@ -710,7 +717,7 @@ What's worth keeping in this doc instead is the set of non-obvious Nexudus API b
 | **Phase 4** | Layer 3: Contracts (with ContractTerm), deposits, freezes, inventory assignments, occupancy | Phase 3 | ✅ Done (`03_contracts.py`) |
 | **Phase 5** | Layer 4a: Bookings (recurring + products + guests) + cancellations, check-ins, credits, passes | Phase 4 | ✅ Done (`04_activity.py`) |
 | **Phase 6** | Layer 4b: Deliveries, events + attendees, help desk, community, blogs, tasks | Phase 4 | ✅ Done (`05_community.py`) |
-| **Phase 7** | Layer 5: Invoice generation + payments, CRM opportunities, proposals | Phase 5 | ✅ Done (`06_financial.py`, `07_crm_proposals.py`) — void/credit-note skipped, no API path found |
+| **Phase 7** | Layer 5: Invoice generation + payments, CRM opportunities, proposals | Phase 5 | ✅ Done (`06_financial.py`, `07_crm_proposals.py`) |
 | **Phase 8** | Daily update script + verification + teardown scripts | Phase 7 | ✅ Done (`daily_update.py`, `teardown.py`, `verify.sh`) |
 | **Phase 9** | Run against test instance, validate all report widgets populate | Phase 8 | ⬜ Not started — nothing has been pushed live yet; every phase above is dry-run verified only |
 
@@ -720,7 +727,7 @@ What's worth keeping in this doc instead is the set of non-obvious Nexudus API b
 - **Phase 4:** contract count landed at 79 from the scenario math in §4a alone; padded to 90 (matching the original target) with a few extra contracts layered onto existing scenarios — see §4a note below. `ContractSchedule` turned out to be an inline child of `CoworkerContract`, not a separate create step.
 - **Phase 5:** `CoworkerBookingCredit` and `CoworkerBookingCreditUseHistory` were originally planned for Layer 5 (§3) but have no invoice dependency, so they were built here instead, alongside the other credit/pass entities.
 - **Phase 6:** `EventProduct` (a ticket type) turned out to be a required prerequisite for `EventAttendee`, not the optional add-on the original plan treated it as; `CommunityThread`/`CommunityMessage` need a `UserId` distinct from `CoworkerId` that seeded coworkers don't have, so the admin user is used there — see §4t.
-- **Phase 7:** `06_financial.py` has no `data/*.json` file — invoice IDs/amounts are server-determined and discovered live, not pre-planned. Void and credit-note invoice states are not implemented (no supported API path — see §4c). CRM opportunity count landed at 30 by scaling down §4l's 35 proportionally.
+- **Phase 7:** `06_financial.py` has no `data/*.json` file — invoice IDs/amounts are server-determined and discovered live, not pre-planned. Void/credit-note are recorded via `CoworkerInvoiceHistory` (an audit-trail entity), not by flipping the read-only fields on `coworkerinvoices` itself — see §4c. `Booking`/`CoworkerExtraService`/`CoworkerProduct` in `04_activity.py` all got `InvoiceThisCoworker=True` added retroactively so their charges feed into the billing run as item sales, not just the contract fee. CRM opportunity count landed at 30 by scaling down §4l's 35 proportionally.
 - **No name-prefix test markers** (all phases): `[TEST]` prefixes were removed from all generated data so records look like real data; see §1 and §6.
 
 ---
@@ -747,7 +754,8 @@ These are additional considerations surfaced during analysis. Status now disting
 | **Tasks** | ✅ Built | 20 tasks, 10 completed / 5 overdue / 5 upcoming. §4v. |
 | **Daily update script** | ✅ Built | `daily_update.py` — self-contained (resolves its own live context, no `prev_output` chain), date-seeded RNG for reproducible reruns. §5. |
 | **CRM opportunities & proposals** | ✅ Built | 30 opportunities across the pipeline + 15 proposals (5 accepted, tied to Won opportunities). §4l, §4f. |
-| **Invoice generation & payment** | ✅ Built (⚠️ partial) | Invoices raised via `nexudus_run_command("coworkers", "COWORKER_BILL_RUN", ...)` — not a command on `coworkercontracts`/`coworkerinvoices`, neither of which supports commands. ~60% of raised invoices marked paid via `CoworkerLedgerEntry`. **Void and credit-note are NOT implemented** — no supported API path was found (`Void`/`CreditNote`/`Paid`/`PaidAmount` are all read-only on `coworkerinvoices`, which has no create/delete/commands). The original ~15-invoice void/credit target is skipped, not approximated. |
+| **Invoice generation & payment** | ✅ Built | Invoices raised via `nexudus_run_command("coworkers", "COWORKER_BILL_RUN", ...)` — not a command on `coworkercontracts`/`coworkerinvoices`, neither of which supports commands. ~60% of raised invoices marked paid via `CoworkerLedgerEntry`; 5 voided + 10 credit-noted via `CoworkerInvoiceHistory` (an audit-trail action against the invoice, since `Void`/`CreditNote`/`Paid` are read-only on `coworkerinvoices` directly) paired with an offsetting ledger entry. |
+| **Item-sale invoicing** | ✅ Built | `Booking`/`CoworkerExtraService`/`CoworkerProduct` all set `InvoiceThisCoworker=True` (`04_activity.py`) so their charges are swept into the coworker's next `COWORKER_BILL_RUN` invoice alongside their plan fee — the "manual charges" path from the original plan, distinct from contract renewal. |
 | **Invoice line source diversity** | ❌ Not achievable | Depended on manually varying invoice line sources, but invoices can't be created directly at all — they're 100% system-generated from the billing command. Nothing to vary. |
 | **Teardown** | ✅ Built | `teardown.py` — deletes by tracked ID in reverse dependency order, skips entities with no delete support (`cancelledbookings`, `coworkerbookingcreditusehistories`, `coworkerinvoices`), keeps failed/skipped records in the tracking file for retry. |
 | **Multiple locations** | ❌ Not applicable | The connected Nexudus MCP account (business "Explore 2.0", id 1421021016) has exactly **one** business — there's nothing to distribute across. `business_id` is used as a single scalar everywhere in the generators. Revisit if a multi-location instance is ever targeted. |
