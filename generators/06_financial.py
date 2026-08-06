@@ -19,38 +19,51 @@ What it does:
    renewal itself.
 2. Lists the resulting `coworkerinvoices` and marks ~60% of them paid by
    creating a `CoworkerLedgerEntry` linked via `CoworkerInvoiceId`.
-3. Voids ~5 and issues a credit note against ~10 more, via
-   `CoworkerInvoiceHistory` (see below) plus an offsetting
-   `CoworkerLedgerEntry`.
+3. Voids ~5 via the `VOID_INVOICE` command and issues a credit note
+   against ~10 more via the `COWORKER_INVOICE_CANCEL` command (see below)
+   — both real admin actions, not a field flip or a narration record.
 4. Creates a handful of supplemental ledger entries (manual adjustments)
    unrelated to any invoice.
 
-**Void / credit note — confirmed API limitation, not fixable from here.**
-`Void`/`CreditNote` on `coworkerinvoices` are read-only and that entity has
-no create/commands, so there's no direct way to flip them. The theory was
-that `CoworkerInvoiceHistory` (full CRUD, `CoworkerInvoiceId` + `Name` +
-`Description`, e.g. "Invoice voided" / "Credit note issued") plus an
-offsetting `CoworkerLedgerEntry` would reconcile those fields the same way
-a ledger entry reconciles `Paid`. **Confirmed live this is wrong for
-Void/CreditNote**: any `CoworkerLedgerEntry` linked via `CoworkerInvoiceId`
-flips `Paid: true` regardless of intent, but `Void` and `CreditNote` never
-move off `false` — so a "voided" or "credit-noted" invoice is
-indistinguishable from a genuinely paid one in the live data, and
-`CoworkerInvoiceHistory` is purely narration text with no effect on the
-invoice's actual state. `_void_and_credit_invoices` still creates the
-history + ledger entries (so the intent is recorded and searchable), but
-the invoices it targets need to be **voided/credit-noted manually** in the
-Nexudus UI — there is no API path to set those fields. Track which
-invoices need manual attention via `VoidedInvoiceId`/`CreditedInvoiceId` in
-`data/created-ids/financial.json`.
+**Void / credit note — via commands, found by capturing the real admin UI's
+network requests, not by discovery.** `Void`/`CreditNote` on
+`coworkerinvoices` are read-only and that entity has no direct create, so
+there's no way to flip them with a plain update. An earlier version of this
+generator tried recording the intent via `CoworkerInvoiceHistory` +
+`CoworkerLedgerEntry` (narration + balance impact, mirroring how a ledger
+entry reconciles `Paid`) — confirmed live that doesn't work: the ledger
+entry does flip `Paid: true` regardless of intent, but `Void`/`CreditNote`
+never move, so a "voided" invoice was indistinguishable from a paid one.
+
+The real mechanism is per-entity commands, and — same lesson as
+`PROPOSAL_ACCEPT` in 07_crm_proposals.py — **discovery isn't reliable**:
+neither `VOID_INVOICE` nor `COWORKER_INVOICE_CANCEL` showed up via
+`GET .../coworkerinvoices/commands?id=X` for this account, only by
+capturing what the admin UI's browser actually sent:
+- `VOID_INVOICE` — no parameters. Sets `Void=true` on the *same* record.
+  `COWORKER_INVOICE_DELETE` also exists and does something similar-sounding
+  but genuinely deletes the invoice outright — confirmed live via a 404 on
+  a follow-up GET. That's not a void, it's erasure; it would make the
+  invoice vanish from any report entirely, defeating the point of having a
+  "voided" bucket. Deliberately not used here.
+- `COWORKER_INVOICE_CANCEL` — creates a *new*, separate invoice with a
+  negative `TotalAmount` and `CreditNote=true`, linked back to the
+  original via `OriginalInvoiceGuid` — the real double-entry credit-note
+  pattern, not a flag on the original invoice. Confirmed live the command
+  response is a list containing that new invoice record. Needs an
+  `"Amount{invoiceId}"` parameter — the invoice's numeric ID is baked into
+  the parameter *name*, not just passed as a normal value — plus `Preview`
+  and `DoNotApplyCreditAutomatically` (tested both `true` and `false` for
+  the latter; makes no observable difference for a single invoice, kept as
+  `false` to match the captured request). The resulting credit-note
+  invoice's ID is tracked via `OriginalInvoiceId` alongside it.
 
 **Other notes:**
 - Creating a `CoworkerLedgerEntry` with `CoworkerInvoiceId` set does
   reconcile the invoice's (read-only) `Paid`/`PaidAmount` fields —
   confirmed live, this part of the original design was right.
-- The ledger `Code` values (`"PAYM"`, `"VOID"`, `"CRNT"`) are a project
-  convention, not an API-enforced enum — `Code` is a free-text field on
-  `CoworkerLedgerEntry`.
+- The ledger `Code` values (`"PAYM"`) are a project convention, not an
+  API-enforced enum — `Code` is a free-text field on `CoworkerLedgerEntry`.
 - Whether `COWORKER_BILL_RUN` on a coworker with multiple active contracts
   bills all of them or just one is undocumented.
 
@@ -100,7 +113,7 @@ class FinancialGenerator(BaseGenerator):
 
         paid, remainder = self._split_invoices(invoices)
         self._pay_invoices(biz, paid, nexudus_create)
-        self._void_and_credit_invoices(biz, remainder, nexudus_create)
+        self._void_and_credit_invoices(remainder, nexudus_run_command)
         self._create_ledger_supplements(biz, coworker_ids, nexudus_create)
 
         self.log.info("Layer 5 Financial complete. Billed coworkers: %d, invoices seen: %d",
@@ -188,70 +201,66 @@ class FinancialGenerator(BaseGenerator):
                 self.log.info("Paid invoice %s (id=%s)", inv.get("Id"), result["Id"])
 
     # ------------------------------------------------------------------
-    # Void / credit note — via CoworkerInvoiceHistory + an offsetting
-    # CoworkerLedgerEntry, not by flipping fields on coworkerinvoices
-    # itself (those are read-only — see module docstring).
+    # Void / credit note — via the real admin actions, not a field flip
+    # (Void/CreditNote are read-only) and not the CoworkerInvoiceHistory +
+    # CoworkerLedgerEntry combination this used to use, which turned out
+    # to be pure narration with no actual effect on the invoice's state
+    # (confirmed live: neither field ever moved off false that way).
+    #
+    # Found by capturing the real admin UI's network requests — neither
+    # command showed up for this account via GET .../coworkerinvoices/
+    # commands?id=X, so nexudus_list_commands-style discovery can't be
+    # trusted here either (same lesson as PROPOSAL_ACCEPT):
+    #   - VOID_INVOICE: no parameters, sets Void=true on the same record.
+    #     Confirmed live — the record itself is preserved (unlike
+    #     COWORKER_INVOICE_DELETE, which genuinely deletes it and would
+    #     erase the invoice from any report, defeating the point of
+    #     having a "voided" bucket at all).
+    #   - COWORKER_INVOICE_CANCEL: creates a NEW negative invoice with
+    #     CreditNote=true, linked back to the original via
+    #     OriginalInvoiceGuid — this is the real credit-note accounting
+    #     pattern, not a flag on the original. Needs an "Amount{id}"
+    #     parameter (the invoice id is part of the parameter name, not
+    #     just its value) plus Preview/DoNotApplyCreditAutomatically.
     # ------------------------------------------------------------------
-    def _void_and_credit_invoices(self, biz, invoices, nexudus_create):
+    def _void_and_credit_invoices(self, invoices, nexudus_run_command):
         to_void = invoices[:self.VOID_COUNT]
         to_credit = invoices[self.VOID_COUNT:self.VOID_COUNT + self.CREDIT_NOTE_COUNT]
 
         self.log.info("--- Voiding %d invoices ---", len(to_void))
         for inv in to_void:
-            self._record_invoice_action(
-                biz, inv, action="void", track_field="VoidedInvoiceId",
-                history_name="Invoice voided", ledger_code="VOID",
-                ledger_description="Invoice voided - test data",
-                nexudus_create=nexudus_create,
-            )
+            track_key = str(inv.get("Id"))
+            if self.already_created("VoidedInvoiceId", track_key):
+                continue
+            if self.dry_run:
+                self.log.info("WOULD RUN COMMAND coworkerinvoices.VOID_INVOICE id=%s", inv.get("Id"))
+                continue
+            nexudus_run_command("coworkerinvoices", "VOID_INVOICE", [inv["Id"]])
+            self.track_id({
+                "entity": "coworkerinvoices", "Id": inv["Id"], "VoidedInvoiceId": track_key,
+            })
+            self.log.info("Voided invoice %s", inv["Id"])
 
         self.log.info("--- Issuing credit notes for %d invoices ---", len(to_credit))
         for inv in to_credit:
-            self._record_invoice_action(
-                biz, inv, action="credit", track_field="CreditedInvoiceId",
-                history_name="Credit note issued", ledger_code="CRNT",
-                ledger_description="Credit note issued - test data",
-                nexudus_create=nexudus_create,
-            )
-
-    def _record_invoice_action(self, biz, inv, action, track_field, history_name,
-                                ledger_code, ledger_description, nexudus_create):
-        track_key = str(inv.get("Id"))
-        if self.already_created(track_field, track_key):
-            return
-
-        history_body = {
-            "CoworkerInvoiceId": inv.get("Id"),
-            "Name": history_name,
-            "Description": f"{ledger_description} (invoice total: {inv.get('TotalAmount', 0)})",
-            "IsProblem": False,
-        }
-        ledger_body = {
-            "BusinessId": biz,
-            "CoworkerId": inv.get("CoworkerId"),
-            "CoworkerInvoiceId": inv.get("Id"),
-            "Description": ledger_description,
-            "Code": ledger_code,
-            "Debit": 0,
-            "Credit": inv.get("TotalAmount", 0),
-            "Balance": 0,
-        }
-
-        if self.dry_run:
-            self.log_would_create("coworkerinvoicehistories", history_body)
-            self.log_would_create("coworkerledgerentries", ledger_body)
-            return
-
-        history_result = nexudus_create("coworkerinvoicehistories", history_body)
-        ledger_result = nexudus_create("coworkerledgerentries", ledger_body)
-        self.track_id({
-            "entity": "coworkerinvoicehistories", "Id": history_result["Id"], track_field: track_key,
-        })
-        self.track_id({
-            "entity": "coworkerledgerentries", "Id": ledger_result["Id"],
-        })
-        self.log.info("%s invoice %s (history id=%s, ledger id=%s)",
-                      action.capitalize(), inv.get("Id"), history_result["Id"], ledger_result["Id"])
+            track_key = str(inv.get("Id"))
+            if self.already_created("CreditedInvoiceId", track_key):
+                continue
+            if self.dry_run:
+                self.log.info("WOULD RUN COMMAND coworkerinvoices.COWORKER_INVOICE_CANCEL id=%s", inv.get("Id"))
+                continue
+            result = nexudus_run_command("coworkerinvoices", "COWORKER_INVOICE_CANCEL", [inv["Id"]], parameters=[
+                {"Name": f"Amount{inv['Id']}", "Type": "", "Value": str(inv.get("TotalAmount", 0))},
+                {"Name": "Preview", "Type": "", "Value": "false"},
+                {"Name": "DoNotApplyCreditAutomatically", "Type": "", "Value": "false"},
+            ])
+            credit_note_id = result[0]["Id"] if result else None
+            self.track_id({
+                "entity": "coworkerinvoices", "Id": credit_note_id, "CreditedInvoiceId": track_key,
+                "OriginalInvoiceId": inv["Id"],
+            })
+            self.log.info("Issued credit note for invoice %s (new credit note invoice id=%s)",
+                          inv["Id"], credit_note_id)
 
     # ------------------------------------------------------------------
     # Ledger supplements
