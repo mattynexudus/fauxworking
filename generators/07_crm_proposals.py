@@ -33,7 +33,6 @@ Usage:
 
 import json
 import sys
-import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -84,7 +83,7 @@ class CrmProposalsGenerator(BaseGenerator):
             raise FileNotFoundError(f"{path} not found. Run 'python prebuild.py' first.")
         return json.loads(path.read_text())
 
-    def run(self, nexudus_list, nexudus_create, nexudus_update, prev_output):
+    def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_run_command, prev_output):
         biz = prev_output["business_id"]
         admin_id = prev_output["admin_user_id"]
         coworker_ids = prev_output["coworker_ids"]
@@ -97,7 +96,7 @@ class CrmProposalsGenerator(BaseGenerator):
                                     nexudus_create, nexudus_update)
         self._create_opportunity_history(crm_board_column_ids, nexudus_create)
         self._create_proposals(biz, admin_id, coworker_ids, tariff_ids, discount_code_ids,
-                                nexudus_create, nexudus_update)
+                                nexudus_create, nexudus_update, nexudus_run_command)
         self._create_data_files(biz, coworker_ids, nexudus_create)
 
         self.log.info("Layer 5 CRM/Proposals complete. Opportunities: %d, Proposals: %d",
@@ -158,7 +157,18 @@ class CrmProposalsGenerator(BaseGenerator):
                 "Status": 1,
                 "Value": defn["Value"],
                 "LeadSource": defn["LeadSource"],
-                "Position": defn["Position"],
+                # Confirmed live: Nexudus auto-normalizes Position to spaced
+                # multiples of 100 (1, 200, 300, ...) regardless of what's
+                # sent — it's just a display-order hint, not meaningful
+                # data. Sending our pre-generated sequential values (9, 10,
+                # 11, ...) collides with its internal resequencing and
+                # fails with a generic 500; isolated bisection (varying one
+                # field at a time against otherwise-identical bodies) showed
+                # Position was the actual cause, not rate limiting or a
+                # coworker/type issue as first suspected. Always sending 1
+                # avoids it entirely and was confirmed live to succeed
+                # repeatedly with no failures.
+                "Position": 1,
                 "DueDate": self._at(defn["DueDayOffset"]),
             }
 
@@ -168,28 +178,7 @@ class CrmProposalsGenerator(BaseGenerator):
                 if stage != "Lead":
                     self.log.info("WOULD UPDATE crmopportunities DRY: move to stage=%s", stage)
             else:
-                time.sleep(0.4)  # light pacing to reduce burst-rate-limit hits
-                # Confirmed live this specific create fails transiently in
-                # bursts — the exact same body succeeds seconds later with
-                # no changes, and a burst of many creates in a short window
-                # fails uniformly (looks like rate-limiting returning a
-                # generic 500 instead of 429). Longer, growing backoff
-                # rides out the burst rather than losing the record.
-                result = None
-                last_error = None
-                for attempt in range(6):
-                    try:
-                        result = nexudus_create("crmopportunities", body)
-                        break
-                    except Exception as e:  # noqa: BLE001
-                        last_error = e
-                        if attempt < 5:
-                            time.sleep(3 + attempt * 2)
-                if result is None:
-                    self.log.warning(
-                        "Opportunity #%d failed after 6 attempts, giving up: %s",
-                        idx, last_error)
-                    continue
+                result = nexudus_create("crmopportunities", body)
                 self.opportunity_ids[idx] = result["Id"]
                 self.track_id({
                     "entity": "crmopportunities", "Id": result["Id"],
@@ -247,7 +236,7 @@ class CrmProposalsGenerator(BaseGenerator):
     # Proposal — create at Draft, then update to target status
     # ------------------------------------------------------------------
     def _create_proposals(self, biz, admin_id, coworker_ids, tariff_ids, discount_code_ids,
-                           nexudus_create, nexudus_update):
+                           nexudus_create, nexudus_update, nexudus_run_command):
         self.log.info("--- Proposals (%d) ---", len(self.proposal_defs))
 
         for defn in self.proposal_defs:
@@ -300,27 +289,26 @@ class CrmProposalsGenerator(BaseGenerator):
                 })
                 self.log.info("Created proposal #%d '%s' (id=%s)", idx, defn["Reference"], result["Id"])
 
-                if defn["ProposalStatus"] != 1:
-                    try:
-                        nexudus_update("proposals", result["Id"], {"ProposalStatus": defn["ProposalStatus"]})
-                        self.log.info("Updated proposal #%d to status=%d", idx, defn["ProposalStatus"])
-                    except Exception as e:  # noqa: BLE001
-                        if "Accepted proposals cannot be changed" in str(e):
-                            # Confirmed live: Draft->Sent works and persists,
-                            # but Draft->Accepted (and Sent->Accepted) always
-                            # fails this way, even on a brand-new proposal —
-                            # accepting a proposal appears to be a
-                            # customer/portal-only action, not settable via
-                            # API/admin (same class of restriction as
-                            # community posting "as" a coworker). Leaves the
-                            # proposal at whatever status was last applied.
-                            self.log.warning(
-                                "Proposal #%d stays below target status=%d — "
-                                "acceptance can't be set via API on this "
-                                "account (confirmed, not data-specific): %s",
-                                idx, defn["ProposalStatus"], e)
-                        else:
-                            raise
+                # Draft -> Sent -> Accepted must go through PROPOSAL_SEND /
+                # PROPOSAL_ACCEPT commands, not a direct ProposalStatus
+                # update. A direct update to Accepted always fails
+                # ("Accepted proposals cannot be changed", even on a brand
+                # new Draft) — confirmed live by capturing the real admin
+                # UI's network request, which hits .../proposals/commands,
+                # not a plain field update. nexudus_list_commands claiming
+                # "proposals does not support commands" was simply wrong.
+                # PROPOSAL_SEND also properly populates the readonly SentOn
+                # field, which a direct status update never did either.
+                if defn["ProposalStatus"] == 2:
+                    nexudus_run_command("proposals", "PROPOSAL_SEND", [result["Id"]])
+                    self.log.info("Sent proposal #%d", idx)
+                elif defn["ProposalStatus"] == 3:
+                    nexudus_run_command("proposals", "PROPOSAL_SEND", [result["Id"]])
+                    nexudus_run_command("proposals", "PROPOSAL_ACCEPT", [result["Id"]])
+                    self.log.info("Accepted proposal #%d", idx)
+                elif defn["ProposalStatus"] == 4:
+                    nexudus_update("proposals", result["Id"], {"ProposalStatus": defn["ProposalStatus"]})
+                    self.log.info("Updated proposal #%d to status=%d", idx, defn["ProposalStatus"])
 
     # ------------------------------------------------------------------
     # CoworkerDataFile
@@ -406,6 +394,7 @@ if __name__ == "__main__":
             nexudus_list=lambda entity, filters: [],
             nexudus_create=_mock_create,
             nexudus_update=lambda entity, id, body: {"Id": id},
+            nexudus_run_command=lambda entity, key, ids, parameters=None: None,
             prev_output=mock_prev,
         )
     else:
