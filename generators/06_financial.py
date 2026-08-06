@@ -25,24 +25,29 @@ What it does:
 4. Creates a handful of supplemental ledger entries (manual adjustments)
    unrelated to any invoice.
 
-**Void / credit note — corrected.** An earlier version of this generator
-declared these unsupported, having tried to flip `Void`/`CreditNote` on
-`coworkerinvoices` directly — those fields really are read-only, and that
-entity really has no create/commands. But paid/void/credit-note are all
-*actions recorded against an invoice*, and the entity built for exactly that
-is `CoworkerInvoiceHistory` (full CRUD, `CoworkerInvoiceId` + `Name` +
-`Description`, e.g. "Invoice voided" / "Credit note issued") — an audit
-trail, not a field flip. Implemented here as: a `CoworkerInvoiceHistory`
-entry narrating the action, plus a `CoworkerLedgerEntry` to reflect the
-balance impact (matching how "Paid" already works).
+**Void / credit note — confirmed API limitation, not fixable from here.**
+`Void`/`CreditNote` on `coworkerinvoices` are read-only and that entity has
+no create/commands, so there's no direct way to flip them. The theory was
+that `CoworkerInvoiceHistory` (full CRUD, `CoworkerInvoiceId` + `Name` +
+`Description`, e.g. "Invoice voided" / "Credit note issued") plus an
+offsetting `CoworkerLedgerEntry` would reconcile those fields the same way
+a ledger entry reconciles `Paid`. **Confirmed live this is wrong for
+Void/CreditNote**: any `CoworkerLedgerEntry` linked via `CoworkerInvoiceId`
+flips `Paid: true` regardless of intent, but `Void` and `CreditNote` never
+move off `false` — so a "voided" or "credit-noted" invoice is
+indistinguishable from a genuinely paid one in the live data, and
+`CoworkerInvoiceHistory` is purely narration text with no effect on the
+invoice's actual state. `_void_and_credit_invoices` still creates the
+history + ledger entries (so the intent is recorded and searchable), but
+the invoices it targets need to be **voided/credit-noted manually** in the
+Nexudus UI — there is no API path to set those fields. Track which
+invoices need manual attention via `VoidedInvoiceId`/`CreditedInvoiceId` in
+`data/created-ids/financial.json`.
 
-**Unverified assumptions, flagged for a live spot-check:**
-- That creating a `CoworkerLedgerEntry` with `CoworkerInvoiceId` set actually
-  reconciles the invoice's (read-only) `Paid`/`PaidAmount` fields. This is
-  inferred from the field design (writable ledger + FK link, but read-only
-  invoice fields), not confirmed in the entity guide text.
-- Same inference for `CoworkerInvoiceHistory` reconciling `Void`/`CreditNote`
-  — plausible from the field design, not explicitly confirmed in the guide.
+**Other notes:**
+- Creating a `CoworkerLedgerEntry` with `CoworkerInvoiceId` set does
+  reconcile the invoice's (read-only) `Paid`/`PaidAmount` fields —
+  confirmed live, this part of the original design was right.
 - The ledger `Code` values (`"PAYM"`, `"VOID"`, `"CRNT"`) are a project
   convention, not an API-enforced enum — `Code` is a free-text field on
   `CoworkerLedgerEntry`.
