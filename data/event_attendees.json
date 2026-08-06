@@ -181,7 +181,7 @@
   },
   {
     "EventIndex": 19,
-    "CoworkerIndex": 9,
+    "CoworkerIndex": 1,
     "FullName": null,
     "Email": null,
     "IsCoworker": true,
@@ -316,7 +316,7 @@
   },
   {
     "EventIndex": 17,
-    "CoworkerIndex": 40,
+    "CoworkerIndex": 3,
     "FullName": null,
     "Email": null,
     "IsCoworker": true,
@@ -442,7 +442,7 @@
   },
   {
     "EventIndex": 5,
-    "CoworkerIndex": 39,
+    "CoworkerIndex": 4,
     "FullName": null,
     "Email": null,
     "IsCoworker": true,
@@ -460,7 +460,7 @@
   },
   {
     "EventIndex": 8,
-    "CoworkerIndex": 43,
+    "CoworkerIndex": 5,
     "FullName": null,
     "Email": null,
     "IsCoworker": true,
@@ -496,7 +496,7 @@
   },
   {
     "EventIndex": 9,
-    "CoworkerIndex": 42,
+    "CoworkerIndex": 6,
     "FullName": null,
     "Email": null,
     "IsCoworker": true,

@@ -1251,8 +1251,19 @@ def generate_event_products(rng, events):
     return out
 
 
-def generate_event_attendees(rng, fake, events, coworkers):
+def generate_event_attendees(rng, fake, events, coworkers, contracts, paused_periods):
     """~60 EventAttendees — §4r. ~70% linked to a seeded coworker, rest ad-hoc guests."""
+    # OnlyForMembers events also reject coworkers whose membership isn't
+    # currently active — contract cancelled, or frozen right now — with the
+    # same "You cannot purchase this product" error, confirmed live. Restrict
+    # those events' coworker pool to currently active, unfrozen members.
+    frozen_contract_idx = {p["ContractIndex"] for p in paused_periods if p["Bucket"] == "current"}
+    active_member_idx = {
+        c["CoworkerIndex"] for c in contracts
+        if _is_active(c) and c["index"] not in frozen_contract_idx
+    }
+    active_coworkers = [cw for cw in coworkers if cw["index"] in active_member_idx]
+
     raw = []
     for e in events:
         for _ in range(rng.randint(1, 6)):
@@ -1260,9 +1271,10 @@ def generate_event_attendees(rng, fake, events, coworkers):
             # ("You cannot purchase this product") — only real coworkers can
             # attend one, regardless of the usual 70% coworker split.
             is_coworker = True if e.get("OnlyForMembers") else rng.random() < 0.7
+            coworker_pool = active_coworkers if e.get("OnlyForMembers") else coworkers
             raw.append({
                 "EventIndex": e["index"],
-                "CoworkerIndex": rng.choice(coworkers)["index"] if is_coworker else None,
+                "CoworkerIndex": rng.choice(coworker_pool)["index"] if is_coworker else None,
                 "FullName": None if is_coworker else fake.name(),
                 # fake.email() defaults to safe=True, which always uses a
                 # reserved example.com/.org/.net domain (RFC 2606) — Nexudus
@@ -1554,7 +1566,8 @@ def main():
 
     write_json(DATA_DIR / "contract_products.json", generate_contract_products(rng, contracts))
     write_json(DATA_DIR / "contract_schedules.json", generate_contract_schedules(rng, contracts))
-    write_json(DATA_DIR / "contract_paused_periods.json", generate_contract_paused_periods(rng, contracts))
+    paused_periods = generate_contract_paused_periods(rng, contracts)
+    write_json(DATA_DIR / "contract_paused_periods.json", paused_periods)
     write_json(DATA_DIR / "contract_deposits.json", generate_contract_deposits(rng, contracts))
     write_json(DATA_DIR / "coworker_inventory_assets.json", generate_coworker_inventory_assets(rng, coworkers))
     write_json(DATA_DIR / "desk_assignments.json", generate_desk_assignments(rng, contracts))
@@ -1578,7 +1591,8 @@ def main():
     calendar_events = generate_calendar_events(rng)
     write_json(DATA_DIR / "calendar_events.json", calendar_events)
     write_json(DATA_DIR / "event_products.json", generate_event_products(rng, calendar_events))
-    write_json(DATA_DIR / "event_attendees.json", generate_event_attendees(rng, fake, calendar_events, coworkers))
+    write_json(DATA_DIR / "event_attendees.json",
+               generate_event_attendees(rng, fake, calendar_events, coworkers, contracts, paused_periods))
 
     write_json(DATA_DIR / "helpdesk_messages.json", generate_helpdesk_messages(rng, coworkers))
 

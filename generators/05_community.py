@@ -294,23 +294,7 @@ class CommunityGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("eventattendees", body)
             else:
-                try:
-                    result = nexudus_create("eventattendees", body)
-                except Exception as e:  # noqa: BLE001
-                    if "You cannot purchase this product" in str(e):
-                        # Confirmed live this isn't about OnlyForMembers,
-                        # tariff, team, or paying-member status — reproduced
-                        # with several other coworkers on the same event/
-                        # tariff/team combinations, all succeeded. Isolated
-                        # to specific coworker records; root cause not
-                        # found after significant live diagnosis.
-                        self.log.warning(
-                            "Skipping attendee #%d — event purchase rejected for "
-                            "coworker #%s (cause not isolated, confirmed not "
-                            "membership/tariff/team related): %s",
-                            defn["index"], defn["CoworkerIndex"], e)
-                        continue
-                    raise
+                result = nexudus_create("eventattendees", body)
                 self.track_id({
                     "entity": "eventattendees", "Id": result["Id"], "AttendeeIndex": track_key,
                 })
@@ -514,7 +498,7 @@ if __name__ == "__main__":
         mock_resource_ids = {r["Name"]: f"DRY-RES-{r['Name']}" for r in struct.RESOURCES}
         mock_help_desk_dept_ids = {d["Name"]: f"DRY-DEPT-{d['Name']}" for d in struct.HELP_DESK_DEPARTMENTS}
         mock_community_group_ids = {g["Name"]: f"DRY-GROUP-{g['Name']}" for g in struct.COMMUNITY_GROUPS}
-        mock_event_category_ids = {c["Name"]: f"DRY-CAT-{c['Name']}" for c in struct.CALENDAR_EVENT_CATEGORIES}
+        mock_event_category_ids = {c["Title"]: f"DRY-CAT-{c['Title']}" for c in struct.CALENDAR_EVENT_CATEGORIES}
         mock_fin_account_ids = {c["Code"]: f"DRY-FA-{c['Code']}" for c in ref.FINANCIAL_ACCOUNTS}
 
         mock_prev = {
