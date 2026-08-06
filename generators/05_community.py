@@ -181,6 +181,8 @@ class CommunityGenerator(BaseGenerator):
             body = {
                 "BusinessId": biz,
                 "Name": defn["Name"],
+                "ShortDescription": defn["ShortDescription"],
+                "LongDescription": defn["LongDescription"],
                 "StartDate": start_time,
                 "EndDate": end_time,
                 "CalendarEventCategoryId": event_category_ids.get(defn["Category"]),
@@ -444,6 +446,8 @@ class CommunityGenerator(BaseGenerator):
             body = {
                 "BusinessId": biz,
                 "Title": defn["Title"],
+                "SummaryText": defn["SummaryText"],
+                "FullText": defn["FullText"],
                 "CommentsCount": 0,
                 "PublishDate": self._at(defn["PublishDayOffset"]),
                 "OnlyForMembers": defn["OnlyForMembers"],

@@ -923,6 +923,91 @@ EXTRA_EVENT_NAMES = [
     "Hackathon Kickoff", "Year-End Wrap Party", "New Year Kickoff Breakfast",
 ]
 
+# (ShortDescription, LongDescription) keyed by event Name — CalendarEvent has
+# real description fields that were never populated, leaving events blank.
+EVENT_DESCRIPTIONS = {
+    "Weekly Networking Lunch": (
+        "Casual lunch to meet other members.",
+        "Join fellow members for an informal lunch in the communal area. No agenda, no pitches — "
+        "just a relaxed way to put faces to names and see who else is working nearby."),
+    "Monthly All-Hands": (
+        "Community update on what's new in the space.",
+        "A short, informal update covering what's changed in the space this month — new members, "
+        "upcoming facilities work, and any community announcements. Drinks and snacks provided."),
+    "Yoga Wednesday": (
+        "Midweek yoga session for all levels.",
+        "A relaxed, all-levels yoga session to break up the week. Mats provided, just bring "
+        "comfortable clothing. Runs rain or shine in the wellness room."),
+    "Summer BBQ": (
+        "Our annual summer BBQ for members and their guests.",
+        "Food, drinks, and good company on the terrace. Bring a guest if you'd like — just let "
+        "reception know numbers in advance so we can plan catering."),
+    "Workshop: Startup Finance": (
+        "Practical session on managing early-stage startup finances.",
+        "A hands-on workshop covering the finance basics every early-stage founder needs: cash "
+        "flow forecasting, runway planning, and what investors actually look for in your numbers."),
+    "Workshop: Marketing 101": (
+        "Introduction to marketing fundamentals for small teams.",
+        "A practical introduction to marketing for founders and small teams with no dedicated "
+        "marketing hire — covering positioning, low-cost channels, and how to measure what's working."),
+    "New Member Orientation": (
+        "Everything new members need to know about the space.",
+        "A short welcome session covering the essentials: booking rooms, using the app, printing, "
+        "and who to ask when you need help. Open to all new members, coffee included."),
+    "Q3 Town Hall": (
+        "Quarterly update and open Q&A with the team.",
+        "Our quarterly town hall — an update on what's happened this quarter, what's coming next, "
+        "and an open floor for questions. All members welcome."),
+    "Demo Day": (
+        "Members showcase what they're building to the community.",
+        "A handful of members take the stage to share what they're working on, in front of the "
+        "wider community and a few invited guests. Sign up at reception if you'd like to present."),
+    "Holiday Party": (
+        "End-of-year celebration for the whole community.",
+        "Our end-of-year get-together — food, drinks, and a chance to celebrate the year with the "
+        "community before things wind down for the holidays."),
+    "Coffee & Networking": (
+        "Drop-in coffee morning, no agenda required.",
+        "An informal drop-in session over coffee — come and go as you please. A good excuse to "
+        "step away from the desk and meet someone new."),
+    "Wellness Wednesday: Meditation": (
+        "Guided meditation session to reset midweek.",
+        "A short guided meditation session to help reset midweek. No experience necessary, just "
+        "bring yourself and find a quiet spot in the wellness room."),
+    "Product Demo Night": (
+        "Members demo their products to a friendly audience.",
+        "An evening of short product demos from members building something new, followed by "
+        "informal feedback and networking over drinks."),
+    "Investor Pitch Night": (
+        "Practice pitches in front of a supportive audience.",
+        "A low-pressure environment for members to practice their investor pitch and get honest "
+        "feedback from peers before the real thing."),
+    "Book Club": (
+        "Monthly discussion on a business or startup book.",
+        "A casual monthly discussion group covering a different business, startup, or productivity "
+        "book each time. Check the community group for this month's pick."),
+    "Freelancer Meetup": (
+        "Meetup for freelancers and independent contractors in the space.",
+        "A regular meetup for freelancers and independent contractors to swap notes on clients, "
+        "rates, and the realities of working solo — and to feel a little less solo doing it."),
+    "Portfolio Review Session": (
+        "Get feedback on your portfolio or project work.",
+        "Bring your portfolio or current project for informal feedback from other members working "
+        "in similar fields. Useful for designers, developers, and creatives alike."),
+    "Hackathon Kickoff": (
+        "Kickoff session for our community hackathon weekend.",
+        "The opening session for our community hackathon — team formation, idea pitching, and "
+        "ground rules before the building begins."),
+    "Year-End Wrap Party": (
+        "Casual celebration to close out the year.",
+        "A relaxed get-together to mark the end of the year and celebrate what the community "
+        "built and achieved together."),
+    "New Year Kickoff Breakfast": (
+        "Start the year with breakfast and a fresh set of goals.",
+        "Kick off the new year with breakfast and an informal chat about goals for the months "
+        "ahead — both for the space and for your own work."),
+}
+
 HELPDESK_DEPT_PLAN = [("IT Support", 10), ("Facilities", 9), ("Billing", 6)]
 # (Priority enum, open_count, closed_count) — eHelpDeskMessagePriority: Low=1, Normal=2, High=3
 HELPDESK_PRIORITY_PLAN = [(3, 2, 5), (2, 3, 8), (1, 2, 5)]
@@ -977,6 +1062,80 @@ BLOG_TITLES = [
     "Community Guidelines Update", "Year in Review", "New Plans Available",
     "Booking Best Practices", "Upcoming Events This Quarter",
 ]
+
+# (SummaryText, FullText) keyed by title — BlogPost has real content fields
+# (SummaryText/FullText) that were never populated, leaving articles blank.
+BLOG_CONTENT = {
+    "Welcome to Our New Space": (
+        "We're delighted to officially open our doors — here's what's new.",
+        "After months of planning and renovation, we're thrilled to welcome you to the space. "
+        "From redesigned hot desks to brand new meeting rooms, every corner has been built with "
+        "our community in mind. Drop by reception if you'd like a tour, and keep an eye on this "
+        "blog for updates as we settle in."
+    ),
+    "Summer Networking Tips": (
+        "A few ideas for making the most of the community this summer.",
+        "Summer is a great time to build new connections — the space tends to be a little quieter, "
+        "which makes it easier to strike up conversations. Try grabbing a coffee at the shared "
+        "kitchen during peak hours, joining one of our upcoming events, or posting an introduction "
+        "in the Networking community group. You'd be surprised how many members are just as keen "
+        "to meet new people as you are."
+    ),
+    "How to Maximise Your Hot Desk": (
+        "Simple habits that make hot-desking smoother for everyone.",
+        "Hot desking works best when a few small courtesies are followed: clear your desk at the "
+        "end of the day, keep noise levels considerate near the quiet zones, and use the booking "
+        "system if you know you'll need a specific spot. Lockers are available if you'd rather not "
+        "carry everything home each evening — ask reception for details."
+    ),
+    "New Facilities Announcement": (
+        "Two new meeting rooms and an upgraded kitchen are now open.",
+        "We've expanded our facilities based on member feedback. Two additional meeting rooms are "
+        "now bookable through the app, and the kitchen has been upgraded with a second coffee "
+        "machine and more fridge space. We're always listening — if there's something you'd like "
+        "to see next, let the team know."
+    ),
+    "Member Spotlight: Community Champion": (
+        "Celebrating one of our longest-standing members and their journey here.",
+        "Every so often we like to shine a light on members who've made this space feel like home. "
+        "This month, we're celebrating someone who's been with us since the early days, has helped "
+        "organise several community events, and is always the first to welcome newcomers. Thank you "
+        "for everything you bring to this community."
+    ),
+    "Community Guidelines Update": (
+        "A few updates to our community guidelines, effective this month.",
+        "We've refreshed our community guidelines to keep things running smoothly as we grow. The "
+        "key changes cover shared space etiquette, guest policies, and how to report an issue. "
+        "Nothing here should come as a surprise — it's mostly a matter of putting into writing the "
+        "standards we already hold ourselves to. Full details are available on the members portal."
+    ),
+    "Year in Review": (
+        "Looking back at a busy year for the space and our community.",
+        "It's been a big year — new members joined, new facilities opened, and dozens of events "
+        "brought the community together. Thank you to everyone who made it what it was. We're "
+        "already planning for an even better year ahead, with more events, more flexibility, and "
+        "more ways to connect."
+    ),
+    "New Plans Available": (
+        "A look at the new membership plans now available to join.",
+        "Based on member feedback, we've introduced more flexible plan options — whether you need "
+        "a dedicated desk, a private office, or just a few days a month. Existing members can switch "
+        "plans at any time from the portal, and our team is happy to help you find the right fit."
+    ),
+    "Booking Best Practices": (
+        "How to get the most out of the booking system.",
+        "Booking a room or resource is quick, but a few habits make it even smoother: book as early "
+        "as you can for popular slots, cancel promptly if your plans change so others can use the "
+        "space, and double check the resource capacity before inviting guests. The booking system "
+        "is available in the app and on the web portal."
+    ),
+    "Upcoming Events This Quarter": (
+        "A preview of the workshops, socials, and networking events coming up.",
+        "We've got a packed quarter ahead — from hands-on workshops to casual social nights and "
+        "focused networking sessions. Keep an eye on the events calendar and RSVP early, as spaces "
+        "for some sessions are limited. We hope to see you there."
+    ),
+}
 
 TASK_NAMES = [
     "Complete induction checklist", "Return equipment", "Update payment method",
@@ -1039,8 +1198,11 @@ def generate_calendar_events(rng):
         else:
             start_offset = -rng.randint(10, 200)
 
+        short_desc, long_desc = EVENT_DESCRIPTIONS[e["Name"]]
         add({
             "Name": e["Name"],
+            "ShortDescription": short_desc,
+            "LongDescription": long_desc,
             "Category": e["Category"],
             "StartDayOffset": start_offset,
             "StartHour": rng.choice([9, 12, 17, 18]),
@@ -1055,8 +1217,11 @@ def generate_calendar_events(rng):
 
     for name in EXTRA_EVENT_NAMES:
         past = rng.random() < 0.5
+        short_desc, long_desc = EVENT_DESCRIPTIONS[name]
         add({
             "Name": name,
+            "ShortDescription": short_desc,
+            "LongDescription": long_desc,
             "Category": rng.choice(["Workshop", "Networking", "Social", "Wellness"]),
             "StartDayOffset": -rng.randint(10, 250) if past else rng.randint(5, 100),
             "StartHour": rng.choice([9, 12, 17, 18]),
@@ -1189,9 +1354,12 @@ def generate_blog_posts(rng):
     out = []
     for i, title in enumerate(BLOG_TITLES):
         offset = round(-365 + i * (355 / (n - 1)))
+        summary, full_text = BLOG_CONTENT[title]
         out.append({
             "index": i + 1,
             "Title": title,
+            "SummaryText": summary,
+            "FullText": full_text,
             "PublishDayOffset": offset,
             "OnlyForMembers": i in member_only_idx,
             "ShowInHomePage": i in home_idx,
