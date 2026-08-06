@@ -69,7 +69,7 @@ ENTITY_MODULES = {
     "communitythreads": "community", "communitymessages": "community",
     "blogposts": "content", "coworkertasks": "crm", "coworkerledgerentries": "billing",
     "coworkerinvoices": "billing", "coworkerinvoicehistories": "billing",
-    "crmopportunities": "crm", "crmopportunityhistories": "crm",
+    "crmopportunities": "crm", "crmopportunityhistories": "crm", "opportunitytypes": "crm",
     "proposals": "billing", "coworkerdatafiles": "spaces", "users": "sys",
     "businesses": "sys", "cancelledbookings": "spaces",
     "tarifftimepasses": "billing", "tariffextraservices": "billing",
@@ -126,12 +126,22 @@ def _request(method, url, **kwargs):
 
 
 def _unwrap(entity, action, resp):
+    """Create/update responses are wrapped: {"Status", "WasSuccessful",
+    "Value": {...the record...}, ...}. GET responses are the raw record
+    directly, unwrapped. Some entities (e.g. CrmOpportunity) have their own
+    field literally named "Value" — checking for the "Value" key alone to
+    decide whether to unwrap breaks GET for those (silently returns just
+    that field's content, confirmed live). "WasSuccessful" only appears on
+    the wrapper, never as a real entity field, so it's the reliable signal.
+    """
     if not resp.ok:
         raise NexudusApiError(entity, action, resp)
     body = resp.json()
-    if isinstance(body, dict) and "WasSuccessful" in body and not body["WasSuccessful"]:
+    if not isinstance(body, dict) or "WasSuccessful" not in body:
+        return body
+    if not body["WasSuccessful"]:
         raise NexudusApiError(entity, action, resp)
-    return body.get("Value", body) if isinstance(body, dict) else body
+    return body.get("Value", body)
 
 
 def nexudus_list(entity, filters=None):
