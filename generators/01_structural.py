@@ -114,7 +114,12 @@ EXTRA_SERVICES = [
     {"Name": f"{TEST_NAME_PREFIX}Parking Rate",        "Price": 8.00,   "ChargePeriod": 3, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Parking"},
     # IsBookingCredit/IsPrintingCredit are required for a TariffExtraService
     # to reference these as a plan benefit (see _create_tariff_benefits).
-    {"Name": f"{TEST_NAME_PREFIX}Time Credit",         "Price": 0.00,   "ChargePeriod": 1, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room", "IsBookingCredit": True},
+    # Time Credit needs ResourceTypes covering every bookable resource type —
+    # not just Meeting Room — otherwise a booking against any other resource
+    # type (Hot Desk, Private Office, Phone Booth, Parking) has no valid
+    # rate to charge time credit against and the booking-charge extra
+    # service create fails.
+    {"Name": f"{TEST_NAME_PREFIX}Time Credit",         "Price": 0.00,   "ChargePeriod": 1, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceTypes": ["Meeting Room", "Hot Desk", "Private Office", "Phone Booth", "Parking"], "IsBookingCredit": True},
     {"Name": f"{TEST_NAME_PREFIX}Printing Credit",     "Price": 0.00,   "ChargePeriod": 5, "FinAcctCode": "BKG-001", "TaxRate": "Standard", "ResourceType": "Meeting Room", "IsPrintingCredit": True},
 ]
 
@@ -555,7 +560,7 @@ class StructuralGenerator(BaseGenerator):
                 "LastMinuteAdjustmentType": 1,
                 "FinancialAccountId": fin_ids.get(defn["FinAcctCode"]),
                 "TaxRateId": tax_ids.get(defn["TaxRate"]),
-                "ResourceTypes": [rt_ids.get(defn["ResourceType"])],
+                "ResourceTypes": [rt_ids.get(rt_name) for rt_name in defn.get("ResourceTypes", [defn.get("ResourceType")])],
             }
             if defn.get("MaximumPrice") is not None:
                 body["MaximumPrice"] = defn["MaximumPrice"]
