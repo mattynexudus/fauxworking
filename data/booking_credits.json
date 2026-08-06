@@ -109,7 +109,7 @@
     "TotalCredit": 183.8,
     "Bucket": "expired",
     "ExpireDateDayOffset": -163,
-    "ValidFromDayOffset": -105
+    "ValidFromDayOffset": -263
   },
   {
     "index": 15,
@@ -117,7 +117,7 @@
     "TotalCredit": 99.05,
     "Bucket": "expired",
     "ExpireDateDayOffset": -179,
-    "ValidFromDayOffset": -83
+    "ValidFromDayOffset": -279
   },
   {
     "index": 16,
@@ -157,7 +157,7 @@
     "TotalCredit": 49.46,
     "Bucket": "expired",
     "ExpireDateDayOffset": -174,
-    "ValidFromDayOffset": -146
+    "ValidFromDayOffset": -274
   },
   {
     "index": 21,

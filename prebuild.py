@@ -588,19 +588,37 @@ def generate_bookings(rng, coworkers, visitors):
 
     active_pool = [cw for cw in coworkers if cw["Scenario"] != "churned"]
 
-    # Recurring bookings (10)
+    # Recurring bookings (10) — these run in parallel for months (see
+    # RepeatUntilDayOffset), so two series on the same resource at
+    # overlapping times/days is a real collision the live API rejects
+    # ("already booked by ..."). Retry with a different hour/resource
+    # until it doesn't overlap any previously placed recurring booking.
+    recurring_slots = []  # (resource_name, from_hour, to_hour)
+
+    def _overlaps(a_from, a_to, b_from, b_to):
+        return a_from < b_to and b_from < a_to
+
     for rdef in RECURRING_BOOKING_DEFS:
         names, rate_name = RESOURCE_CATEGORIES[rdef["category"]]
         for _ in range(rdef["count"]):
             cw = rng.choice(active_pool)
+            duration = 240 if rdef["big"] else rng.choice([30, 60])
+            for _attempt in range(50):
+                resource_name = f"{TEST_NAME_PREFIX}{rng.choice(names)}"
+                from_hour = _pick_hour(rng)
+                to_hour = from_hour + duration / 60
+                if not any(r == resource_name and _overlaps(from_hour, to_hour, f, t)
+                           for r, f, t in recurring_slots):
+                    break
+            recurring_slots.append((resource_name, from_hour, to_hour))
             add({
                 "CoworkerIndex": cw["index"],
                 "ResourceCategory": rdef["category"],
-                "ResourceName": f"{TEST_NAME_PREFIX}{rng.choice(names)}",
+                "ResourceName": resource_name,
                 "RateName": f"{TEST_NAME_PREFIX}{rate_name}",
                 "StartDayOffset": -rng.randint(30, 90),
-                "FromHour": _pick_hour(rng),
-                "DurationMinutes": 240 if rdef["big"] else rng.choice([30, 60]),
+                "FromHour": from_hour,
+                "DurationMinutes": duration,
                 "Repeats": rdef["repeats"],
                 "RepeatEvery": rdef["repeat_every"],
                 "RepeatUntilDayOffset": rng.randint(60, 120),
@@ -779,28 +797,48 @@ def generate_booking_credits(rng, coworkers):
             bucket, expire = "expired", -rng.randint(10, 180)
         else:
             bucket, expire = "near_expiry", rng.randint(1, 30)
+        # ValidFrom must chronologically precede ExpireDate — picking both
+        # independently at random (as before) can produce ExpireDate before
+        # ValidFrom, which the live API rejects. Anchor ValidFrom to a
+        # random span before whichever expire offset was chosen instead.
         out.append({
             "index": i,
             "CoworkerIndex": cw["index"],
             "TotalCredit": round(rng.uniform(20, 200), 2),
             "Bucket": bucket,
             "ExpireDateDayOffset": expire,
-            "ValidFromDayOffset": -rng.randint(30, 365),
+            "ValidFromDayOffset": expire - rng.randint(30, 200),
         })
     return out
 
 
 def generate_credit_use_history(rng, credits, bookings):
-    """50 spend transactions against active/expired (already-used) credits."""
+    """50 spend transactions against active/expired (already-used) credits.
+
+    Cumulative CreditUsed per credit is capped at that credit's TotalCredit
+    — the live API rejects a use-history entry once its credit's recorded
+    usage would exceed the total (the actual booking cost at the normal
+    rate is billed separately via a CoworkerExtraService, not blended into
+    this record)."""
     pool_credits = [c for c in credits if c["Bucket"] != "near_expiry"]
     kept_bookings = [b for b in bookings if not b["ToCancel"]]
+    remaining = {c["index"]: c["TotalCredit"] for c in pool_credits}
     out = []
-    for i in range(1, 51):
-        c = rng.choice(pool_credits)
+    i = 0
+    attempts = 0
+    while i < 50 and attempts < 1000:
+        attempts += 1
+        available = [c for c in pool_credits if remaining[c["index"]] >= 0.5]
+        if not available:
+            break
+        c = rng.choice(available)
+        amount = round(min(remaining[c["index"]], rng.uniform(5, 40)), 2)
+        remaining[c["index"]] -= amount
+        i += 1
         out.append({
             "index": i,
             "CreditIndex": c["index"],
-            "CreditUsed": round(min(c["TotalCredit"], rng.uniform(5, 40)), 2),
+            "CreditUsed": amount,
             "BookingIndex": rng.choice(kept_bookings)["index"] if rng.random() < 0.5 and kept_bookings else None,
         })
     return out

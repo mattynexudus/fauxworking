@@ -209,7 +209,7 @@
     "ResourceName": "Meeting Room Gamma",
     "RateName": "Meeting Room Rate",
     "StartDayOffset": -85,
-    "FromHour": 14,
+    "FromHour": 8,
     "DurationMinutes": 240,
     "Repeats": 3,
     "RepeatEvery": 1,

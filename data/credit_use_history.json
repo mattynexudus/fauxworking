@@ -236,13 +236,13 @@
   {
     "index": 40,
     "CreditIndex": 5,
-    "CreditUsed": 18.29,
+    "CreditUsed": 8.27,
     "BookingIndex": 190
   },
   {
     "index": 41,
     "CreditIndex": 12,
-    "CreditUsed": 30.73,
+    "CreditUsed": 27.49,
     "BookingIndex": null
   },
   {
@@ -260,13 +260,13 @@
   {
     "index": 44,
     "CreditIndex": 13,
-    "CreditUsed": 34.78,
+    "CreditUsed": 32.42,
     "BookingIndex": 64
   },
   {
     "index": 45,
     "CreditIndex": 10,
-    "CreditUsed": 26.27,
+    "CreditUsed": 20.64,
     "BookingIndex": 181
   },
   {
@@ -290,13 +290,7 @@
   {
     "index": 49,
     "CreditIndex": 9,
-    "CreditUsed": 32.28,
+    "CreditUsed": 12.04,
     "BookingIndex": null
-  },
-  {
-    "index": 50,
-    "CreditIndex": 9,
-    "CreditUsed": 35.63,
-    "BookingIndex": 77
   }
 ]
