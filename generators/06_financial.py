@@ -22,7 +22,11 @@ What it does:
 3. Voids ~5 via the `VOID_INVOICE` command and issues a credit note
    against ~10 more via the `COWORKER_INVOICE_CANCEL` command (see below)
    — both real admin actions, not a field flip or a narration record.
-4. Creates a handful of supplemental ledger entries (manual adjustments)
+4. Refunds ~5 already-paid invoices via the `COWORKER_INVOICE_REFUND`
+   command — unlike credit-note, this flips `Refunded`/`RefundedOn` on the
+   *same* invoice rather than creating a new one (`RefundedAmount` stays 0
+   despite the field existing — confirmed live, unexplained).
+5. Creates a handful of supplemental ledger entries (manual adjustments)
    unrelated to any invoice.
 
 **Void / credit note — via commands, found by capturing the real admin UI's
@@ -57,6 +61,20 @@ capturing what the admin UI's browser actually sent:
   the latter; makes no observable difference for a single invoice, kept as
   `false` to match the captured request). The resulting credit-note
   invoice's ID is tracked via `OriginalInvoiceId` alongside it.
+- `COWORKER_INVOICE_REFUND` — unlike credit-note, this does NOT create a
+  new invoice: it flips `Refunded=true` + `RefundedOn` on the *same*
+  record (`Paid` stays `true`) — confirmed live via a follow-up GET.
+  `RefundedAmount` stays `0` despite the field existing on the schema —
+  confirmed live, unexplained; don't rely on it. Only valid on an
+  already-paid invoice. Same
+  `"Amount{invoiceId}"` naming convention as credit-note, plus `Preview`
+  and `ePaymentProvider0` (kept at `"994"`, the value captured from a real
+  admin-UI refund — meaning of that specific code is otherwise undocumented).
+  The `nexudus_run_command` MCP tool itself refuses this entity ("does not
+  support run-command") even though the real API accepts it — the same
+  false-negative pattern as `VOID_INVOICE`, just enforced client-side this
+  time instead of only in discovery. Verified working through this
+  project's own direct REST client, not through that MCP tool.
 
 **Other notes:**
 - Creating a `CoworkerLedgerEntry` with `CoworkerInvoiceId` set does
@@ -100,6 +118,7 @@ class FinancialGenerator(BaseGenerator):
 
     VOID_COUNT = 5
     CREDIT_NOTE_COUNT = 10
+    REFUND_COUNT = 5
 
     def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_run_command, prev_output):
         biz = prev_output["business_id"]
@@ -110,9 +129,10 @@ class FinancialGenerator(BaseGenerator):
         self._raise_invoices(billing_coworker_ids, nexudus_run_command)
         invoices = self._list_invoices(biz, nexudus_list)
 
-        to_pay, to_void, to_credit = self._select_invoices(invoices)
+        to_pay, to_void, to_credit, to_refund = self._select_invoices(invoices)
         self._pay_invoices(biz, to_pay, nexudus_create)
         self._void_and_credit_invoices(to_void, to_credit, nexudus_run_command)
+        self._refund_invoices(to_refund, nexudus_run_command)
         self._create_ledger_supplements(biz, coworker_ids, nexudus_create)
 
         self.log.info("Layer 5 Financial complete. Billed coworkers: %d, invoices seen: %d",
@@ -120,8 +140,8 @@ class FinancialGenerator(BaseGenerator):
         return {**prev_output}
 
     def _select_invoices(self, invoices):
-        """Partition invoices for paid / void / credit-note, based on
-        actual current state rather than position in the list.
+        """Partition invoices for paid / void / credit-note / refund, based
+        on actual current state rather than position in the list.
 
         The invoice pool keeps growing across runs (Nexudus appears to
         raise some invoices on its own over time, independent of our
@@ -138,11 +158,19 @@ class FinancialGenerator(BaseGenerator):
         only, and capping void/credit at their total target counts across
         all runs (via tracked history) rather than a fraction of
         whatever's in the pool this run, avoids that entirely.
+
+        Refund is the mirror case: it requires an *already-paid* invoice
+        (the opposite precondition from void/credit), so its candidates
+        are drawn from the Paid pool instead — which on a fresh account is
+        empty until a prior run's _pay_invoices has actually landed. That's
+        expected: refund candidates only become available from the second
+        live run onward.
         """
         tracked = self.get_tracked_ids()
         already_paid = {r["PaidInvoiceId"] for r in tracked if r.get("PaidInvoiceId")}
         already_voided = {r["VoidedInvoiceId"] for r in tracked if r.get("VoidedInvoiceId")}
         already_credited = {r["CreditedInvoiceId"] for r in tracked if r.get("CreditedInvoiceId")}
+        already_refunded = {r["RefundedInvoiceId"] for r in tracked if r.get("RefundedInvoiceId")}
         actioned = already_paid | already_voided | already_credited
 
         candidates = [
@@ -157,7 +185,16 @@ class FinancialGenerator(BaseGenerator):
         to_void = candidates[:need_void]
         to_credit = candidates[need_void:need_void + need_credit]
         to_pay = candidates[need_void + need_credit:]
-        return to_pay, to_void, to_credit
+
+        need_refund = max(0, self.REFUND_COUNT - len(already_refunded))
+        refund_candidates = [
+            inv for inv in invoices
+            if inv.get("Paid") and not inv.get("Void") and not inv.get("CreditNote")
+            and not inv.get("Refunded") and str(inv.get("Id")) not in already_refunded
+        ]
+        to_refund = refund_candidates[:need_refund]
+
+        return to_pay, to_void, to_credit, to_refund
 
     # ------------------------------------------------------------------
     # Which coworkers to bill
@@ -293,6 +330,38 @@ class FinancialGenerator(BaseGenerator):
                           inv["Id"], credit_note_id)
 
     # ------------------------------------------------------------------
+    # Refund — via COWORKER_INVOICE_REFUND, only valid on an already-paid
+    # invoice. Unlike credit-note, this flips Refunded/RefundedOn on the
+    # SAME record rather than creating a new one — confirmed live via a
+    # follow-up GET (RefundedAmount stays 0 despite existing on the schema,
+    # also confirmed live, unexplained). Same "Amount{id}" parameter-name
+    # convention as COWORKER_INVOICE_CANCEL, plus Preview and
+    # ePaymentProvider0 (kept at "994", matching the captured admin-UI
+    # request). The nexudus_run_command MCP tool refuses this entity
+    # outright ("does not support run-command") despite the real API
+    # accepting it — verified through this project's own direct REST
+    # client instead (see rule 27 in CLAUDE.md).
+    # ------------------------------------------------------------------
+    def _refund_invoices(self, to_refund, nexudus_run_command):
+        self.log.info("--- Refunding %d invoices ---", len(to_refund))
+        for inv in to_refund:
+            track_key = str(inv.get("Id"))
+            if self.already_created("RefundedInvoiceId", track_key):
+                continue
+            if self.dry_run:
+                self.log.info("WOULD RUN COMMAND coworkerinvoices.COWORKER_INVOICE_REFUND id=%s", inv.get("Id"))
+                continue
+            nexudus_run_command("coworkerinvoices", "COWORKER_INVOICE_REFUND", [inv["Id"]], parameters=[
+                {"Name": f"Amount{inv['Id']}", "Type": "", "Value": str(inv.get("TotalAmount", 0))},
+                {"Name": "Preview", "Type": "", "Value": "false"},
+                {"Name": "ePaymentProvider0", "Type": "", "Value": "994"},
+            ])
+            self.track_id({
+                "entity": "coworkerinvoices", "Id": inv["Id"], "RefundedInvoiceId": track_key,
+            })
+            self.log.info("Refunded invoice %s", inv["Id"])
+
+    # ------------------------------------------------------------------
     # Ledger supplements
     # ------------------------------------------------------------------
     def _create_ledger_supplements(self, biz, coworker_ids, nexudus_create):
@@ -343,10 +412,12 @@ if __name__ == "__main__":
             if entity == "coworkerinvoices":
                 # Synthetic invoices so the payment-selection logic is
                 # actually exercised in dry-run, since live invoice
-                # generation can't be simulated offline.
+                # generation can't be simulated offline. A few are
+                # pre-marked Paid so the refund path (which needs an
+                # already-paid invoice) has candidates too.
                 return [
                     {"Id": 9000 + i, "CoworkerId": f"DRY-CW-{(i % 60) + 1}",
-                     "TotalAmount": round(100 + i * 3.5, 2)}
+                     "TotalAmount": round(100 + i * 3.5, 2), "Paid": i <= 3}
                     for i in range(1, 21)
                 ]
             return []
