@@ -98,7 +98,6 @@ LEDGER_SUPPLEMENTS = [
 class FinancialGenerator(BaseGenerator):
     entity_name = "financial"
 
-    PAID_FRACTION = 0.6   # ~90 of ~150 target from §4c
     VOID_COUNT = 5
     CREDIT_NOTE_COUNT = 10
 
@@ -111,20 +110,54 @@ class FinancialGenerator(BaseGenerator):
         self._raise_invoices(billing_coworker_ids, nexudus_run_command)
         invoices = self._list_invoices(biz, nexudus_list)
 
-        paid, remainder = self._split_invoices(invoices)
-        self._pay_invoices(biz, paid, nexudus_create)
-        self._void_and_credit_invoices(remainder, nexudus_run_command)
+        to_pay, to_void, to_credit = self._select_invoices(invoices)
+        self._pay_invoices(biz, to_pay, nexudus_create)
+        self._void_and_credit_invoices(to_void, to_credit, nexudus_run_command)
         self._create_ledger_supplements(biz, coworker_ids, nexudus_create)
 
         self.log.info("Layer 5 Financial complete. Billed coworkers: %d, invoices seen: %d",
                       len(billing_coworker_ids), len(invoices))
         return {**prev_output}
 
-    def _split_invoices(self, invoices):
-        """Partition invoices into disjoint pools for paid / void / credit-note,
-        so the same invoice never gets two conflicting actions."""
-        paid_count = round(len(invoices) * self.PAID_FRACTION)
-        return invoices[:paid_count], invoices[paid_count:]
+    def _select_invoices(self, invoices):
+        """Partition invoices for paid / void / credit-note, based on
+        actual current state rather than position in the list.
+
+        The invoice pool keeps growing across runs (Nexudus appears to
+        raise some invoices on its own over time, independent of our
+        COWORKER_BILL_RUN calls — confirmed live the total climbed from
+        157 to 244 to 350 across separate runs with no code changes in
+        between). The original design partitioned by *position*
+        (invoices[:60%] paid, the rest void/credit candidates), which
+        breaks once the pool grows: an invoice paid in an earlier run can
+        shift into this run's "remainder" slice simply because new
+        invoices got added ahead of it, and VOID_INVOICE/
+        COWORKER_INVOICE_CANCEL both reject an already-paid invoice
+        ("This command cannot be run for the CoworkerInvoice", confirmed
+        live). Selecting from currently-unpaid, not-yet-actioned invoices
+        only, and capping void/credit at their total target counts across
+        all runs (via tracked history) rather than a fraction of
+        whatever's in the pool this run, avoids that entirely.
+        """
+        tracked = self.get_tracked_ids()
+        already_paid = {r["PaidInvoiceId"] for r in tracked if r.get("PaidInvoiceId")}
+        already_voided = {r["VoidedInvoiceId"] for r in tracked if r.get("VoidedInvoiceId")}
+        already_credited = {r["CreditedInvoiceId"] for r in tracked if r.get("CreditedInvoiceId")}
+        actioned = already_paid | already_voided | already_credited
+
+        candidates = [
+            inv for inv in invoices
+            if not inv.get("Paid") and not inv.get("Void") and not inv.get("CreditNote")
+            and str(inv.get("Id")) not in actioned
+        ]
+
+        need_void = max(0, self.VOID_COUNT - len(already_voided))
+        need_credit = max(0, self.CREDIT_NOTE_COUNT - len(already_credited))
+
+        to_void = candidates[:need_void]
+        to_credit = candidates[need_void:need_void + need_credit]
+        to_pay = candidates[need_void + need_credit:]
+        return to_pay, to_void, to_credit
 
     # ------------------------------------------------------------------
     # Which coworkers to bill
@@ -223,10 +256,7 @@ class FinancialGenerator(BaseGenerator):
     #     parameter (the invoice id is part of the parameter name, not
     #     just its value) plus Preview/DoNotApplyCreditAutomatically.
     # ------------------------------------------------------------------
-    def _void_and_credit_invoices(self, invoices, nexudus_run_command):
-        to_void = invoices[:self.VOID_COUNT]
-        to_credit = invoices[self.VOID_COUNT:self.VOID_COUNT + self.CREDIT_NOTE_COUNT]
-
+    def _void_and_credit_invoices(self, to_void, to_credit, nexudus_run_command):
         self.log.info("--- Voiding %d invoices ---", len(to_void))
         for inv in to_void:
             track_key = str(inv.get("Id"))
