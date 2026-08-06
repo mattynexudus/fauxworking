@@ -299,6 +299,16 @@ HELP_DESK_DEPARTMENTS = [
     {"Name": f"{TEST_NAME_PREFIX}Billing", "Description": "Invoices, payments, and account queries"},
 ]
 
+# OpportunityTypeId is optional per the schema but effectively required on
+# this account — CrmOpportunity create fails with a generic 500 without
+# one (confirmed live).
+OPPORTUNITY_TYPES = [
+    {"Name": f"{TEST_NAME_PREFIX}New Member", "NotesTemplate": "New enquiry from a prospective member."},
+    {"Name": f"{TEST_NAME_PREFIX}Renewal", "NotesTemplate": "Existing member considering renewing or upgrading their plan."},
+    {"Name": f"{TEST_NAME_PREFIX}Event Booking", "NotesTemplate": "Enquiry about hosting an event or booking a meeting room."},
+    {"Name": f"{TEST_NAME_PREFIX}Office Upgrade", "NotesTemplate": "Existing member interested in moving to a larger office or private space."},
+]
+
 # GroupAccess (eCommunityThreadVisibility): Restricted=1, Public=2, Private=3
 COMMUNITY_GROUPS = [
     {"Name": f"{TEST_NAME_PREFIX}General", "Description": "General discussion for all members", "GroupAccess": 2},
@@ -336,6 +346,7 @@ class StructuralGenerator(BaseGenerator):
         self.help_desk_dept_ids = {}
         self.community_group_ids = {}
         self.event_category_ids = {}
+        self.opportunity_type_ids = {}
 
     def run(self, nexudus_list, nexudus_create, layer0_output):
         """
@@ -402,6 +413,9 @@ class StructuralGenerator(BaseGenerator):
                                      self.event_category_ids, biz, nexudus_list, nexudus_create,
                                      filter_key="CalendarEventCategory_Business",
                                      name_field="Title")
+        self._create_simple_entities("opportunitytypes", OPPORTUNITY_TYPES,
+                                     self.opportunity_type_ids, biz, nexudus_list, nexudus_create,
+                                     filter_key="OpportunityType_Business")
 
         self.log.info("Layer 1 complete.")
         return self._build_output(layer0_output)
@@ -424,6 +438,7 @@ class StructuralGenerator(BaseGenerator):
             "help_desk_dept_ids": self.help_desk_dept_ids,
             "community_group_ids": self.community_group_ids,
             "event_category_ids": self.event_category_ids,
+            "opportunity_type_ids": self.opportunity_type_ids,
         }
 
     # ------------------------------------------------------------------
