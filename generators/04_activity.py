@@ -38,6 +38,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from generators.base import BaseGenerator, parse_args
 from config import DATA_DIR, TODAY, to_utc_str
 
+# eBookingCancellationReason — confirmed live that a raw DELETE always
+# leaves CancelledBooking.CancellationReason at 0 (Unknown); the
+# CANCEL_BOOKING command's "Cancellation Reason" parameter is what
+# actually sets it, matching our CancellationCategory labels.
+CANCELLATION_REASON_MAP = {
+    "no_longer_needed": 1,   # NoLongerNeeded
+    "cost_concerns": 2,      # TooExpensive
+    "rebooked": 4,           # RebookedForADifferentTime
+    "failed_to_pay": 5,      # FailedToPayUpfront
+    "no_show": 8,            # NotCheckedIn
+}
+
 
 class ActivityGenerator(BaseGenerator):
     entity_name = "activity"
@@ -62,7 +74,7 @@ class ActivityGenerator(BaseGenerator):
             raise FileNotFoundError(f"{path} not found. Run 'python prebuild.py' first.")
         return json.loads(path.read_text())
 
-    def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_delete, prev_output):
+    def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_run_command, prev_output):
         biz = prev_output["business_id"]
         admin_id = prev_output["admin_user_id"]
         coworker_ids = prev_output["coworker_ids"]
@@ -74,9 +86,9 @@ class ActivityGenerator(BaseGenerator):
 
         self._create_bookings(biz, admin_id, coworker_ids, resource_ids, product_ids, nexudus_create)
         self._create_booking_guests(coworker_ids, visitor_ids, nexudus_create)
-        self._cancel_bookings(nexudus_delete)
+        self._cancel_bookings(nexudus_run_command)
         self._create_checkins(biz, coworker_ids, time_pass_ids, nexudus_create, nexudus_update)
-        self._create_extra_services(biz, coworker_ids, extra_service_ids, nexudus_create)
+        self._create_extra_services(biz, coworker_ids, extra_service_ids, nexudus_create, nexudus_run_command)
         self._create_booking_credits(biz, coworker_ids, nexudus_create)
         self._create_credit_use_history(nexudus_create)
         self._create_time_passes(biz, coworker_ids, time_pass_ids, nexudus_create, nexudus_update)
@@ -209,7 +221,7 @@ class ActivityGenerator(BaseGenerator):
     # Cancel bookings — delete after all children exist; system creates
     # the CancelledBooking snapshot automatically (§4j).
     # ------------------------------------------------------------------
-    def _cancel_bookings(self, nexudus_delete):
+    def _cancel_bookings(self, nexudus_run_command):
         to_cancel = [d for d in self.booking_defs if d["ToCancel"]]
         self.log.info("--- Cancelling Bookings (%d) ---", len(to_cancel))
 
@@ -223,16 +235,22 @@ class ActivityGenerator(BaseGenerator):
             if booking_id is None:
                 continue
 
+            reason = CANCELLATION_REASON_MAP.get(defn["CancellationCategory"], 7)  # 7 = Other
+
             if self.dry_run:
-                self.log.info("WOULD DELETE bookings %s [%s]", booking_id, defn["CancellationCategory"])
+                self.log.info("WOULD CANCEL_BOOKING %s [%s -> reason=%d]",
+                              booking_id, defn["CancellationCategory"], reason)
             else:
-                nexudus_delete("bookings", booking_id)
+                nexudus_run_command("bookings", "CANCEL_BOOKING", [booking_id], parameters=[
+                    {"Name": "Cancellation Reason", "Value": reason},
+                    {"Name": "Cancel without applying cancellation fee rules", "Value": True},
+                ])
                 self.track_id({
                     "entity": "cancelledbookings", "Id": booking_id,
                     "CancelledBookingIndex": track_key, "Category": defn["CancellationCategory"],
                 })
-                self.log.info("Cancelled booking #%d [%s] (id=%s)",
-                              idx, defn["CancellationCategory"], booking_id)
+                self.log.info("Cancelled booking #%d [%s -> reason=%d] (id=%s)",
+                              idx, defn["CancellationCategory"], reason, booking_id)
 
     # ------------------------------------------------------------------
     # CheckIns
@@ -330,7 +348,7 @@ class ActivityGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     # CoworkerExtraService (booking charges + time/printing credits)
     # ------------------------------------------------------------------
-    def _create_extra_services(self, biz, coworker_ids, extra_service_ids, nexudus_create):
+    def _create_extra_services(self, biz, coworker_ids, extra_service_ids, nexudus_create, nexudus_run_command):
         self.log.info("--- Extra Services (%d) ---", len(self.extra_service_defs))
 
         for defn in self.extra_service_defs:
@@ -343,6 +361,31 @@ class ActivityGenerator(BaseGenerator):
                                   defn["index"], defn["CoworkerIndex"])
                 continue
 
+            # A booking_charge is meant to represent an actual booking being
+            # charged. Manually creating a standalone CoworkerExtraService
+            # with a BookingId link does NOT set Booking.Invoiced — confirmed
+            # live the booking stays uncharged from the booking's own point
+            # of view (Booking.Invoiced field, confusingly named — see the
+            # entity guide). The CHARGE_BOOKING command is what actually
+            # charges it, creating the linked CoworkerExtraService itself
+            # and flipping Invoiced=true, so bookings correctly show as
+            # invoiced/paid once billed.
+            if defn["Kind"] == "booking_charge" and defn["BookingIndex"] is not None:
+                booking_id = self.booking_ids.get(defn["BookingIndex"])
+                if booking_id is None:
+                    continue
+                if self.dry_run:
+                    self.log.info("WOULD RUN COMMAND bookings.CHARGE_BOOKING id=%s", booking_id)
+                else:
+                    nexudus_run_command("bookings", "CHARGE_BOOKING", [booking_id])
+                    self.track_id({
+                        "entity": "coworkerextraservices", "Id": f"charge-booking-{booking_id}",
+                        "ExtraServiceIndex": track_key, "Kind": defn["Kind"],
+                    })
+                    self.log.info("Charged booking #%d [%s] (booking id=%s)",
+                                  defn["index"], defn["Kind"], booking_id)
+                continue
+
             body = {
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
                 "BusinessId": biz,
@@ -353,10 +396,6 @@ class ActivityGenerator(BaseGenerator):
             }
             if defn["Price"] is not None:
                 body["Price"] = defn["Price"]
-            if defn["BookingIndex"] is not None:
-                booking_id = self.booking_ids.get(defn["BookingIndex"])
-                if booking_id is not None:
-                    body["BookingId"] = booking_id
             if defn["ExpireDateDayOffset"] is not None:
                 body["ExpireDate"] = self._at(defn["ExpireDateDayOffset"])
 
@@ -583,7 +622,7 @@ if __name__ == "__main__":
             nexudus_list=lambda entity, filters: [],
             nexudus_create=_mock_create,
             nexudus_update=lambda entity, id, body: {"Id": id},
-            nexudus_delete=lambda entity, id: None,
+            nexudus_run_command=lambda entity, key, ids, parameters=None: None,
             prev_output=mock_prev,
         )
     else:
