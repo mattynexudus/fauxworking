@@ -937,6 +937,40 @@ HELPDESK_SUBJECTS_BY_DEPT = {
 
 COMMUNITY_GROUP_PLAN = [("General", 6, (2, 5)), ("Networking", 5, (2, 4)), ("Announcements", 4, (1, 2))]
 
+# fake.sentence() defaults to Faker's Latin lorem-ipsum generator, not real
+# English — looked like gibberish in the live UI ("Dignissimos in
+# temporibus nesciunt"). Curated, on-topic content per group instead.
+COMMUNITY_THREAD_SUBJECTS = {
+    "General": [
+        "Anyone know a good coffee spot nearby?", "Wifi's been patchy on the 2nd floor",
+        "Lost a black jacket in the kitchen area", "Best time to book the meeting rooms?",
+        "Recommendations for lunch places around here", "Printer on 1st floor out of toner again",
+    ],
+    "Networking": [
+        "Looking for a UX designer to collaborate with", "Anyone else working in fintech?",
+        "Freelancers — want to grab coffee and swap notes?", "Looking for a co-founder for a side project",
+        "Any developers interested in a weekend hackathon?",
+    ],
+    "Announcements": [
+        "Building maintenance this Saturday morning", "New meeting room booking system live now",
+        "Reminder: annual member survey closes Friday", "Kitchen will be closed for cleaning Monday AM",
+    ],
+}
+
+COMMUNITY_THREAD_OPENERS = [
+    "Just wondering if anyone else has run into this.", "Would appreciate any pointers, thanks!",
+    "Happy to buy coffee for anyone who can help.", "Posting here in case it helps someone else too.",
+    "Let me know if you've dealt with this before.", "Open to suggestions from anyone in the space.",
+]
+
+COMMUNITY_REPLY_MESSAGES = [
+    "Yeah, I noticed that too — glad it's not just me.", "Thanks, that's really helpful!",
+    "I had the same issue last week, still not fixed.", "Following this thread, interested too.",
+    "Reception should be able to sort that out for you.", "+1, would love to see this happen.",
+    "I can help with this, sending you a message.", "Same here, has been going on for a few days.",
+    "Good shout — count me in.", "Appreciate you flagging this.",
+]
+
 BLOG_TITLES = [
     "Welcome to Our New Space", "Summer Networking Tips", "How to Maximise Your Hot Desk",
     "New Facilities Announcement", "Member Spotlight: Community Champion",
@@ -1113,14 +1147,15 @@ def generate_community_threads(rng, fake, coworkers):
     out = []
     idx = 0
     for group, count, (lo, hi) in COMMUNITY_GROUP_PLAN:
-        for _ in range(count):
+        subjects = rng.sample(COMMUNITY_THREAD_SUBJECTS[group], count)
+        for subject in subjects:
             idx += 1
             out.append({
                 "index": idx,
                 "GroupName": group,
                 "CoworkerIndex": rng.choice(coworkers)["index"],
-                "Subject": fake.sentence(nb_words=6).rstrip("."),
-                "Message": fake.sentence(nb_words=12),
+                "Subject": subject,
+                "Message": rng.choice(COMMUNITY_THREAD_OPENERS),
                 "DayOffset": -rng.randint(1, 180),
                 "MessageCount": rng.randint(lo, hi),
                 "Private": rng.random() < 0.15,
@@ -1139,7 +1174,7 @@ def generate_community_messages(rng, fake, threads, coworkers):
                 "index": idx,
                 "ThreadIndex": t["index"],
                 "CoworkerIndex": rng.choice(coworkers)["index"],
-                "Message": fake.sentence(nb_words=10),
+                "Message": rng.choice(COMMUNITY_REPLY_MESSAGES),
                 "DayOffsetAfterThread": rng.randint(0, 5) * (i + 1),
             })
     return out
