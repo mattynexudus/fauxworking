@@ -1057,12 +1057,19 @@ def generate_event_attendees(rng, fake, events, coworkers):
     raw = []
     for e in events:
         for _ in range(rng.randint(1, 6)):
-            is_coworker = rng.random() < 0.7
+            # OnlyForMembers events reject non-coworker guest purchases live
+            # ("You cannot purchase this product") — only real coworkers can
+            # attend one, regardless of the usual 70% coworker split.
+            is_coworker = True if e.get("OnlyForMembers") else rng.random() < 0.7
             raw.append({
                 "EventIndex": e["index"],
                 "CoworkerIndex": rng.choice(coworkers)["index"] if is_coworker else None,
                 "FullName": None if is_coworker else fake.name(),
-                "Email": None if is_coworker else fake.email(),
+                # fake.email() defaults to safe=True, which always uses a
+                # reserved example.com/.org/.net domain (RFC 2606) — Nexudus
+                # rejects those live as "Invalid Email Address". safe=False
+                # produces realistic-looking domains instead.
+                "Email": None if is_coworker else fake.email(safe=False),
                 "IsCoworker": is_coworker,
                 "CheckedIn": e["StartDayOffset"] < 0 and rng.random() < 0.7,
             })

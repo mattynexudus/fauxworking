@@ -292,7 +292,23 @@ class CommunityGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("eventattendees", body)
             else:
-                result = nexudus_create("eventattendees", body)
+                try:
+                    result = nexudus_create("eventattendees", body)
+                except Exception as e:  # noqa: BLE001
+                    if "You cannot purchase this product" in str(e):
+                        # Confirmed live this isn't about OnlyForMembers,
+                        # tariff, team, or paying-member status — reproduced
+                        # with several other coworkers on the same event/
+                        # tariff/team combinations, all succeeded. Isolated
+                        # to specific coworker records; root cause not
+                        # found after significant live diagnosis.
+                        self.log.warning(
+                            "Skipping attendee #%d — event purchase rejected for "
+                            "coworker #%s (cause not isolated, confirmed not "
+                            "membership/tariff/team related): %s",
+                            defn["index"], defn["CoworkerIndex"], e)
+                        continue
+                    raise
                 self.track_id({
                     "entity": "eventattendees", "Id": result["Id"], "AttendeeIndex": track_key,
                 })
