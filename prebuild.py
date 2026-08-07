@@ -19,6 +19,7 @@ from pathlib import Path
 from faker import Faker
 
 from config import (
+    CONFIGURABLE_VOLUME_KEYS,
     DATA_DIR,
     RANDOM_SEED,
     TEST_EMAIL_DOMAIN,
@@ -27,6 +28,28 @@ from config import (
     TODAY,
     VOLUMES,
 )
+
+
+def rescale_plan(plan, new_total):
+    """Proportionally rescale a [(label, count), ...] plan to a new total.
+
+    Uses largest-remainder (Hamilton) apportionment so the result always
+    sums to exactly new_total, including at new_total == 0 (everything
+    zeroes) or 1 (the proportionally largest bucket takes the one unit) —
+    no bucket ever goes negative or the total drifts from a naive round().
+    """
+    old_total = sum(c for _, c in plan)
+    if old_total == 0 or new_total <= 0:
+        return [(label, 0) for label, _ in plan]
+
+    raw = [c * new_total / old_total for _, c in plan]
+    floors = [int(v) for v in raw]
+    remainder = new_total - sum(floors)
+    order = sorted(range(len(plan)), key=lambda i: raw[i] - floors[i], reverse=True)
+    for i in order[:remainder]:
+        floors[i] += 1
+    return [(plan[i][0], floors[i]) for i in range(len(plan))]
+
 
 # ---------------------------------------------------------------------------
 # Lifecycle + engagement definitions (shared with generators)
@@ -76,13 +99,19 @@ def _attendance_pattern(rng, scenario):
         return {d: rng.choice([1, 2, 5]) for d in days}
 
 
-def generate_coworkers(rng, fake):
+def generate_coworkers(rng, fake, count=None):
     """Generate coworker profile definitions."""
+    count = VOLUMES["coworkers"] if count is None else count
+    total_count = sum(c for _, c in LIFECYCLE_SCENARIOS)
+    scenarios = rescale_plan(LIFECYCLE_SCENARIOS, count)
+    # Team assignment cutoff is itself proportional to the old 40-of-60 split.
+    team_cutoff = round(count * 40 / total_count)
+
     coworkers = []
     idx = 0
 
-    for scenario, count in LIFECYCLE_SCENARIOS:
-        for _ in range(count):
+    for scenario, scenario_count in scenarios:
+        for _ in range(scenario_count):
             idx += 1
             gender_val = rng.choice([2, 3, 4, 5])
             if gender_val == 2:
@@ -93,7 +122,7 @@ def generate_coworkers(rng, fake):
                 first = fake.first_name()
             last = fake.last_name()
 
-            team = rng.choice(TEAM_NAMES) if idx <= 40 else None
+            team = rng.choice(TEAM_NAMES) if idx <= team_cutoff else None
             churn, engagement = ENGAGEMENT_PROFILES[scenario]
             churn = round(max(0, min(1, churn + rng.uniform(-0.1, 0.1))), 2)
 
@@ -112,13 +141,14 @@ def generate_coworkers(rng, fake):
     return coworkers
 
 
-def generate_visitors(rng, fake, coworker_count):
+def generate_visitors(rng, fake, coworker_count, count=None):
     """Generate visitor definitions with day offsets instead of absolute dates."""
+    count = VOLUMES["visitors"] if count is None else count
     visitors = []
     sources = [1, 1, 2, 2, 2, 3]
     statuses = [1, 1, 1, 5, 5, 2]
 
-    for i in range(1, VOLUMES["visitors"] + 1):
+    for i in range(1, count + 1):
         host_idx = rng.randint(1, coworker_count) if rng.random() < 0.7 else None
 
         visitors.append({
@@ -540,10 +570,10 @@ TIME_PASS_NAMES = ["Day Pass", "Half Day Pass", "10-Visit Pass", "Evening Pass"]
 # 40 to-cancel bookings, tagged with a cancellation category for documentation
 # only — CancelledBooking.CancellationReason is system-populated on delete,
 # not something we can set directly (see §4j).
-CANCEL_CATEGORIES = (
-    ["no_longer_needed"] * 15 + ["rebooked"] * 10 + ["no_show"] * 8
-    + ["cost_concerns"] * 4 + ["failed_to_pay"] * 3
-)
+CANCEL_CATEGORY_PLAN = [
+    ("no_longer_needed", 15), ("rebooked", 10), ("no_show", 8),
+    ("cost_concerns", 4), ("failed_to_pay", 3),
+]
 
 RECURRING_BOOKING_DEFS = [
     {"count": 5, "category": "meeting_room", "repeats": 2, "repeat_every": 1, "big": False},
@@ -574,9 +604,14 @@ def _weekday_bias(rng, day_offset):
     return day_offset
 
 
-def generate_bookings(rng, coworkers, visitors):
-    """~240 bookings — §4g. 10 recurring + 230 one-off (40 flagged to-cancel),
-    with inline BookingProducts (~36) and linked guests (~50) layered on top."""
+def generate_bookings(rng, coworkers, visitors, total=None):
+    """~240 bookings — §4g. 10 recurring (fixed — collision-sensitive) + the
+    rest one-off, with a proportional slice flagged to-cancel and layered
+    BookingProducts/guests, all scaled off `total`."""
+    total = VOLUMES["bookings_total"] if total is None else total
+    n_recurring = sum(d["count"] for d in RECURRING_BOOKING_DEFS)
+    n_one_off = max(0, total - n_recurring)
+
     bookings = []
     idx = 0
 
@@ -631,11 +666,11 @@ def generate_bookings(rng, coworkers, visitors):
                 "GuestVisitorIndices": [],
             })
 
-    # One-off bookings (230)
+    # One-off bookings
     category_weights = {"meeting_room": 0.40, "hot_desk": 0.25, "private_office": 0.15,
                          "phone_booth": 0.10, "parking": 0.10}
     one_offs = []
-    for _ in range(230):
+    for _ in range(n_one_off):
         cw = rng.choice(coworkers)
         cat = rng.choices(list(category_weights.keys()), weights=list(category_weights.values()), k=1)[0]
         names, rate_name = RESOURCE_CATEGORIES[cat]
@@ -661,37 +696,46 @@ def generate_bookings(rng, coworkers, visitors):
         })
 
     rng.shuffle(one_offs)
-    cancel_labels = CANCEL_CATEGORIES[:]
+    # Original ratio was 40 cancelled of 230 one-offs — keep that proportion.
+    cancel_count = min(len(one_offs), round(n_one_off * 40 / 230))
+    cancel_labels = [label for label, n in rescale_plan(CANCEL_CATEGORY_PLAN, cancel_count) for _ in range(n)]
     rng.shuffle(cancel_labels)
-    for b, label in zip(one_offs[:40], cancel_labels):
+    for b, label in zip(one_offs[:cancel_count], cancel_labels):
         b["ToCancel"] = True
         b["CancellationCategory"] = label
 
     for b in one_offs:
         add(b)
 
-    # Layer on BookingProducts (~36) and guests (~50) across the full pool
+    # Layer on BookingProducts and guests across the full pool — original
+    # ratios were 36 and 50 of 240 total bookings.
+    n_products = min(len(bookings), round(len(bookings) * 36 / 240))
     products_pool = bookings[:]
     rng.shuffle(products_pool)
-    for b in products_pool[:36]:
+    for b in products_pool[:n_products]:
         b["BookingProducts"] = [{
             "ProductName": f"{TEST_NAME_PREFIX}{rng.choice(BOOKING_PRODUCT_NAMES)}",
             "Quantity": 1,
         }]
 
+    n_guests = min(len(bookings), round(len(bookings) * 50 / 240))
     visitor_indices = [v["index"] for v in visitors]
     guests_pool = bookings[:]
     rng.shuffle(guests_pool)
-    for b in guests_pool[:50]:
+    for b in guests_pool[:n_guests]:
         n = rng.choice([1, 1, 2, 2, 3])
         b["GuestVisitorIndices"] = rng.sample(visitor_indices, min(n, len(visitor_indices)))
 
     return bookings
 
 
-def generate_checkins(rng, coworkers):
-    """300 check-ins across ~40 of 60 coworkers — §4m. ~5 left open (no ToTime)."""
-    checking_members = rng.sample(coworkers, min(40, len(coworkers)))
+def generate_checkins(rng, coworkers, total=None):
+    """~total check-ins across a proportional subset of coworkers — §4m.
+    A handful left open (no ToTime)."""
+    total = VOLUMES["check_ins"] if total is None else total
+    # Original ratio: 40 of 60 coworkers ever check in.
+    n_checking_members = 0 if total <= 0 else min(len(coworkers), max(1, round(40 * total / 300)))
+    checking_members = rng.sample(coworkers, n_checking_members)
     heavy_indices = {cw["index"] for cw in rng.sample(checking_members, k=len(checking_members) // 2)}
 
     def _make(cw):
@@ -712,14 +756,18 @@ def generate_checkins(rng, coworkers):
         raw.extend(_make(cw) for _ in range(total_visits))
 
     rng.shuffle(raw)
-    if len(raw) > 300:
-        raw = raw[:300]
+    if len(raw) > total:
+        raw = raw[:total]
     else:
-        while len(raw) < 300:
+        while len(raw) < total:
             raw.append(_make(rng.choice(checking_members)))
 
+    # Original ratio: 5 of 300 left open. min() guards against sampling more
+    # than exist when `total` is configured small.
+    open_count = min(5, len(raw))
     recent = [c for c in raw if c["FromDayOffset"] >= -3]
-    for c in rng.sample(recent if len(recent) >= 5 else raw, 5):
+    pool = recent if len(recent) >= open_count else raw
+    for c in rng.sample(pool, open_count):
         c["Open"] = True
 
     for i, c in enumerate(raw, start=1):
@@ -844,18 +892,25 @@ def generate_credit_use_history(rng, credits, bookings):
     return out
 
 
-def generate_time_passes(rng, coworkers):
-    """40 CoworkerTimePasses — 15 unused, 20 used, 5 expiring within 30 days — §4e."""
-    chosen = rng.sample(coworkers, min(40, len(coworkers)))
+TIME_PASS_STATUS_PLAN = [("unused", 15), ("used", 20), ("expiring_soon", 5)]
+
+
+def generate_time_passes(rng, coworkers, count=None):
+    """~40 CoworkerTimePasses — unused/used/expiring-within-30-days — §4e."""
+    count = VOLUMES["coworker_time_passes"] if count is None else count
+    chosen = rng.sample(coworkers, min(count, len(coworkers)))
+    status_plan = rescale_plan(TIME_PASS_STATUS_PLAN, len(chosen))
+    statuses = [status for status, n in status_plan for _ in range(n)]
+
     out = []
-    for i, cw in enumerate(chosen, start=1):
+    for i, (cw, status) in enumerate(zip(chosen, statuses), start=1):
         name = rng.choice(TIME_PASS_NAMES)
-        if i <= 15:
-            status, expire_offset = "unused", rng.randint(60, 200)
-        elif i <= 35:
-            status, expire_offset = "used", rng.randint(30, 200)
+        if status == "unused":
+            expire_offset = rng.randint(60, 200)
+        elif status == "used":
+            expire_offset = rng.randint(30, 200)
         else:
-            status, expire_offset = "expiring_soon", rng.randint(3, 30)
+            expire_offset = rng.randint(3, 30)
         out.append({
             "index": i,
             "CoworkerIndex": cw["index"],
@@ -867,9 +922,10 @@ def generate_time_passes(rng, coworkers):
     return out
 
 
-def generate_coworker_products(rng, coworkers):
-    """20 standalone recurring CoworkerProducts."""
-    pool = rng.sample(coworkers, min(20, len(coworkers)))
+def generate_coworker_products(rng, coworkers, count=None):
+    """~20 standalone recurring CoworkerProducts."""
+    count = VOLUMES["coworker_products"] if count is None else count
+    pool = rng.sample(coworkers, min(count, len(coworkers)))
     out = []
     for i, cw in enumerate(pool, start=1):
         out.append({
@@ -1292,17 +1348,25 @@ def generate_event_attendees(rng, fake, events, coworkers, contracts, paused_per
     return raw
 
 
-def generate_helpdesk_messages(rng, coworkers):
-    """25 HelpDeskMessages — §4s."""
-    priority_slots = []
+def generate_helpdesk_messages(rng, coworkers, count=None):
+    """~25 HelpDeskMessages — §4s."""
+    count = VOLUMES["help_desk_messages"] if count is None else count
+
+    # HELPDESK_DEPT_PLAN and HELPDESK_PRIORITY_PLAN are two independent plans
+    # that must both land on exactly `count` (they're zipped together below) —
+    # rescale both from the same target so they can't drift out of lockstep.
+    # Priority built+shuffled before dept, matching the original call order
+    # (both draw from the same shared rng, so order matters for reproducibility).
+    flat_priority_plan = []
     for priority_val, open_count, closed_count in HELPDESK_PRIORITY_PLAN:
-        priority_slots += [(priority_val, False)] * open_count
-        priority_slots += [(priority_val, True)] * closed_count
+        flat_priority_plan.append(((priority_val, False), open_count))
+        flat_priority_plan.append(((priority_val, True), closed_count))
+    rescaled_priority = rescale_plan(flat_priority_plan, count)
+    priority_slots = [label for label, n in rescaled_priority for _ in range(n)]
     rng.shuffle(priority_slots)
 
-    dept_pool = []
-    for name, count in HELPDESK_DEPT_PLAN:
-        dept_pool += [name] * count
+    dept_plan = rescale_plan(HELPDESK_DEPT_PLAN, count)
+    dept_pool = [name for name, n in dept_plan for _ in range(n)]
     rng.shuffle(dept_pool)
 
     out = []
@@ -1319,12 +1383,20 @@ def generate_helpdesk_messages(rng, coworkers):
     return out
 
 
-def generate_community_threads(rng, fake, coworkers):
-    """15 CommunityThreads — §4t."""
+def generate_community_threads(rng, fake, coworkers, count=None):
+    """~15 CommunityThreads — §4t. Capped per group by that group's authored
+    subject pool (COMMUNITY_THREAD_SUBJECTS) — growing beyond the original 15
+    needs new hand-written subjects, not just a bigger number."""
+    count = VOLUMES["community_threads"] if count is None else count
+    group_plan = rescale_plan([(g, n) for g, n, _ in COMMUNITY_GROUP_PLAN], count)
+    range_by_group = {g: r for g, _, r in COMMUNITY_GROUP_PLAN}
+
     out = []
     idx = 0
-    for group, count, (lo, hi) in COMMUNITY_GROUP_PLAN:
-        subjects = rng.sample(COMMUNITY_THREAD_SUBJECTS[group], count)
+    for group, group_count in group_plan:
+        lo, hi = range_by_group[group]
+        group_count = min(group_count, len(COMMUNITY_THREAD_SUBJECTS[group]))
+        subjects = rng.sample(COMMUNITY_THREAD_SUBJECTS[group], group_count)
         for subject in subjects:
             idx += 1
             out.append({
@@ -1379,14 +1451,21 @@ def generate_blog_posts(rng):
     return out
 
 
-def generate_coworker_tasks(rng, coworkers):
-    """20 CoworkerTasks — §4v. 10 completed, 5 overdue, 5 upcoming."""
-    pool = rng.sample(coworkers, min(20, len(coworkers)))
+TASK_STATUS_PLAN = [("completed", 10), ("overdue", 5), ("upcoming", 5)]
+
+
+def generate_coworker_tasks(rng, coworkers, count=None):
+    """~20 CoworkerTasks — §4v. Completed/overdue/upcoming."""
+    count = VOLUMES["coworker_tasks"] if count is None else count
+    pool = rng.sample(coworkers, min(count, len(coworkers)))
+    status_plan = rescale_plan(TASK_STATUS_PLAN, len(pool))
+    statuses = [status for status, n in status_plan for _ in range(n)]
+
     out = []
-    for i, cw in enumerate(pool, start=1):
-        if i <= 10:
+    for i, (cw, status) in enumerate(zip(pool, statuses), start=1):
+        if status == "completed":
             completed, due_offset = True, -rng.randint(10, 150)
-        elif i <= 15:
+        elif status == "overdue":
             completed, due_offset = False, -rng.randint(5, 60)
         else:
             completed, due_offset = False, rng.randint(5, 30)
@@ -1431,12 +1510,15 @@ CRM_STAGE_ORDER = ["Lead", "Qualified", "Proposal Sent", "Negotiation", "Won"]
 PROPOSAL_STATUS_PLAN = [(1, 3), (2, 4), (3, 5), (4, 3)]
 
 
-def generate_crm_opportunities(rng, coworkers):
-    """30 CrmOpportunities across the pipeline — §4l."""
+def generate_crm_opportunities(rng, coworkers, count=None):
+    """~30 CrmOpportunities across the pipeline — §4l."""
+    count = VOLUMES["crm_opportunities"] if count is None else count
+    stage_plan = rescale_plan(CRM_STAGE_PLAN, count)
+
     out = []
     idx = 0
-    for stage, count in CRM_STAGE_PLAN:
-        for _ in range(count):
+    for stage, stage_count in stage_plan:
+        for _ in range(stage_count):
             idx += 1
             base_value = CRM_STAGE_AVG_VALUE[stage]
             out.append({
@@ -1482,16 +1564,18 @@ def generate_crm_opportunity_history(rng, opportunities):
     return out
 
 
-def generate_proposals(rng, opportunities, coworkers):
-    """15 Proposals — §4f. Accepted ones are tied to a Won opportunity."""
+def generate_proposals(rng, opportunities, coworkers, count=None):
+    """~15 Proposals — §4f. Accepted ones are tied to a Won opportunity."""
+    count = VOLUMES["proposals"] if count is None else count
+    status_plan = rescale_plan(PROPOSAL_STATUS_PLAN, count)
     won_pool = [o for o in opportunities if o["Stage"] == "Won"]
     rng.shuffle(won_pool)
 
     out = []
     idx = 0
     won_i = 0
-    for status, count in PROPOSAL_STATUS_PLAN:
-        for _ in range(count):
+    for status, status_count in status_plan:
+        for _ in range(status_count):
             idx += 1
             if status == 3 and won_i < len(won_pool):
                 opp = won_pool[won_i]
@@ -1544,21 +1628,38 @@ def write_json(path, data):
     print(f"  Written {path} ({len(data)} records)")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Pre-generate test data files")
-    parser.add_argument("--seed", type=int, default=RANDOM_SEED, help="Random seed")
-    args = parser.parse_args()
+# config.VOLUMES key -> (CLI flag, argparse dest). Only the keys in
+# CONFIGURABLE_VOLUME_KEYS get a flag — see config.py for why the rest don't.
+FLAG_SPEC = {
+    "coworkers": ("--coworkers", "coworkers"),
+    "visitors": ("--visitors", "visitors"),
+    "bookings_total": ("--bookings", "bookings"),
+    "check_ins": ("--check-ins", "check_ins"),
+    "crm_opportunities": ("--opportunities", "opportunities"),
+    "proposals": ("--proposals", "proposals"),
+    "help_desk_messages": ("--help-desk-messages", "help_desk_messages"),
+    "community_threads": ("--community-threads", "community_threads"),
+    "coworker_tasks": ("--tasks", "tasks"),
+    "coworker_time_passes": ("--time-passes", "time_passes"),
+    "coworker_products": ("--coworker-products", "coworker_products"),
+}
 
-    rng = random.Random(args.seed)
+
+def generate_all(seed, volumes):
+    """Generate every data/*.json file. `volumes` is a full config.VOLUMES-
+    shaped dict — pass config.VOLUMES itself to reproduce the default
+    output exactly, or override any of CONFIGURABLE_VOLUME_KEYS in a copy
+    of it (see main() and wizard.py for how the CLI/wizard build that)."""
+    rng = random.Random(seed)
     fake = Faker("en_GB")
-    Faker.seed(args.seed)
+    Faker.seed(seed)
 
-    print(f"Generating data with seed={args.seed}...")
+    print(f"Generating data with seed={seed}...")
 
-    coworkers = generate_coworkers(rng, fake)
+    coworkers = generate_coworkers(rng, fake, count=volumes["coworkers"])
     write_json(DATA_DIR / "coworkers.json", coworkers)
 
-    visitors = generate_visitors(rng, fake, len(coworkers))
+    visitors = generate_visitors(rng, fake, len(coworkers), count=volumes["visitors"])
     write_json(DATA_DIR / "visitors.json", visitors)
 
     contracts = generate_contracts(rng, coworkers)
@@ -1572,10 +1673,10 @@ def main():
     write_json(DATA_DIR / "coworker_inventory_assets.json", generate_coworker_inventory_assets(rng, coworkers))
     write_json(DATA_DIR / "desk_assignments.json", generate_desk_assignments(rng, contracts))
 
-    bookings = generate_bookings(rng, coworkers, visitors)
+    bookings = generate_bookings(rng, coworkers, visitors, total=volumes["bookings_total"])
     write_json(DATA_DIR / "bookings.json", bookings)
 
-    write_json(DATA_DIR / "checkins.json", generate_checkins(rng, coworkers))
+    write_json(DATA_DIR / "checkins.json", generate_checkins(rng, coworkers, total=volumes["check_ins"]))
     write_json(DATA_DIR / "extra_services.json", generate_extra_services(rng, coworkers, bookings))
 
     booking_credits = generate_booking_credits(rng, coworkers)
@@ -1583,8 +1684,10 @@ def main():
     write_json(DATA_DIR / "credit_use_history.json",
                generate_credit_use_history(rng, booking_credits, bookings))
 
-    write_json(DATA_DIR / "time_passes.json", generate_time_passes(rng, coworkers))
-    write_json(DATA_DIR / "coworker_products.json", generate_coworker_products(rng, coworkers))
+    write_json(DATA_DIR / "time_passes.json",
+               generate_time_passes(rng, coworkers, count=volumes["coworker_time_passes"]))
+    write_json(DATA_DIR / "coworker_products.json",
+               generate_coworker_products(rng, coworkers, count=volumes["coworker_products"]))
 
     write_json(DATA_DIR / "deliveries.json", generate_deliveries(rng, coworkers))
 
@@ -1594,26 +1697,47 @@ def main():
     write_json(DATA_DIR / "event_attendees.json",
                generate_event_attendees(rng, fake, calendar_events, coworkers, contracts, paused_periods))
 
-    write_json(DATA_DIR / "helpdesk_messages.json", generate_helpdesk_messages(rng, coworkers))
+    write_json(DATA_DIR / "helpdesk_messages.json",
+               generate_helpdesk_messages(rng, coworkers, count=volumes["help_desk_messages"]))
 
-    community_threads = generate_community_threads(rng, fake, coworkers)
+    community_threads = generate_community_threads(rng, fake, coworkers, count=volumes["community_threads"])
     write_json(DATA_DIR / "community_threads.json", community_threads)
     write_json(DATA_DIR / "community_messages.json",
                generate_community_messages(rng, fake, community_threads, coworkers))
 
     write_json(DATA_DIR / "blog_posts.json", generate_blog_posts(rng))
-    write_json(DATA_DIR / "coworker_tasks.json", generate_coworker_tasks(rng, coworkers))
+    write_json(DATA_DIR / "coworker_tasks.json",
+               generate_coworker_tasks(rng, coworkers, count=volumes["coworker_tasks"]))
 
-    crm_opportunities = generate_crm_opportunities(rng, coworkers)
+    crm_opportunities = generate_crm_opportunities(rng, coworkers, count=volumes["crm_opportunities"])
     write_json(DATA_DIR / "crm_opportunities.json", crm_opportunities)
     write_json(DATA_DIR / "crm_opportunity_history.json",
                generate_crm_opportunity_history(rng, crm_opportunities))
 
-    proposals = generate_proposals(rng, crm_opportunities, coworkers)
+    proposals = generate_proposals(rng, crm_opportunities, coworkers, count=volumes["proposals"])
     write_json(DATA_DIR / "proposals.json", proposals)
     write_json(DATA_DIR / "coworker_data_files.json", generate_coworker_data_files(rng, proposals))
 
     print("Done.")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Pre-generate test data files")
+    parser.add_argument("--seed", type=int, default=RANDOM_SEED, help="Random seed")
+    for volume_key in CONFIGURABLE_VOLUME_KEYS:
+        flag, dest = FLAG_SPEC[volume_key]
+        parser.add_argument(flag, dest=dest, type=int, default=None,
+                             help=f"Override {volume_key} (default: {VOLUMES[volume_key]})")
+    args = parser.parse_args()
+
+    overrides = {
+        volume_key: getattr(args, FLAG_SPEC[volume_key][1])
+        for volume_key in CONFIGURABLE_VOLUME_KEYS
+        if getattr(args, FLAG_SPEC[volume_key][1]) is not None
+    }
+    volumes = {**VOLUMES, **overrides}
+
+    generate_all(args.seed, volumes)
 
 
 if __name__ == "__main__":
