@@ -6,6 +6,15 @@ Talks directly to the Nexudus REST API — no LLM/agent needed to run it. See [A
 
 ## Quick Start
 
+The simplest way to run this is the interactive wizard — it handles login, lets you set how much data to generate, and runs the pipeline:
+
+```bash
+pip install -r requirements.txt
+python3 wizard.py
+```
+
+Or step through it manually:
+
 ```bash
 pip install -r requirements.txt
 
@@ -20,7 +29,7 @@ bash scripts/daily.sh           # Create today's fresh records (run daily/on-dem
 bash scripts/verify.sh          # Check record counts against targets
 ```
 
-Re-running `seed_all.sh` is safe — every generator checks for existing records before creating (by name, email, or a locally tracked ID) and skips anything already there.
+Re-running `seed_all.sh` is safe — every generator checks for existing records before creating (by name, email, or a locally tracked ID) and skips anything already there. Every run — via the wizard or `pipeline.py` directly — prints a created/skipped/failed summary per layer, a cross-layer total, and a report of what's actually tracked in the account now (also saved to `data/last-run-report.txt`), so you always know exactly what's in the account, not just what this run tried to do.
 
 ### Requirements
 
@@ -78,16 +87,19 @@ All dates are **relative to the run date** — the data spans 24 months back fro
 
 | Path | Purpose |
 |-----------|---------|
+| `wizard.py` | Interactive setup + run: auth, data volumes, dry-run/live |
 | `nexudus_auth.py` | One-time login, token storage/refresh |
 | `nexudus_client.py` | REST API wrapper (list/create/update/delete/run_command) |
-| `pipeline.py` | Chains generator layers together for a live run |
-| `config.py` | Volumes, rolling date helpers, scale multiplier, test markers |
-| `prebuild.py` | One-time data generation (faker profiles → `data/*.json`) |
+| `pipeline.py` | Chains generator layers together for a live run; prints the run summary/report |
+| `report_lib.py` | Shared "what's tracked vs. target" logic, used by `pipeline.py` and `scripts/verify.sh` |
+| `config.py` | Volumes, configurable-volume allowlist, rolling date helpers, test markers |
+| `prebuild.py` | Data generation (faker profiles → `data/*.json`), with `--flags` for the configurable volumes |
 | `generators/` | One Python file per layer (00–07) + daily update |
-| `generators/base.py` | Shared base class: idempotency, ID tracking, dry-run |
+| `generators/base.py` | Shared base class: idempotency, ID tracking, dry-run, run-summary counting |
 | `teardown.py` | Deletes every tracked record, reverse dependency order |
 | `scripts/` | Shell wrappers: seed_all, seed_layer, daily, teardown, verify |
-| `reference/` | Entity dependency graph, API module map, enum values |
+| `reference/` | Entity dependency graph, API module map, enum values, extending-the-model guide |
+| `tests/` | Unit tests for the pure-logic pieces (volume rescaling, run-summary counting) — `python -m unittest discover tests` |
 | `data/created-ids/` | Runtime: JSON files tracking IDs of records created per generator (gitignored) |
 | `data/*.json` | Pre-generated profiles (coworkers, contracts, bookings, etc.) — committed |
 
@@ -116,9 +128,15 @@ python3 generators/03_contracts.py --dry-run
 python3 teardown.py --dry-run
 ```
 
-## Scale
+## Configuring data volumes
 
-Default is "small" profile. Change `SCALE = "large"` in `config.py` for 3× volume.
+The headline counts that matter for a demo — coworkers, visitors, bookings, check-ins, CRM opportunities, proposals, help desk messages, community threads, coworker tasks/time-passes/products — are configurable per run, via `wizard.py`'s prompts or flags directly on `prebuild.py`:
+
+```bash
+python3 prebuild.py --coworkers 10 --bookings 20
+```
+
+See `config.CONFIGURABLE_VOLUME_KEYS` for the full list, and `reference/extending-the-model.md` for why the rest of the ~50 entity types (resources, teams, calendar events, ...) aren't included — they're hand-authored content, not just a number to scale.
 
 ## Test Markers
 
@@ -126,4 +144,4 @@ Records are meant to look like real data — no `[TEST]` name prefixes. The only
 
 ## More detail
 
-See `CLAUDE.md` for the full standing rules (idempotency conventions, API gotchas discovered while building this, entity-specific patterns) and `test-data-seeding-strategy.md` for the original design doc plus a build-status log of what shipped and where it diverged from the plan.
+See `CLAUDE.md` for the full standing rules (idempotency conventions, API gotchas discovered while building this, entity-specific patterns) and `reference/extending-the-model.md` for how to safely add or extend a record type — the data-shape conventions and dependency graph, not the operational rules. `test-data-seeding-strategy.md` is a historical build-status log from the original design, not a live reference.
