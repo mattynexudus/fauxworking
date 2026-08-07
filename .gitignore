@@ -1,6 +1,6 @@
 # Runtime output — created by generators at upload time
 data/created-ids/*.json
-data/last-run-report.txt
+last-run-report.txt
 
 # Credentials — never committed. See nexudus_auth.py.
 .env

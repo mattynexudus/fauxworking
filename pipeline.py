@@ -153,9 +153,8 @@ def run_up_to(layer_index, dry_run=False):
             # a dry run has no real records to report on, so skip it there.
             print("\n=== What's in the account now ===")
             print("\n".join(report_lib.report_lines()))
-            report_path = report_lib.DATA_DIR / "last-run-report.txt"
-            report_lib.write_report(report_path)
-            print(f"\n(saved to {report_path})")
+            report_lib.write_report(report_lib.REPORT_PATH)
+            print(f"\n(saved to {report_lib.REPORT_PATH})")
 
     return prev_output
 

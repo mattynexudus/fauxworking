@@ -14,7 +14,11 @@ VOLUMES, since those entities have no per-run override.
 import json
 from pathlib import Path
 
-from config import CREATED_IDS_DIR, DATA_DIR, VOLUMES, CONFIGURABLE_VOLUME_KEYS
+from config import CREATED_IDS_DIR, DATA_DIR, PROJECT_ROOT, VOLUMES, CONFIGURABLE_VOLUME_KEYS
+
+# Lives at the project root, not under data/ — data/ is generated content,
+# this is a report about a run.
+REPORT_PATH = PROJECT_ROOT / "last-run-report.txt"
 
 # Nexudus apiPath -> config.VOLUMES key, for the entities with a direct 1:1 mapping.
 TARGET_KEY_BY_ENTITY = {
