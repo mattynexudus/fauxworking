@@ -133,7 +133,7 @@ class CrmProposalsGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping opportunity #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"])
+                                  idx, defn["CoworkerIndex"], skip=True)
                 continue
 
             stage = defn["Stage"]
@@ -251,7 +251,7 @@ class CrmProposalsGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping proposal #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"])
+                                  idx, defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {
@@ -323,7 +323,7 @@ class CrmProposalsGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping data file #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             proposal_guid = self.proposal_guids.get(defn["ProposalIndex"])

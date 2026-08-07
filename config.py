@@ -121,6 +121,21 @@ VOLUMES = {
 VOLUMES = {k: v * SCALE_MULTIPLIER for k, v in VOLUMES.items()}
 
 # ---------------------------------------------------------------------------
+# Configurable headline volumes
+# ---------------------------------------------------------------------------
+# Most of VOLUMES above is descriptive, not load-bearing — only the keys
+# listed here are actually wired up to override generation (via prebuild.py's
+# CLI flags / wizard.py's prompts). The rest describe fixed, hand-authored
+# content (teams, resources, calendar events, ...) that can't just be scaled
+# by a number without also writing new names/descriptions — see
+# reference/extending-the-model.md.
+CONFIGURABLE_VOLUME_KEYS = [
+    "coworkers", "visitors", "bookings_total", "check_ins",
+    "crm_opportunities", "proposals", "help_desk_messages", "community_threads",
+    "coworker_tasks", "coworker_time_passes", "coworker_products",
+]
+
+# ---------------------------------------------------------------------------
 # Test markers — used for idempotency and teardown
 # ---------------------------------------------------------------------------
 TEST_EMAIL_DOMAIN = "seeddata.local"

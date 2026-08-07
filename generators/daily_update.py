@@ -143,6 +143,7 @@ class DailyUpdateGenerator(BaseGenerator):
         if already_today:
             self.log.info("Check-ins already exist for %s (%d found) — skipping",
                           self.target_date.isoformat(), len(already_today))
+            self.count_skip()
             return
 
         chosen = self.rng.sample(coworkers, k=min(count, len(coworkers)))
@@ -166,6 +167,7 @@ class DailyUpdateGenerator(BaseGenerator):
             else:
                 result = nexudus_create("checkins", body)
                 self.log.info("Created check-in (id=%s)", result["Id"])
+                self.count_create()
 
     # ------------------------------------------------------------------
     # Today's bookings
@@ -195,6 +197,7 @@ class DailyUpdateGenerator(BaseGenerator):
             else:
                 result = nexudus_create("bookings", body)
                 self.log.info("Created booking (id=%s)", result["Id"])
+                self.count_create()
 
     # ------------------------------------------------------------------
     # Today's visitors
@@ -222,6 +225,7 @@ class DailyUpdateGenerator(BaseGenerator):
             else:
                 result = nexudus_create("visitors", body)
                 self.log.info("Created visitor (id=%s)", result["Id"])
+                self.count_create()
 
     # ------------------------------------------------------------------
     # Today's deliveries
@@ -246,6 +250,7 @@ class DailyUpdateGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkerdeliveries", body)
                 self.log.info("Created delivery (id=%s)", result["Id"])
+                self.count_create()
 
 
 def resolve_context(nexudus_list):
@@ -308,6 +313,7 @@ if __name__ == "__main__":
                 nexudus_update=lambda entity, id, body: {"Id": id},
                 context=mock_context,
             )
+            print(gen.summary_line())
     else:
         sys.path.insert(0, str(Path(__file__).parent.parent))
         import nexudus_client as client
@@ -321,3 +327,4 @@ if __name__ == "__main__":
                 nexudus_update=client.nexudus_update,
                 context=context,
             )
+            print(gen.summary_line())

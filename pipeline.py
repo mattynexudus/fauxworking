@@ -27,6 +27,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 import nexudus_client as client
+import report_lib
 
 # (module filename without .py, class name, entity_name from the class)
 LAYERS = [
@@ -52,6 +53,39 @@ CALLABLE_POOL = {
     "nexudus_run_command": client.nexudus_run_command,
 }
 
+# Generic dry-run stand-ins for the whole chain — used by run_up_to(dry_run=True)
+# so a multi-layer dry run gets a correctly-sized prev_output threaded between
+# layers (unlike each generator's own standalone --dry-run mock, which hardcodes
+# fake IDs like range(1, 61) regardless of how many records actually exist).
+# One known gap: nexudus_list always returns [] here, so a layer whose own
+# mock normally synthesizes richer data to exercise itself (e.g. 06_financial.py
+# fabricates sample invoices to drive its pay/void/credit/refund selection)
+# will just see empty pools through this path and skip that logic — run that
+# generator's own `--dry-run` standalone for a fuller dry-run of it specifically.
+_dry_run_create_counter = {"n": 0}
+
+
+def _dry_run_create(entity, body):
+    _dry_run_create_counter["n"] += 1
+    return {"Id": f"DRY-{entity}-{_dry_run_create_counter['n']}"}
+
+
+DRY_RUN_POOL = {
+    "nexudus_list": lambda entity, filters=None: [],
+    "nexudus_create": _dry_run_create,
+    "nexudus_update": lambda entity, id, body: {"Id": id},
+    "nexudus_delete": lambda entity, id: None,
+    "nexudus_run_command": lambda entity, key, ids, parameters=None: {"Status": "DRY-RUN"},
+}
+
+MOCK_WHOAMI = {
+    "DefaultBusinessId": "DRY-BIZ-1",
+    "DefaultCurrencyId": "DRY-CUR-1",
+    "DefaultCountryId": "DRY-COUNTRY-1",
+    "DefaultSimpleTimeZoneId": "DRY-TZ-1",
+    "AdminUserId": "DRY-ADMIN-1",
+}
+
 
 def _whoami():
     """Layer 0's bootstrap input — there's no prev_output before it."""
@@ -74,26 +108,54 @@ def _whoami():
     }
 
 
-def run_up_to(layer_index):
-    """Run layers 0..layer_index (inclusive) live, return the final prev_output."""
+def run_up_to(layer_index, dry_run=False):
+    """Run layers 0..layer_index (inclusive), return the final prev_output.
+
+    Prints each layer's created/skipped/failed summary (see
+    generators/base.py::BaseGenerator.summary_line) as it finishes, and the
+    cross-layer total when the whole call returns — via try/finally, so a
+    layer that raises still gets its partial counts reported before the
+    exception continues propagating (nothing here catches or hides errors).
+    """
     prev_output = None
+    totals = {"created": 0, "skipped": 0, "failed": 0}
+    pool = DRY_RUN_POOL if dry_run else CALLABLE_POOL
 
-    for i, (module_name, class_name) in enumerate(LAYERS[:layer_index + 1]):
-        module = importlib.import_module(module_name)
-        gen = getattr(module, class_name)(dry_run=False)
+    try:
+        for i, (module_name, class_name) in enumerate(LAYERS[:layer_index + 1]):
+            module = importlib.import_module(module_name)
+            gen = getattr(module, class_name)(dry_run=dry_run)
 
-        print(f"\n--- Layer {i}: {class_name} ---")
+            print(f"\n--- Layer {i}: {class_name} ---")
 
-        sig = inspect.signature(gen.run)
-        kwargs = {name: fn for name, fn in CALLABLE_POOL.items() if name in sig.parameters}
+            sig = inspect.signature(gen.run)
+            kwargs = {name: fn for name, fn in pool.items() if name in sig.parameters}
 
-        # Each generator names its context argument differently
-        # (whoami_data / layer0_output / prev_output) — it's always the one
-        # remaining parameter that isn't a known callable.
-        context_param = next(p for p in sig.parameters if p not in CALLABLE_POOL)
-        kwargs[context_param] = _whoami() if i == 0 else prev_output
+            # Each generator names its context argument differently
+            # (whoami_data / layer0_output / prev_output) — it's always the one
+            # remaining parameter that isn't a known callable.
+            context_param = next(p for p in sig.parameters if p not in CALLABLE_POOL)
+            if i == 0:
+                kwargs[context_param] = MOCK_WHOAMI if dry_run else _whoami()
+            else:
+                kwargs[context_param] = prev_output
 
-        prev_output = gen.run(**kwargs)
+            try:
+                prev_output = gen.run(**kwargs)
+            finally:
+                print(gen.summary_line())
+                for key in totals:
+                    totals[key] += gen.counts[key]
+    finally:
+        print(f"\nTotal — Created: {totals['created']}  Skipped: {totals['skipped']}  Failed: {totals['failed']}")
+        if not dry_run:
+            # What's actually in the account now, not just what this run did —
+            # a dry run has no real records to report on, so skip it there.
+            print("\n=== What's in the account now ===")
+            print("\n".join(report_lib.report_lines()))
+            report_path = report_lib.DATA_DIR / "last-run-report.txt"
+            report_lib.write_report(report_path)
+            print(f"\n(saved to {report_path})")
 
     return prev_output
 

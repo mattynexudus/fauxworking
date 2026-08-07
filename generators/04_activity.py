@@ -125,7 +125,7 @@ class ActivityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping booking #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"])
+                                  idx, defn["CoworkerIndex"], skip=True)
                 continue
 
             from_time = self._at(defn["StartDayOffset"], hour=defn["FromHour"])
@@ -171,7 +171,7 @@ class ActivityGenerator(BaseGenerator):
                         self.log.warning(
                             "Skipping booking #%d on '%s' — resource conflict with "
                             "another seeded booking (no conflict-checking in prebuild "
-                            "data generation): %s", idx, defn["ResourceName"], e)
+                            "data generation): %s", idx, defn["ResourceName"], e, skip=True)
                         continue
                     raise
                 self.booking_ids[idx] = result["Id"]
@@ -202,7 +202,7 @@ class ActivityGenerator(BaseGenerator):
 
                 if visitor_idx not in visitor_ids:
                     self.log.warning("Skipping booking guest #%s — visitor #%s was never created",
-                                      track_key, visitor_idx)
+                                      track_key, visitor_idx, skip=True)
                     continue
 
                 body = {"BookingId": booking_id, "VisitorId": visitor_ids[visitor_idx]}
@@ -266,7 +266,7 @@ class ActivityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping check-in #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             from_time = self._at(defn["FromDayOffset"], hour=defn["FromHour"], minute=defn["FromMinute"])
@@ -302,14 +302,14 @@ class ActivityGenerator(BaseGenerator):
                     defn["FromDayOffset"], nexudus_create, nexudus_update)
                 if pass_guid is None:
                     self.log.warning("Skipping check-in #%d — could not grant a covering day pass",
-                                      defn["index"])
+                                      defn["index"], skip=True)
                     continue
                 body["CoworkerTimePassGuid"] = pass_guid
                 try:
                     result = nexudus_create("checkins", body)
                 except Exception as e2:  # noqa: BLE001
                     self.log.warning("Skipping check-in #%d — still failed after granting a day pass: %s",
-                                      defn["index"], e2)
+                                      defn["index"], e2, skip=True)
                     continue
 
             self.track_id({"entity": "checkins", "Id": result["Id"], "CheckinIndex": track_key})
@@ -358,7 +358,7 @@ class ActivityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping extra service #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             # A booking_charge is meant to represent an actual booking being
@@ -427,7 +427,7 @@ class ActivityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping booking credit #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"])
+                                  idx, defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {
@@ -450,7 +450,7 @@ class ActivityGenerator(BaseGenerator):
                         self.log.warning(
                             "Skipping booking credit #%d — ExpireDateDayOffset is before "
                             "ValidFromDayOffset in prebuild data (bucket=%s): %s",
-                            idx, defn["Bucket"], e)
+                            idx, defn["Bucket"], e, skip=True)
                         continue
                     raise
                 self.credit_ids[idx] = result["Id"]
@@ -495,7 +495,7 @@ class ActivityGenerator(BaseGenerator):
                     self.log.warning(
                         "Skipping credit use #%d on credit #%d — likely exceeds the "
                         "credit's TotalCredit (prebuild over-allocation): %s",
-                        defn["index"], defn["CreditIndex"], e)
+                        defn["index"], defn["CreditIndex"], e, skip=True)
                     continue
                 self.track_id({
                     "entity": "coworkerbookingcreditusehistories", "Id": result["Id"],
@@ -517,7 +517,7 @@ class ActivityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping time pass #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {
@@ -561,7 +561,7 @@ class ActivityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping coworker product #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {

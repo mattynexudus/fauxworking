@@ -120,6 +120,7 @@ class ReferenceGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Tax rate '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.tax_rate_ids[name] = existing_by_name[name]
                 continue
 
@@ -142,6 +143,7 @@ class ReferenceGenerator(BaseGenerator):
             code = defn["Code"]
             if code in existing_by_code:
                 self.log.info("Account '%s' already exists (id=%s)", code, existing_by_code[code])
+                self.count_skip()
                 self.fin_account_ids[code] = existing_by_code[code]
                 continue
 
@@ -164,6 +166,7 @@ class ReferenceGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Resource type '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.resource_type_ids[name] = existing_by_name[name]
                 continue
 

@@ -118,7 +118,7 @@ class ContractsGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping contract #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"])
+                                  idx, defn["CoworkerIndex"], skip=True)
                 continue
 
             start_date = self._from_day_offset(defn["StartDayOffset"])
@@ -186,7 +186,7 @@ class ContractsGenerator(BaseGenerator):
             contract_id = self.contract_ids.get(defn["ContractIndex"])
             if contract_id is None:
                 self.log.warning("Skipping ContractProduct #%d — contract #%d not created",
-                                  defn["index"], defn["ContractIndex"])
+                                  defn["index"], defn["ContractIndex"], skip=True)
                 continue
 
             body = {
@@ -221,7 +221,7 @@ class ContractsGenerator(BaseGenerator):
             contract_id = self.contract_ids.get(defn["ContractIndex"])
             if contract_id is None:
                 self.log.warning("Skipping paused period #%d — contract #%d not created",
-                                  defn["index"], defn["ContractIndex"])
+                                  defn["index"], defn["ContractIndex"], skip=True)
                 continue
 
             pause_from = self._first_of_month(defn["PauseFromMonthOffset"])
@@ -258,7 +258,7 @@ class ContractsGenerator(BaseGenerator):
             contract_id = self.contract_ids.get(defn["ContractIndex"])
             if contract_id is None:
                 self.log.warning("Skipping deposit #%d — contract #%d not created",
-                                  defn["index"], defn["ContractIndex"])
+                                  defn["index"], defn["ContractIndex"], skip=True)
                 continue
 
             body = {
@@ -293,7 +293,7 @@ class ContractsGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping inventory assignment #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {
@@ -330,7 +330,7 @@ class ContractsGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping desk assignment #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             desk_id = floor_plan_desk_ids[defn["DeskName"]]

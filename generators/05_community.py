@@ -126,7 +126,7 @@ class CommunityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping delivery #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {
@@ -273,7 +273,7 @@ class CommunityGenerator(BaseGenerator):
             if defn["CoworkerIndex"] is not None:
                 if defn["CoworkerIndex"] not in coworker_ids:
                     self.log.warning("Skipping attendee #%d — coworker #%d was never created (seat limit?)",
-                                      defn["index"], defn["CoworkerIndex"])
+                                      defn["index"], defn["CoworkerIndex"], skip=True)
                     continue
                 cw = coworker_defs_by_index[defn["CoworkerIndex"]]
                 full_name, email = cw["FullName"], cw["Email"]
@@ -314,7 +314,7 @@ class CommunityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping help desk message #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {
@@ -355,7 +355,7 @@ class CommunityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping thread #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"])
+                                  idx, defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {
@@ -396,7 +396,7 @@ class CommunityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping community message #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {
@@ -462,7 +462,7 @@ class CommunityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping task #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"])
+                                  defn["index"], defn["CoworkerIndex"], skip=True)
                 continue
 
             body = {

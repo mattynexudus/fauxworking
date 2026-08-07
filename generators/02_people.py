@@ -91,6 +91,7 @@ class PeopleGenerator(BaseGenerator):
 
             if email in existing_by_email:
                 self.log.info("Coworker '%s' already exists (id=%s)", email, existing_by_email[email])
+                self.count_skip()
                 self.coworker_ids[idx] = existing_by_email[email]
                 continue
 
@@ -137,7 +138,7 @@ class PeopleGenerator(BaseGenerator):
                             "Coworker creation stopped at #%d — account appears to "
                             "have hit a coworker/seat limit (%d created this run). "
                             "Later layers will skip records tied to missing coworkers.",
-                            idx, len(self.coworker_ids))
+                            idx, len(self.coworker_ids), skip=True)
                         break
                     raise
                 self.coworker_ids[idx] = result["Id"]
@@ -161,6 +162,7 @@ class PeopleGenerator(BaseGenerator):
 
             if email in existing_by_email:
                 self.log.info("Visitor '%s' already exists (id=%s)", email, existing_by_email[email])
+                self.count_skip()
                 self.visitor_ids[idx] = existing_by_email[email]
                 continue
 
@@ -212,7 +214,7 @@ class PeopleGenerator(BaseGenerator):
 
             member = next((d for d in self.coworker_defs if d.get("Team") == team_name), None)
             if member is None:
-                self.log.warning("No coworker assigned to team '%s' — skipping paying member setup", team_name)
+                self.log.warning("No coworker assigned to team '%s' — skipping paying member setup", team_name, skip=True)
                 continue
 
             coworker_id = self.coworker_ids.get(member["index"])

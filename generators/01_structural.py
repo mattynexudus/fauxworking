@@ -456,6 +456,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn[name_field]
             if name in existing_by_name:
                 self.log.info("'%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 id_map[name] = existing_by_name[name]
                 continue
 
@@ -484,6 +485,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Tariff '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.tariff_ids[name] = existing_by_name[name]
                 continue
 
@@ -524,6 +526,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Product '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.product_ids[name] = existing_by_name[name]
                 continue
 
@@ -562,6 +565,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("ExtraService '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.extra_service_ids[name] = existing_by_name[name]
                 continue
 
@@ -605,6 +609,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("TimePass '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.time_pass_ids[name] = existing_by_name[name]
                 continue
 
@@ -654,6 +659,7 @@ class StructuralGenerator(BaseGenerator):
         existing = nexudus_list("tarifftimepasses", {"TariffTimePass_Tariff": tariff_id})
         if any(r.get("TimePassId") == time_pass_id for r in existing):
             self.log.info("'%s' already has the Day Pass benefit", tariff_name)
+            self.count_skip()
             return
 
         body = {
@@ -673,6 +679,7 @@ class StructuralGenerator(BaseGenerator):
         existing = nexudus_list("tariffextraservices", {"TariffExtraService_Tariff": tariff_id})
         if any(r.get("ExtraServiceId") == extra_service_id for r in existing):
             self.log.info("'%s' already has the %s benefit", tariff_name, label)
+            self.count_skip()
             return
 
         body = {
@@ -699,6 +706,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Resource '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.resource_ids[name] = existing_by_name[name]
                 continue
 
@@ -732,6 +740,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("FloorPlan '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.floor_plan_ids[name] = existing_by_name[name]
                 continue
 
@@ -812,6 +821,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Asset '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.inventory_asset_ids[name] = existing_by_name[name]
                 continue
 
@@ -849,6 +859,7 @@ class StructuralGenerator(BaseGenerator):
             code = defn["Code"]
             if code in existing_by_code:
                 self.log.info("Discount '%s' already exists (id=%s)", code, existing_by_code[code])
+                self.count_skip()
                 self.discount_code_ids[code] = existing_by_code[code]
                 continue
 
@@ -883,6 +894,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Board '%s' already exists (id=%s)", name, existing_by_name[name])
+                self.count_skip()
                 self.crm_board_ids[name] = existing_by_name[name]
             elif self.dry_run:
                 self.log_would_create("crmboards", {**defn, "BusinessId": biz})
@@ -910,6 +922,7 @@ class StructuralGenerator(BaseGenerator):
                     self.crm_board_column_ids[full_key] = existing_cols_by_name[col_name]
                     self.log.info("Column '%s' already exists (id=%s)",
                                   full_key, existing_cols_by_name[col_name])
+                    self.count_skip()
                     continue
 
                 body = {
