@@ -20,7 +20,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from generators.base import BaseGenerator, parse_args
-from config import VOLUMES
 
 # ---------------------------------------------------------------------------
 # Data definitions — what to create

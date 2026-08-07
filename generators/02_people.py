@@ -234,8 +234,6 @@ class PeopleGenerator(BaseGenerator):
 
 
 if __name__ == "__main__":
-    import importlib
-
     args = parse_args()
     gen = PeopleGenerator(dry_run=args.dry_run)
 

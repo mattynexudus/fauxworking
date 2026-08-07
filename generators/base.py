@@ -13,8 +13,6 @@ import json
 import logging
 import os
 import random
-import sys
-from pathlib import Path
 
 from config import (
     CREATED_IDS_DIR,

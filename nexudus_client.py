@@ -35,7 +35,6 @@ and raises NexudusApiError on failure. List responses are the same shape
 MCP's nexudus_list already returned: {"Records": [...], "HasNextPage", ...}.
 """
 
-import os
 import re
 import sys
 import time

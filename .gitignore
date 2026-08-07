@@ -11,3 +11,6 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+
+# Local tool settings — machine-specific, not project source
+.claude/

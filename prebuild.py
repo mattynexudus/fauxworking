@@ -12,9 +12,7 @@ Usage:
 import argparse
 import json
 import random
-import sys
 from datetime import timedelta
-from pathlib import Path
 
 from faker import Faker
 
