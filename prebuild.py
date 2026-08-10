@@ -762,12 +762,17 @@ def generate_checkins(rng, coworkers, total=None):
             raw.append(_make(rng.choice(checking_members)))
 
     # Original ratio: 5 of 300 left open. min() guards against sampling more
-    # than exist when `total` is configured small.
+    # than exist when `total` is configured small. An "open" check-in (no
+    # ToTime) means the coworker is still on-site right now — the live API
+    # rejects one dated any day other than today with a generic 400
+    # ("Ooops! There was a problem..."), confirmed live. FromDayOffset is
+    # otherwise always negative (never 0 — see _make above), so open ones
+    # need their day forced to today explicitly, not just picked from a
+    # "recent" pool that could still land on yesterday or earlier.
     open_count = min(5, len(raw))
-    recent = [c for c in raw if c["FromDayOffset"] >= -3]
-    pool = recent if len(recent) >= open_count else raw
-    for c in rng.sample(pool, open_count):
+    for c in rng.sample(raw, open_count):
         c["Open"] = True
+        c["FromDayOffset"] = 0
 
     for i, c in enumerate(raw, start=1):
         c["index"] = i

@@ -321,7 +321,14 @@ class ActivityGenerator(BaseGenerator):
                 result = nexudus_create("checkins", body)
             except Exception as e:  # noqa: BLE001
                 if "does not have a valid time pass" not in str(e) or day_pass_id is None:
-                    raise
+                    # A single bad check-in shouldn't take down the rest of
+                    # the layer (extra services, credits, time passes,
+                    # coworker products all still run after this loop) — log
+                    # the real error in full and move on, same as every
+                    # other per-record skip in this file.
+                    self.log.warning("Skipping check-in #%d — create failed: %s",
+                                      defn["index"], e, skip=True)
+                    continue
                 pass_guid = self._grant_day_pass(
                     biz, coworker_ids[defn["CoworkerIndex"]], day_pass_id,
                     defn["FromDayOffset"], nexudus_create, nexudus_update)
