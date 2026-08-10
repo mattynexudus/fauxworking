@@ -74,12 +74,16 @@ def parse_args():
 def _confirm(question, default):
     """Y/n style confirmation for flow decisions — lighter-weight than
     confirm_live()'s "type yes", which is reserved for the one moment that
-    actually creates real records."""
+    actually creates real records.
+
+    Echoes back what was actually chosen — including on a bare Enter,
+    which silently applies `default` otherwise, leaving no visible sign of
+    which way it went."""
     hint = "[Y/n]" if default else "[y/N]"
     answer = input(f"{question} {hint}: ").strip().lower()
-    if not answer:
-        return default
-    return answer in ("y", "yes")
+    result = default if not answer else answer in ("y", "yes")
+    print(f"-> {'Yes' if result else 'No'}")
+    return result
 
 
 def ensure_authenticated():
