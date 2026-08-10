@@ -158,23 +158,23 @@ def collect_business_id(args):
         return None  # nothing to choose — pipeline._select_business resolves it directly
 
     print("=== Business / location ===")
-    print(f"This login has access to {len(businesses)} businesses — which one should this run use?")
-    for b in businesses:
-        print(f"  {b['Id']}: {b.get('Name', '?')}")
-    valid_ids = {b["Id"] for b in businesses}
+    print(f"This login has access to {len(businesses)} businesses — which one should this run use?\n")
+    for i, b in enumerate(businesses, start=1):
+        print(f"  {i}. {b.get('Name', '?')}")
+    print()
 
     while True:
-        raw = input("Business ID: ").strip()
+        raw = input(f"Enter a number (1-{len(businesses)}): ").strip()
         try:
-            chosen = int(raw)
+            choice = int(raw)
         except ValueError:
-            print("Please enter one of the business IDs listed above.")
+            print("Please enter a number from the list above.")
             continue
-        if chosen not in valid_ids:
-            print("That ID isn't in the list above — try again.")
+        if not (1 <= choice <= len(businesses)):
+            print(f"Please enter a number between 1 and {len(businesses)}.")
             continue
         print()
-        return chosen
+        return businesses[choice - 1]["Id"]
 
 
 def confirm_live():
