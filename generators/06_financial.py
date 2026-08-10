@@ -207,6 +207,15 @@ class FinancialGenerator(BaseGenerator):
         })
         return [coworker_ids[i] for i in active_indices if i in coworker_ids]
 
+    # One massive COWORKER_BILL_RUN call across every billable coworker at
+    # once is slow enough to be a real risk, not a hypothetical one —
+    # confirmed live: a 42-coworker batch took 28.8s (once actually
+    # exceeded the client's 30s timeout outright), right at the edge of
+    # producing exactly the generic, unhelpful failure this was meant to
+    # diagnose. Chunking keeps each call comfortably fast and means one bad
+    # or slow chunk doesn't block billing for every other coworker.
+    BILL_RUN_CHUNK_SIZE = 10
+
     # ------------------------------------------------------------------
     # Raise invoices
     # ------------------------------------------------------------------
@@ -221,8 +230,14 @@ class FinancialGenerator(BaseGenerator):
             return
 
         numeric_ids = [i for i in coworker_ids if isinstance(i, int)]
-        result = nexudus_run_command("coworkers", "COWORKER_BILL_RUN", numeric_ids)
-        self.log.info("Ran COWORKER_BILL_RUN: %s", result)
+        for start in range(0, len(numeric_ids), self.BILL_RUN_CHUNK_SIZE):
+            chunk = numeric_ids[start:start + self.BILL_RUN_CHUNK_SIZE]
+            try:
+                result = nexudus_run_command("coworkers", "COWORKER_BILL_RUN", chunk)
+            except Exception as e:  # noqa: BLE001
+                self.log.warning("COWORKER_BILL_RUN failed for chunk %s: %s", chunk, e, skip=True)
+                continue
+            self.log.info("Ran COWORKER_BILL_RUN for %d coworkers: %s", len(chunk), result)
 
     # ------------------------------------------------------------------
     # Discover raised invoices
