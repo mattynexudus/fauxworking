@@ -200,6 +200,12 @@ class ActivityGenerator(BaseGenerator):
                 if self.already_created("GuestKey", track_key):
                     continue
 
+                if booking_id is None:
+                    self.log.warning("Skipping booking guest #%s — booking #%d was never created "
+                                      "(seat limit or resource conflict?)",
+                                      track_key, defn["index"], skip=True)
+                    continue
+
                 if visitor_idx not in visitor_ids:
                     self.log.warning("Skipping booking guest #%s — visitor #%s was never created",
                                       track_key, visitor_idx, skip=True)

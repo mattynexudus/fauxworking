@@ -373,9 +373,15 @@ class FinancialGenerator(BaseGenerator):
                 continue
 
             cw_index = ((i - 1) % 60) + 1
+            coworker_id = coworker_ids.get(cw_index)
+            if coworker_id is None:
+                self.log.warning("Skipping ledger supplement #%d — coworker #%d was never created "
+                                  "(seat limit?)", i, cw_index, skip=True)
+                continue
+
             body = {
                 "BusinessId": biz,
-                "CoworkerId": coworker_ids.get(cw_index),
+                "CoworkerId": coworker_id,
                 "Description": desc,
                 "Code": code,
                 "Debit": debit,

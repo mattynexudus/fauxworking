@@ -101,6 +101,20 @@ class PeopleGenerator(BaseGenerator):
                 "Email": email,
                 "Gender": defn["Gender"],
                 "CoworkerType": 1,
+                # Coworker has no BusinessId field. There are two separate
+                # fields instead, confirmed via the Nexudus API docs and a
+                # live update test: Businesses (plural — which businesses
+                # this coworker is linked to) and InvoicingBusinessId (their
+                # actual "home" business — confirmed live that updating
+                # Businesses alone does NOT move InvoicingBusinessId, so
+                # both need to be set). Omitting them entirely (as this body
+                # did until now) doesn't error — it silently falls back to
+                # some other business tied to the login/token, not the one
+                # this run actually selected. Confirmed live: a
+                # multi-business login had coworkers land in the wrong
+                # business with these fields missing.
+                "Businesses": [biz],
+                "InvoicingBusinessId": biz,
                 "CountryId": country,
                 "SimpleTimeZoneId": tz,
                 "TaxRateType": 1,
