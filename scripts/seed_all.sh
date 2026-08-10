@@ -11,7 +11,9 @@ echo "=== Nexudus Test Data Seeder ==="
 echo "Running all layers 0-7 in one pass..."
 echo ""
 
-python3 pipeline.py
+# Forwards any extra args, e.g. --business-id 12345 for logins with access
+# to more than one business/location.
+python3 pipeline.py "$@"
 
 echo ""
 echo "=== All layers complete ==="

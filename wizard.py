@@ -3,9 +3,12 @@ Interactive wizard — the "simpler way to run this" entry point.
 
 Authenticates, prompts for the headline data volumes (config.
 CONFIGURABLE_VOLUME_KEYS), regenerates data/*.json via prebuild.generate_all,
-then runs the live seed pipeline (or a dry run) via pipeline.run_up_to,
-printing the per-layer/total summary and the QA-facing "what's in the
-account now" report as it goes (see generators/base.py and report_lib.py).
+then — for a live run — asks which business (location) to seed into if the
+login has access to more than one (see pipeline.list_businesses /
+pipeline._select_business), before running the pipeline via
+pipeline.run_up_to and printing the per-layer/total summary and the
+QA-facing "what's in the account now" report as it goes (see
+generators/base.py and report_lib.py).
 
 Stdlib only — no new dependency beyond what's already in requirements.txt.
 
@@ -56,6 +59,8 @@ def parse_args():
                          help=f"How many layers to run, 0-{len(pipeline.LAYERS) - 1} (default: prompt)")
     parser.add_argument("--yes", action="store_true",
                          help="Skip the live-run confirmation prompt (for non-interactive/scripted use)")
+    parser.add_argument("--business-id", type=int, default=None,
+                         help="Which business/location to seed into, if this login has access to more than one (default: prompt)")
     return parser.parse_args()
 
 
@@ -120,6 +125,37 @@ def collect_layer_index(args):
     return _prompt_int(f"Run through which layer (0-{max_layer})", max_layer)
 
 
+def collect_business_id(args):
+    """Which business (location) to seed into — only relevant for live runs;
+    dry-run doesn't touch the account at all, so callers should skip this
+    entirely in that case rather than make a needless API call."""
+    if args.business_id is not None:
+        return args.business_id
+
+    businesses = pipeline.list_businesses()
+    if len(businesses) <= 1:
+        return None  # nothing to choose — pipeline._select_business resolves it directly
+
+    print("=== Business / location ===")
+    print(f"This login has access to {len(businesses)} businesses — which one should this run use?")
+    for b in businesses:
+        print(f"  {b['Id']}: {b.get('Name', '?')}")
+    valid_ids = {b["Id"] for b in businesses}
+
+    while True:
+        raw = input("Business ID: ").strip()
+        try:
+            chosen = int(raw)
+        except ValueError:
+            print("Please enter one of the business IDs listed above.")
+            continue
+        if chosen not in valid_ids:
+            print("That ID isn't in the list above — try again.")
+            continue
+        print()
+        return chosen
+
+
 def confirm_live():
     answer = input("\nThis will create real records in the live Nexudus account. "
                     "Type 'yes' to continue: ").strip()
@@ -141,13 +177,15 @@ def main():
     dry_run = collect_run_mode(args)
     layer_index = collect_layer_index(args)
 
+    business_id = None if dry_run else collect_business_id(args)
+
     if not dry_run and not args.yes:
         if not confirm_live():
             print("Cancelled — nothing was run live.")
             return
 
     print(f"\n=== Running layers 0-{layer_index} ({'dry-run' if dry_run else 'LIVE'}) ===")
-    pipeline.run_up_to(layer_index, dry_run=dry_run)
+    pipeline.run_up_to(layer_index, dry_run=dry_run, business_id=business_id)
     print("\nDone.")
 
 

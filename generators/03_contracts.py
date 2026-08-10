@@ -380,4 +380,4 @@ if __name__ == "__main__":
         )
     else:
         import pipeline
-        pipeline.run_up_to(3)
+        pipeline.run_up_to(3, business_id=args.business_id)

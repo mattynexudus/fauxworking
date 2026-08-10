@@ -10,15 +10,20 @@ existing records before creating — see `already_created`/name-lookups in
 `generators/base.py` — so re-running an earlier layer is a fast, safe
 no-op for anything already there, not a duplicate-creation risk).
 
-    python pipeline.py           # run every layer, 0 through 7
-    python pipeline.py 3         # run layers 0-3 (contracts and everything
-                                  # it depends on), return that prev_output
+    python pipeline.py                        # run every layer, 0 through 7
+    python pipeline.py 3                       # run layers 0-3 (contracts and
+                                                 # everything it depends on)
+    python pipeline.py --business-id 12345     # pick a business explicitly,
+                                                 # for logins with access to
+                                                 # more than one (see
+                                                 # _select_business below)
 
 Each individual generator's `__main__` live branch calls `run_up_to(N)` for
 its own layer index — that's the whole live-mode implementation for all of
 them. `seed_all.sh` just calls this file with no argument.
 """
 
+import argparse
 import importlib
 import inspect
 import sys
@@ -87,12 +92,49 @@ MOCK_WHOAMI = {
 }
 
 
-def _whoami():
-    """Layer 0's bootstrap input — there's no prev_output before it."""
-    businesses = client.nexudus_list("businesses", {})
+def list_businesses():
+    """Every business (location) this logged-in account can access."""
+    return client.nexudus_list("businesses", {})
+
+
+def _select_business(businesses, business_id=None):
+    """Pick which business (location) to seed into.
+
+    Never prompts — this module's callers are mostly non-interactive (every
+    generator's own __main__, pipeline.py's own CLI, tests). The interactive
+    picker lives in wizard.py, which resolves a business_id up front (via
+    list_businesses()) and passes it down through here. If a login has
+    access to more than one business and none was specified, fail loudly
+    with the options rather than silently guessing which one to use.
+    """
     if not businesses:
         raise SystemExit("No business found on this Nexudus account.")
-    biz = businesses[0]
+
+    if business_id is not None:
+        match = next((b for b in businesses if b["Id"] == business_id), None)
+        if match is None:
+            available = ", ".join(f"{b['Id']} ({b.get('Name', '?')})" for b in businesses)
+            raise SystemExit(
+                f"Business id {business_id} isn't one this account can access. "
+                f"Available: {available}"
+            )
+        return match
+
+    if len(businesses) == 1:
+        return businesses[0]
+
+    listing = "\n".join(f"  {b['Id']}: {b.get('Name', '?')}" for b in businesses)
+    raise SystemExit(
+        f"This login has access to {len(businesses)} businesses — pick one:\n"
+        f"{listing}\n"
+        f"Pass --business-id <id> (or use wizard.py, which prompts you for this)."
+    )
+
+
+def _whoami(business_id=None):
+    """Layer 0's bootstrap input — there's no prev_output before it."""
+    biz = _select_business(list_businesses(), business_id)
+    print(f"Using business: {biz.get('Name', '?')} (id={biz['Id']})")
 
     users = client.nexudus_list("users", {})
     admin = next((u for u in users if u.get("IsAdmin")), None)
@@ -108,8 +150,12 @@ def _whoami():
     }
 
 
-def run_up_to(layer_index, dry_run=False):
+def run_up_to(layer_index, dry_run=False, business_id=None):
     """Run layers 0..layer_index (inclusive), return the final prev_output.
+
+    business_id picks which business (location) to seed into, for accounts
+    with access to more than one — see _select_business(). Ignored in
+    dry-run mode (MOCK_WHOAMI is used instead, nothing live is queried).
 
     Prints each layer's created/skipped/failed summary (see
     generators/base.py::BaseGenerator.summary_line) as it finishes, and the
@@ -136,7 +182,7 @@ def run_up_to(layer_index, dry_run=False):
             # remaining parameter that isn't a known callable.
             context_param = next(p for p in sig.parameters if p not in CALLABLE_POOL)
             if i == 0:
-                kwargs[context_param] = MOCK_WHOAMI if dry_run else _whoami()
+                kwargs[context_param] = MOCK_WHOAMI if dry_run else _whoami(business_id)
             else:
                 kwargs[context_param] = prev_output
 
@@ -160,6 +206,12 @@ def run_up_to(layer_index, dry_run=False):
 
 
 if __name__ == "__main__":
-    target = int(sys.argv[1]) if len(sys.argv) > 1 else len(LAYERS) - 1
-    run_up_to(target)
+    parser = argparse.ArgumentParser(description="Run the seed pipeline through a given layer")
+    parser.add_argument("layer", type=int, nargs="?", default=len(LAYERS) - 1,
+                         help=f"Run layers 0 through this one (default: {len(LAYERS) - 1}, all layers)")
+    parser.add_argument("--business-id", type=int, default=None,
+                         help="Which business/location to seed into, if this login has access to more than one")
+    args = parser.parse_args()
+
+    run_up_to(args.layer, business_id=args.business_id)
     print("\nDone.")

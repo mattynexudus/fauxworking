@@ -47,7 +47,8 @@ It will:
 1. Confirm you're logged in (or prompt you to log in, if you skipped the step above).
 2. Ask how much data you want — e.g. how many customers, bookings, etc. You can just press Enter to accept the suggested amount for each one.
 3. Ask whether to do a **practice run** (nothing actually created, just shows you what *would* happen) or a **real run** (creates real records in Nexudus). Real runs ask you to type "yes" to confirm before doing anything, since this affects a live account.
-4. Generate the data and show you progress as it goes.
+4. If your login has access to more than one business/location, ask which one this run should use — this only comes up if there's actually a choice to make.
+5. Generate the data and show you progress as it goes.
 
 At the end, it prints a summary — how many records were created, how many already existed and were skipped, and how many failed — plus a full account report (also saved to `last-run-report.txt` in the project folder) so you always have a record of exactly what's in the account.
 
@@ -82,6 +83,8 @@ python3 prebuild.py --coworkers 10 --bookings 20
 ```
 
 Run `python3 prebuild.py --help` to see every option.
+
+If your login has access to more than one business/location, pass `--business-id <id>` to `seed_all.sh`, `seed_layer.sh`, or any `generators/0N_*.py` directly — otherwise it'll ask you to pick one rather than guessing.
 
 Every command above also supports `--dry-run` if you want to preview without creating anything.
 

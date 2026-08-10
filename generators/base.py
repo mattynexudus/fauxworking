@@ -32,6 +32,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true",
                         help="Log what would be created without making API calls")
+    parser.add_argument("--business-id", type=int, default=None,
+                        help="Which business/location to seed into, if this login has access to more than one")
     return parser.parse_args()
 
 

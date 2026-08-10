@@ -2,7 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-LAYER="${1:?Usage: seed_layer.sh <layer_number> (e.g. 0, 1, 2...)}"
+LAYER="${1:?Usage: seed_layer.sh <layer_number> (e.g. 0, 1, 2...) [-- extra args, e.g. --business-id 12345]}"
+shift
 
 if [[ ! -f .env ]]; then
   echo "No .env found. Run 'python3 nexudus_auth.py setup' first (one-time login)."
@@ -12,7 +13,7 @@ fi
 for gen in generators/0${LAYER}_*.py; do
   if [[ -f "$gen" ]]; then
     echo "--- Running $gen ---"
-    python3 "$gen"
+    python3 "$gen" "$@"
   else
     echo "No generator found for layer $LAYER"
     exit 1
