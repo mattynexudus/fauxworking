@@ -294,7 +294,12 @@ class CommunityGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("eventattendees", body)
             else:
-                result = nexudus_create("eventattendees", body)
+                try:
+                    result = nexudus_create("eventattendees", body)
+                except Exception as e:  # noqa: BLE001
+                    self.log.warning("Skipping attendee #%d — create failed: %s",
+                                      defn["index"], e, skip=True)
+                    continue
                 self.track_id({
                     "entity": "eventattendees", "Id": result["Id"], "AttendeeIndex": track_key,
                 })

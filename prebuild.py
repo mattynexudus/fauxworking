@@ -1312,7 +1312,17 @@ def generate_event_products(rng, events):
 
 
 def generate_event_attendees(rng, fake, events, coworkers, contracts, paused_periods):
-    """~60 EventAttendees — §4r. ~70% linked to a seeded coworker, rest ad-hoc guests."""
+    """~60 EventAttendees — §4r. Every attendee is linked to a real coworker.
+
+    Ad-hoc "guest" attendees (FullName/Email only, no CoworkerId — the docs
+    list CoworkerId as optional) were tried and fail live with a generic,
+    unhelpful 500 ("Ooops! There was a problem...") regardless of CheckedIn,
+    the event, or even swapping in a real VisitorId instead — confirmed via
+    isolated live testing. Only a real CoworkerId ever succeeds, so every
+    attendee gets one now instead of ~30% being ad-hoc guests. `fake` is
+    kept as a parameter for backward-compat call-site simplicity even
+    though it's unused now.
+    """
     # OnlyForMembers events also reject coworkers whose membership isn't
     # currently active — contract cancelled, or frozen right now — with the
     # same "You cannot purchase this product" error, confirmed live. Restrict
@@ -1327,21 +1337,13 @@ def generate_event_attendees(rng, fake, events, coworkers, contracts, paused_per
     raw = []
     for e in events:
         for _ in range(rng.randint(1, 6)):
-            # OnlyForMembers events reject non-coworker guest purchases live
-            # ("You cannot purchase this product") — only real coworkers can
-            # attend one, regardless of the usual 70% coworker split.
-            is_coworker = True if e.get("OnlyForMembers") else rng.random() < 0.7
             coworker_pool = active_coworkers if e.get("OnlyForMembers") else coworkers
             raw.append({
                 "EventIndex": e["index"],
-                "CoworkerIndex": rng.choice(coworker_pool)["index"] if is_coworker else None,
-                "FullName": None if is_coworker else fake.name(),
-                # fake.email() defaults to safe=True, which always uses a
-                # reserved example.com/.org/.net domain (RFC 2606) — Nexudus
-                # rejects those live as "Invalid Email Address". safe=False
-                # produces realistic-looking domains instead.
-                "Email": None if is_coworker else fake.email(safe=False),
-                "IsCoworker": is_coworker,
+                "CoworkerIndex": rng.choice(coworker_pool)["index"],
+                "FullName": None,
+                "Email": None,
+                "IsCoworker": True,
                 "CheckedIn": e["StartDayOffset"] < 0 and rng.random() < 0.7,
             })
 
