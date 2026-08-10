@@ -178,7 +178,18 @@ class CrmProposalsGenerator(BaseGenerator):
                 if stage != "Lead":
                     self.log.info("WOULD UPDATE crmopportunities DRY: move to stage=%s", stage)
             else:
-                result = nexudus_create("crmopportunities", body)
+                try:
+                    result = nexudus_create("crmopportunities", body)
+                except Exception as e:  # noqa: BLE001
+                    # Nexudus's generic 500 here has turned out to be
+                    # bursty transient flakiness as often as a real
+                    # rejection (see CLAUDE.md rule 37 — nexudus_client.py
+                    # already retries it several times before this is
+                    # ever reached). Skip this one record rather than take
+                    # down opportunity history and proposals with it.
+                    self.log.warning("Skipping opportunity #%d — create failed: %s",
+                                      idx, e, skip=True)
+                    continue
                 self.opportunity_ids[idx] = result["Id"]
                 self.track_id({
                     "entity": "crmopportunities", "Id": result["Id"],

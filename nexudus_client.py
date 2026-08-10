@@ -83,12 +83,13 @@ _RATE_LIMIT_WAIT_RE = re.compile(r"Wait ([\d.]+) seconds")
 # same text shows up for genuinely deterministic rejections (e.g. an "open"
 # CheckIn dated in the past, an EventAttendee with no CoworkerId — both
 # fixed at the data level, see CLAUDE.md rules 33/34) AND for plain
-# transient flakiness: confirmed live an identical CrmOpportunity create
-# body failed twice, then succeeded 3/3 times on immediate retry with no
-# code or data change in between. A short bounded retry here catches the
-# transient case; a genuinely deterministic failure just wastes a couple
-# of seconds retrying before still raising the same error.
-MAX_TRANSIENT_ERROR_RETRIES = 3
+# transient flakiness. Confirmed live it can be *bursty*, not just
+# occasional: an identical CrmOpportunity create body failed 5 times in a
+# row, then succeeded 8 times in a row right after, with no code or data
+# change in between — a 3-attempt retry (this constant's original value)
+# wasn't always enough to ride out a bad streak. A genuinely deterministic
+# failure still just wastes a few extra seconds retrying before raising.
+MAX_TRANSIENT_ERROR_RETRIES = 6
 _TRANSIENT_ERROR_TEXT = "Ooops! There was a problem while running this action"
 
 
@@ -148,7 +149,7 @@ def _request(method, url, **kwargs):
             continue
         if transient_attempts < MAX_TRANSIENT_ERROR_RETRIES - 1 and _is_transient_server_error(resp):
             transient_attempts += 1
-            time.sleep(1.5)
+            time.sleep(1.5 * transient_attempts)  # 1.5s, 3s, 4.5s, ... — rides out a bursty streak
             continue
         return resp
     return resp
