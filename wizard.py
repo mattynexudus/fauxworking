@@ -54,8 +54,10 @@ def parse_args():
                          help="Random seed (default: fixed, not prompted — this is an internal detail most people don't need to think about)")
     for volume_key in config.CONFIGURABLE_VOLUME_KEYS:
         flag, dest = prebuild.FLAG_SPEC[volume_key]
-        parser.add_argument(flag, dest=dest, type=int, default=None,
-                             help=f"{VOLUME_LABELS[volume_key]} (default: prompt)")
+        help_text = f"{VOLUME_LABELS[volume_key]} (default: prompt)"
+        if volume_key == "coworkers":
+            help_text += " — capped at 50/day, Nexudus's API limit"
+        parser.add_argument(flag, dest=dest, type=int, default=None, help=help_text)
     parser.add_argument("--live", action="store_true",
                          help="Skip the preview and go straight to a live run")
     parser.add_argument("--dry-run", action="store_true",
@@ -116,6 +118,25 @@ def _prompt_int(label, default):
         return _prompt_int(label, default)
 
 
+COWORKER_DAILY_LIMIT = 50
+
+
+def _cap_coworkers(value):
+    """Nexudus enforces a ~50 coworker-creation limit per day, per account
+    (see CLAUDE.md rule 30, confirmed live) — asking for more in one run
+    doesn't fail cleanly, it stops partway through with "Access Denied"
+    once the limit is hit, and every later layer's shortfall (bookings,
+    contracts, etc. tied to the missing coworkers) cascades from there.
+    Capping here gives a clear warning up front instead."""
+    if value > COWORKER_DAILY_LIMIT:
+        print(f"\nNote: Nexudus only allows creating about {COWORKER_DAILY_LIMIT} "
+              f"coworkers per day, per account. Capping this run to "
+              f"{COWORKER_DAILY_LIMIT} — if you need more than that, run the "
+              f"wizard again on a later day to add the rest.\n")
+        return COWORKER_DAILY_LIMIT
+    return value
+
+
 def collect_volumes(args):
     print("=== Data volumes ===")
     print("Press Enter to keep the default shown in brackets.\n")
@@ -125,8 +146,10 @@ def collect_volumes(args):
         cli_value = getattr(args, dest)
         if cli_value is not None:
             overrides[volume_key] = cli_value
-            continue
-        overrides[volume_key] = _prompt_int(VOLUME_LABELS[volume_key], config.VOLUMES[volume_key])
+        else:
+            overrides[volume_key] = _prompt_int(VOLUME_LABELS[volume_key], config.VOLUMES[volume_key])
+        if volume_key == "coworkers":
+            overrides[volume_key] = _cap_coworkers(overrides[volume_key])
     print()
     return {**config.VOLUMES, **overrides}
 
