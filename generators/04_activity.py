@@ -219,13 +219,23 @@ class ActivityGenerator(BaseGenerator):
                     result = nexudus_create("bookingvisitors", body)
                     self.track_id({
                         "entity": "bookingvisitors", "Id": result["Id"], "GuestKey": track_key,
+                        "BookingIndex": defn["index"],
                     })
                     self.log.info("Linked visitor #%d to booking #%d (id=%s)",
                                   visitor_idx, defn["index"], result["Id"])
 
     # ------------------------------------------------------------------
     # Cancel bookings — delete after all children exist; system creates
-    # the CancelledBooking snapshot automatically (§4j).
+    # the CancelledBooking snapshot automatically (§4j). A booking with a
+    # normal (unshared) guest cancels fine — CANCEL_BOOKING cascades the
+    # BookingVisitor deletion itself, confirmed live via an isolated fresh
+    # booking+guest test. The one confirmed failure mode: a Visitor invited
+    # as a guest to more than one booking can leave one of that visitor's
+    # BookingVisitor links permanently stuck ("You must delete all booking
+    # visitors using this record before you can delete it.") — even a
+    # direct, isolated DELETE on that one record fails the same way. Rare
+    # (needs the same visitor on two separate to-cancel bookings), not
+    # worth blocking the whole run over — skip it and move on.
     # ------------------------------------------------------------------
     def _cancel_bookings(self, nexudus_run_command):
         to_cancel = [d for d in self.booking_defs if d["ToCancel"]]
@@ -247,10 +257,19 @@ class ActivityGenerator(BaseGenerator):
                 self.log.info("WOULD CANCEL_BOOKING %s [%s -> reason=%d]",
                               booking_id, defn["CancellationCategory"], reason)
             else:
-                nexudus_run_command("bookings", "CANCEL_BOOKING", [booking_id], parameters=[
-                    {"Name": "Cancellation Reason", "Value": reason},
-                    {"Name": "Cancel without applying cancellation fee rules", "Value": True},
-                ])
+                try:
+                    nexudus_run_command("bookings", "CANCEL_BOOKING", [booking_id], parameters=[
+                        {"Name": "Cancellation Reason", "Value": reason},
+                        {"Name": "Cancel without applying cancellation fee rules", "Value": True},
+                    ])
+                except Exception as e:  # noqa: BLE001
+                    if "must delete all booking visitors" in str(e):
+                        self.log.warning(
+                            "Skipping cancellation of booking #%d — a guest shared with "
+                            "another booking left a BookingVisitor link stuck: %s",
+                            idx, e, skip=True)
+                        continue
+                    raise
                 self.track_id({
                     "entity": "cancelledbookings", "Id": booking_id,
                     "CancelledBookingIndex": track_key, "Category": defn["CancellationCategory"],

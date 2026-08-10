@@ -214,6 +214,18 @@ def nexudus_delete(entity, id):
     resp = _request("DELETE", f"{_url(entity)}/{id}", headers=_headers())
     if not resp.ok:
         raise NexudusApiError(entity, "delete", resp)
+    # DELETE can return HTTP 200 with a business-logic failure in the body
+    # (WasSuccessful: false) rather than a non-2xx status — confirmed live,
+    # e.g. deleting a BookingVisitor whose sibling record blocks it. Trusting
+    # resp.ok alone silently treats that as a success. Check the body the
+    # same way _unwrap does for create/update/run_command; a delete with no
+    # body (or a non-JSON one) still means success.
+    try:
+        body = resp.json()
+    except ValueError:
+        return None
+    if isinstance(body, dict) and body.get("WasSuccessful") is False:
+        raise NexudusApiError(entity, "delete", resp)
     return None
 
 
