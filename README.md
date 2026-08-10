@@ -16,15 +16,29 @@ git checkout -b my-name-test-run
 
 ## Setting up (one-time)
 
-1. **Install the required packages.** In your terminal, from the project folder:
+1. **Make sure Python is installed** (version 3.9 or newer). In your terminal, check with:
 
    ```bash
-   pip install -r requirements.txt
+   python3 --version
    ```
 
-   This installs the small set of tools the generator needs to run.
+   If you see something like `Python 3.11.4`, you're set — skip to step 2.
 
-2. **Log in to Nexudus.**
+   If instead you get an error like "command not found":
+   - **Mac**: download and install Python from [python.org/downloads](https://www.python.org/downloads/) (or, if you use Homebrew, `brew install python3`).
+   - **Windows**: download and install Python from [python.org/downloads](https://www.python.org/downloads/) — make sure to tick **"Add Python to PATH"** during setup.
+
+   Close and reopen your terminal afterwards, then run `python3 --version` again to confirm it worked.
+
+2. **Install the required packages.** In your terminal, from the project folder:
+
+   ```bash
+   python3 -m pip install -r requirements.txt
+   ```
+
+   This installs the small set of tools the generator needs to run. (Using `python3 -m pip` instead of just `pip` avoids a common "command not found" error on some setups.)
+
+3. **Log in to Nexudus.**
 
    ```bash
    python3 nexudus_auth.py setup
