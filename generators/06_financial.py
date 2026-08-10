@@ -129,10 +129,10 @@ class FinancialGenerator(BaseGenerator):
         self._raise_invoices(billing_coworker_ids, nexudus_run_command)
         invoices = self._list_invoices(biz, nexudus_list)
 
-        to_pay, to_void, to_credit, to_refund = self._select_invoices(invoices)
+        to_pay, to_void, to_credit, refund_candidates, need_refund = self._select_invoices(invoices)
         self._pay_invoices(biz, to_pay, nexudus_create)
         self._void_and_credit_invoices(to_void, to_credit, nexudus_run_command)
-        self._refund_invoices(to_refund, nexudus_run_command)
+        self._refund_invoices(refund_candidates, need_refund, nexudus_run_command)
         self._create_ledger_supplements(biz, coworker_ids, nexudus_create)
 
         self.log.info("Layer 5 Financial complete. Billed coworkers: %d, invoices seen: %d",
@@ -192,9 +192,11 @@ class FinancialGenerator(BaseGenerator):
             if inv.get("Paid") and not inv.get("Void") and not inv.get("CreditNote")
             and not inv.get("Refunded") and str(inv.get("Id")) not in already_refunded
         ]
-        to_refund = refund_candidates[:need_refund]
+        # Not sliced to need_refund here — _refund_invoices needs the full
+        # pool to fall through to the next candidate when one is rejected
+        # (e.g. an invoice that includes a Deposit line, see there).
 
-        return to_pay, to_void, to_credit, to_refund
+        return to_pay, to_void, to_credit, refund_candidates, need_refund
 
     # ------------------------------------------------------------------
     # Which coworkers to bill
@@ -356,25 +358,48 @@ class FinancialGenerator(BaseGenerator):
     # outright ("does not support run-command") despite the real API
     # accepting it — verified through this project's own direct REST
     # client instead (see rule 27 in CLAUDE.md).
+    #
+    # An invoice can't always be refunded this way — confirmed live an
+    # invoice that includes a Deposit line rejects the full-amount refund
+    # with "You cannot refund X for line Deposit (#id)" (deposits have
+    # their own refund path, via cancelling the parent contract — see
+    # ContractDeposit.Refundable — not a generic invoice refund). There's
+    # no cheap way to detect that up front (InvoiceLines isn't populated
+    # on either the list or single-GET response), so this catches any
+    # command failure per-invoice and falls through to the next candidate
+    # rather than under-delivering on REFUND_COUNT.
     # ------------------------------------------------------------------
-    def _refund_invoices(self, to_refund, nexudus_run_command):
-        self.log.info("--- Refunding %d invoices ---", len(to_refund))
-        for inv in to_refund:
+    def _refund_invoices(self, candidates, need_refund, nexudus_run_command):
+        self.log.info("--- Refunding up to %d invoices (from %d candidates) ---", need_refund, len(candidates))
+        if need_refund <= 0:
+            return
+
+        refunded = 0
+        for inv in candidates:
+            if refunded >= need_refund:
+                break
             track_key = str(inv.get("Id"))
             if self.already_created("RefundedInvoiceId", track_key):
                 continue
             if self.dry_run:
                 self.log.info("WOULD RUN COMMAND coworkerinvoices.COWORKER_INVOICE_REFUND id=%s", inv.get("Id"))
+                refunded += 1
                 continue
-            nexudus_run_command("coworkerinvoices", "COWORKER_INVOICE_REFUND", [inv["Id"]], parameters=[
-                {"Name": f"Amount{inv['Id']}", "Type": "", "Value": str(inv.get("TotalAmount", 0))},
-                {"Name": "Preview", "Type": "", "Value": "false"},
-                {"Name": "ePaymentProvider0", "Type": "", "Value": "994"},
-            ])
+            try:
+                nexudus_run_command("coworkerinvoices", "COWORKER_INVOICE_REFUND", [inv["Id"]], parameters=[
+                    {"Name": f"Amount{inv['Id']}", "Type": "", "Value": str(inv.get("TotalAmount", 0))},
+                    {"Name": "Preview", "Type": "", "Value": "false"},
+                    {"Name": "ePaymentProvider0", "Type": "", "Value": "994"},
+                ])
+            except Exception as e:  # noqa: BLE001
+                self.log.warning("Skipping refund of invoice %s — command failed: %s",
+                                  inv["Id"], e, skip=True)
+                continue
             self.track_id({
                 "entity": "coworkerinvoices", "Id": inv["Id"], "RefundedInvoiceId": track_key,
             })
             self.log.info("Refunded invoice %s", inv["Id"])
+            refunded += 1
 
     # ------------------------------------------------------------------
     # Ledger supplements
