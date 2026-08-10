@@ -79,6 +79,28 @@ MAX_PAGES = 50  # safety cap for auto-pagination
 MAX_RATE_LIMIT_RETRIES = 8
 _RATE_LIMIT_WAIT_RE = re.compile(r"Wait ([\d.]+) seconds")
 
+# Nexudus's generic catch-all for an unhandled server-side exception — the
+# same text shows up for genuinely deterministic rejections (e.g. an "open"
+# CheckIn dated in the past, an EventAttendee with no CoworkerId — both
+# fixed at the data level, see CLAUDE.md rules 33/34) AND for plain
+# transient flakiness: confirmed live an identical CrmOpportunity create
+# body failed twice, then succeeded 3/3 times on immediate retry with no
+# code or data change in between. A short bounded retry here catches the
+# transient case; a genuinely deterministic failure just wastes a couple
+# of seconds retrying before still raising the same error.
+MAX_TRANSIENT_ERROR_RETRIES = 3
+_TRANSIENT_ERROR_TEXT = "Ooops! There was a problem while running this action"
+
+
+def _is_transient_server_error(resp):
+    if resp.status_code != 500:
+        return False
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and _TRANSIENT_ERROR_TEXT in str(body.get("Message", ""))
+
 
 class NexudusApiError(RuntimeError):
     def __init__(self, entity, action, response):
@@ -109,18 +131,26 @@ def _headers():
 
 
 def _request(method, url, **kwargs):
-    """requests.request, but retries on 429 for the server's suggested wait
-    (parsed from its "Wait N seconds" message), plus a small buffer."""
+    """requests.request, but retries on:
+    - 429, for the server's suggested wait (parsed from its "Wait N
+      seconds" message), plus a small buffer.
+    - a 500 with Nexudus's generic transient-error text, up to
+      MAX_TRANSIENT_ERROR_RETRIES times (see _is_transient_server_error)."""
+    transient_attempts = 0
     for attempt in range(MAX_RATE_LIMIT_RETRIES):
         resp = requests.request(method, url, timeout=DEFAULT_TIMEOUT, **kwargs)
-        if resp.status_code != 429:
-            return resp
-
-        wait = 1.0
-        match = _RATE_LIMIT_WAIT_RE.search(resp.text)
-        if match:
-            wait = float(match.group(1))
-        time.sleep(wait + 0.25)
+        if resp.status_code == 429:
+            wait = 1.0
+            match = _RATE_LIMIT_WAIT_RE.search(resp.text)
+            if match:
+                wait = float(match.group(1))
+            time.sleep(wait + 0.25)
+            continue
+        if transient_attempts < MAX_TRANSIENT_ERROR_RETRIES - 1 and _is_transient_server_error(resp):
+            transient_attempts += 1
+            time.sleep(1.5)
+            continue
+        return resp
     return resp
 
 
