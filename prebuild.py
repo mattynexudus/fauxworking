@@ -2,7 +2,8 @@
 Pre-generate all faker-dependent data into static JSON files.
 
 Run this once (or when you want to regenerate with a new seed/volume).
-The generated files are committed to the repo — generators read them at runtime.
+The generated files are gitignored (data/*.json) — each user generates their
+own rather than sharing one specific run's output; generators read them at runtime.
 
 Usage:
     python prebuild.py               # Generate all data files

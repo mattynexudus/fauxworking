@@ -107,7 +107,7 @@ An agent with the Nexudus MCP connector was used *during development* to explore
 
 **Two-step data flow**, unrelated to the above:
 
-1. `prebuild.py` generates deterministic profiles (names, emails, scenario assignments) into committed `data/*.json` files — run once, or again with `--seed`/volume flags to regenerate.
+1. `prebuild.py` generates deterministic profiles (names, emails, scenario assignments) into `data/*.json` files (gitignored — each user generates their own) — run once, or again with `--seed`/volume flags to regenerate.
 2. Generators read those files and push to the API, resolving day/month offsets against `config.TODAY` at run time — this is what makes the whole dataset a rolling window instead of fixed dates.
 
 **One exception:** `06_financial.py` has no `data/*.json` file. Invoice IDs and amounts don't exist until Nexudus generates them server-side, so it discovers them live via the API instead of reading a pre-planned file.
@@ -140,7 +140,7 @@ All dates are **relative to the run date** — the data spans 24 months back fro
 | `reference/` | Entity dependency graph, API module map, enum values, extending-the-model guide |
 | `tests/` | Unit tests for the pure-logic pieces (volume rescaling, run-summary counting) — `python -m unittest discover tests` |
 | `data/created-ids/` | Runtime: JSON files tracking IDs of records created per generator (gitignored) |
-| `data/*.json` | Pre-generated profiles (coworkers, contracts, bookings, etc.) — committed |
+| `data/*.json` | Pre-generated profiles (coworkers, contracts, bookings, etc.) — gitignored, generate your own via `prebuild.py` |
 
 ### Layers
 
