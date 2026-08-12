@@ -117,18 +117,45 @@ ENTITY_DELETE_ORDER = [
 # No delete operation in the Nexudus API for these — see module docstring.
 NO_DELETE_SUPPORT = {"cancelledbookings", "coworkerbookingcreditusehistories"}
 
-# A few entities reject a plain DELETE outright (405 Method Not Allowed —
-# not a dependency block, the HTTP verb itself isn't supported) and only
-# delete via one or more commands instead, found by capturing the real
-# admin UI's network request (same technique as PROPOSAL_SEND/
-# PROPOSAL_ACCEPT and COWORKER_INVOICE_CANCEL/REFUND — see CLAUDE.md rule
-# 27). Confirmed live for every entry below. coworkercontracts needs two
-# commands in sequence — it must be cancelled before it can be deleted.
-# Every other entity in ENTITY_DELETE_ORDER uses a plain nexudus_delete.
+# A few entities need a command instead of (or before) a plain DELETE.
+# Each value is a list of steps run in order; a step is either "DELETE"
+# (a plain nexudus_delete) or a (command_key, parameters) tuple run via
+# nexudus_run_command.
+#
+# coworkerinvoices/coworkers/coworkercontracts reject a plain DELETE
+# outright (405 Method Not Allowed — not a dependency block, the HTTP
+# verb itself isn't supported), found by capturing the real admin UI's
+# network request (same technique as PROPOSAL_SEND/PROPOSAL_ACCEPT and
+# COWORKER_INVOICE_CANCEL/REFUND — see CLAUDE.md rule 27).
+# coworkercontracts needs two commands in sequence (cancel, then delete).
+#
+# bookings is different: a plain DELETE is rejected with "You must delete
+# all booking visitors using this record before you can delete it" — and
+# that's not a rare edge case here despite how rule 32 originally reads.
+# With only 56 tracked visitors reused as guests across 126+ bookings,
+# most visitors end up on more than one booking, so the "shared guest
+# leaves a BookingVisitor link stuck" pattern rule 32 already documented
+# hits a large fraction of bookings, not a couple of outliers — confirmed
+# live via a real teardown run showing dozens of consecutive
+# "must delete all booking visitors" failures. Rule 32 also already
+# confirmed CANCEL_BOOKING cascades-removes a booking's guests correctly
+# on its own, so bookings now cancels first (tolerating "already
+# cancelled" from the ~25 seeded pre-cancelled ones) and only then
+# deletes. Any bookingvisitors left stuck by the standalone
+# bookingvisitors step above will already be gone by the time this runs
+# (cascaded away) and just 404 harmlessly on a later teardown pass (see
+# rule 40) — no separate fix needed there.
 COMMAND_DELETE = {
-    "coworkerinvoices": ["COWORKER_INVOICE_DELETE"],
-    "coworkers": ["COWORKER_DELETE"],
-    "coworkercontracts": ["CANCEL_CONTRACT", "DELETE_CONTRACT"],
+    "coworkerinvoices": [("COWORKER_INVOICE_DELETE", None)],
+    "coworkers": [("COWORKER_DELETE", None)],
+    "coworkercontracts": [("CANCEL_CONTRACT", None), ("DELETE_CONTRACT", None)],
+    "bookings": [
+        ("CANCEL_BOOKING", [
+            {"Name": "Cancellation Reason", "Value": 7},  # Other — see CANCELLATION_REASON_MAP, 04_activity.py
+            {"Name": "Cancel without applying cancellation fee rules", "Value": True},
+        ]),
+        "DELETE",
+    ],
 }
 
 
@@ -148,22 +175,26 @@ def load_tracked_records():
 
 
 def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command):
-    """Most entities use a plain DELETE; a few (see COMMAND_DELETE) only
-    support deletion via one or more run-commands, executed in order.
+    """Most entities use a plain DELETE; a few (see COMMAND_DELETE) need
+    one or more steps first — a run-command, a plain DELETE, or both in
+    sequence (e.g. cancel via command, then delete).
 
-    An earlier step failing (e.g. CANCEL_CONTRACT on a contract that's
-    already cancelled from a prior partial teardown) shouldn't block a
-    later step that might still succeed on its own — only raise if the
-    LAST command in the sequence is the one that fails."""
-    commands = COMMAND_DELETE.get(entity)
-    if commands is None:
+    An earlier step failing (e.g. cancelling something already cancelled
+    by a prior partial teardown) shouldn't block a later step that might
+    still succeed on its own — only raise if the LAST step fails."""
+    steps = COMMAND_DELETE.get(entity)
+    if steps is None:
         nexudus_delete(entity, record_id)
         return
 
     last_error = None
-    for command in commands:
+    for step in steps:
         try:
-            nexudus_run_command(entity, command, [record_id])
+            if step == "DELETE":
+                nexudus_delete(entity, record_id)
+            else:
+                command, parameters = step
+                nexudus_run_command(entity, command, [record_id], parameters=parameters)
             last_error = None
         except Exception as e:  # noqa: BLE001
             last_error = e
