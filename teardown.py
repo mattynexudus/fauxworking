@@ -197,6 +197,43 @@ def _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command):
         raise last_error
 
 
+def _cleanup_related(parent_id, nexudus_delete, nexudus_run_command, nexudus_list, targets):
+    """For each (entity, filter_key, command) in targets, look up live
+    records referencing parent_id and delete them (via command if given,
+    else a plain delete). Returns True if anything was found — whether
+    or not each individual delete actually succeeded — so the caller
+    knows whether a retry is even worth attempting."""
+    found_any = False
+    for entity, filter_key, command in targets:
+        for record in nexudus_list(entity, {filter_key: parent_id}):
+            found_any = True
+            try:
+                if command:
+                    nexudus_run_command(entity, command, [record["Id"]])
+                else:
+                    nexudus_delete(entity, record["Id"])
+            except Exception:  # noqa: BLE001 — best-effort; the retry after surfaces any real problem
+                pass
+    return found_any
+
+
+# Entities whose per-record idempotency is purely local-tracking-based
+# (already_created() against data/created-ids/*.json) can silently drift
+# from live reality across repeated reseed cycles without an intervening
+# successful teardown — confirmed live: an untracked, paid CoworkerInvoice
+# and 32 untracked CoworkerProducts were both found live for the exact
+# same coworker, both from the same ~16:45 reseed batch, both silently
+# blocking COWORKER_DELETE with no indication which was the cause. Unlike
+# bookings (a specific "already charged" message to key off), COWORKER_
+# DELETE's failure is always the same generic 500 with no distinguishing
+# text — so this checks known accumulation points proactively instead of
+# reacting to a message. See rule 44.
+_COWORKER_CLEANUP_TARGETS = [
+    ("coworkerinvoices", "CoworkerInvoice_Coworker", "COWORKER_INVOICE_DELETE"),
+    ("coworkerproducts", "CoworkerProduct_Coworker", None),
+]
+
+
 def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command, nexudus_list=None):
     """Most entities use a plain DELETE; a few (see COMMAND_DELETE) need
     one or more steps first — a run-command, a plain DELETE, or both in
@@ -208,24 +245,27 @@ def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command, nexudus_
 
     try:
         _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
+        return
     except Exception as e:  # noqa: BLE001
-        if entity != "bookings" or nexudus_list is None or _ALREADY_CHARGED_TEXT not in str(e):
+        if nexudus_list is None:
             raise
-        # A booking that's already been charged (CHARGE_BOOKING created a
-        # linked CoworkerExtraService) rejects DELETE even after
-        # cancelling — confirmed live. Some pre-existing charges tracked
-        # under a fake, non-deletable Id before the rule 41 fix are still
-        # sitting on their bookings under a real Id that was never
-        # tracked, so the standalone coworkerextraservices step earlier
-        # in ENTITY_DELETE_ORDER never actually touched them. Look the
-        # charge up live by BookingId and delete it, then retry once
-        # rather than leaving the booking permanently stuck.
-        charges = nexudus_list("coworkerextraservices", {"CoworkerExtraService_BookingId": record_id})
-        for charge in charges:
-            try:
-                nexudus_delete("coworkerextraservices", charge["Id"])
-            except Exception:  # noqa: BLE001 — best-effort; the retry below surfaces any real problem
-                pass
+        if entity == "bookings" and _ALREADY_CHARGED_TEXT in str(e):
+            # A booking that's already been charged (CHARGE_BOOKING
+            # created a linked CoworkerExtraService) rejects DELETE even
+            # after cancelling — confirmed live. Some pre-existing
+            # charges tracked under a fake, non-deletable Id before the
+            # rule 41 fix are still sitting on their bookings under a
+            # real Id that was never tracked, so the standalone
+            # coworkerextraservices step earlier in ENTITY_DELETE_ORDER
+            # never actually touched them.
+            targets = [("coworkerextraservices", "CoworkerExtraService_BookingId", None)]
+        elif entity == "coworkers":
+            targets = _COWORKER_CLEANUP_TARGETS
+        else:
+            raise
+
+        if not _cleanup_related(record_id, nexudus_delete, nexudus_run_command, nexudus_list, targets):
+            raise
         _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
 
 
