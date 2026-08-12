@@ -16,9 +16,12 @@ transparently refreshes the access token via the refresh token when it's
 close to expiring — no password re-entry needed for the life of the refresh
 token (~30-90 days per Nexudus; re-run `setup` when it finally expires).
 
-This account needs to be a Nexudus admin with API access. `setup` checks
-this immediately and fails with a clear error otherwise, rather than letting
-every subsequent script fail confusingly deep into a seeding run.
+This account needs to be a Nexudus admin. `setup` checks this immediately
+and fails with a clear error otherwise, rather than letting every subsequent
+script fail confusingly deep into a seeding run. It also checks the
+account's "API access" flag, but only warns on that one — confirmed live,
+it can read False on an account that's demonstrably been authenticating and
+calling the API fine the whole time, so it isn't a reliable gate.
 """
 
 import getpass
@@ -64,14 +67,19 @@ def _check_admin_access(access_token, email):
     an account with hundreds/thousands of users returns an arbitrary record,
     not necessarily the authenticated one.
     """
-    resp = requests.get(
-        f"{base_url()}/api/spaces/users",
-        headers={"Authorization": f"Bearer {access_token}"},
-        params={"User_Email": email, "size": 1},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    records = resp.json().get("Records", [])
+    try:
+        resp = requests.get(
+            f"{base_url()}/api/sys/users",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"User_Email": email, "size": 1},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        records = resp.json().get("Records", [])
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(f"Login succeeded, but the admin-access check failed: {e}")
+    except ValueError:
+        raise SystemExit("Login succeeded, but the admin-access check got an unreadable response.")
     if not records:
         raise SystemExit(f"Could not find a user record for {email} — unexpected API response.")
 
@@ -82,11 +90,14 @@ def _check_admin_access(access_token, email):
             "This tool needs an admin account to create records across all entities."
         )
     if me.get("APIAccess") is False:
-        raise SystemExit(
-            f"Error: {me.get('Email')} does not have API access enabled. "
-            "Enable it for this user in Nexudus (Settings > Users) and try again."
-        )
-    print(f"✓ Authenticated as {me.get('Email')} — admin with API access.")
+        # Confirmed live: this field can read False on an account that has
+        # clearly been authenticating and calling the API successfully all
+        # along (the OAuth password grant that got us here is the real
+        # proof of access) — same false-negative pattern as the other
+        # Nexudus API quirks in CLAUDE.md (rules 12/27). Warn, don't block.
+        print(f"! Note: Nexudus reports {me.get('Email')} as not having API access enabled "
+              "(Settings > Users), but the login itself succeeded, so continuing anyway.")
+    print(f"✓ Authenticated as {me.get('Email')} — admin.")
 
 
 def setup():
