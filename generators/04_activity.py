@@ -88,7 +88,7 @@ class ActivityGenerator(BaseGenerator):
         self._create_booking_guests(coworker_ids, visitor_ids, nexudus_create)
         self._cancel_bookings(nexudus_run_command)
         self._create_checkins(biz, coworker_ids, time_pass_ids, nexudus_create, nexudus_update)
-        self._create_extra_services(biz, coworker_ids, extra_service_ids, nexudus_create, nexudus_run_command)
+        self._create_extra_services(biz, coworker_ids, extra_service_ids, nexudus_create, nexudus_run_command, nexudus_list)
         self._create_booking_credits(biz, coworker_ids, nexudus_create)
         self._create_credit_use_history(nexudus_create)
         self._create_time_passes(biz, coworker_ids, time_pass_ids, nexudus_create, nexudus_update)
@@ -380,7 +380,8 @@ class ActivityGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     # CoworkerExtraService (booking charges + time/printing credits)
     # ------------------------------------------------------------------
-    def _create_extra_services(self, biz, coworker_ids, extra_service_ids, nexudus_create, nexudus_run_command):
+    def _create_extra_services(self, biz, coworker_ids, extra_service_ids, nexudus_create, nexudus_run_command,
+                                nexudus_list):
         self.log.info("--- Extra Services (%d) ---", len(self.extra_service_defs))
 
         for defn in self.extra_service_defs:
@@ -410,8 +411,19 @@ class ActivityGenerator(BaseGenerator):
                     self.log.info("WOULD RUN COMMAND bookings.CHARGE_BOOKING id=%s", booking_id)
                 else:
                     nexudus_run_command("bookings", "CHARGE_BOOKING", [booking_id])
+                    # CHARGE_BOOKING's response doesn't carry the new
+                    # CoworkerExtraService's own Id (just a bare success
+                    # envelope) — look it up by BookingId to get a real,
+                    # deletable Id for tracking. Previously this tracked a
+                    # synthesized "charge-booking-{id}" string instead,
+                    # which was enough for already_created() to work but
+                    # not a real Nexudus Id — teardown.py could never
+                    # actually delete it (confirmed live: 404).
+                    charge = next(iter(nexudus_list(
+                        "coworkerextraservices", {"CoworkerExtraService_BookingId": booking_id})), None)
                     self.track_id({
-                        "entity": "coworkerextraservices", "Id": f"charge-booking-{booking_id}",
+                        "entity": "coworkerextraservices",
+                        "Id": charge["Id"] if charge else f"charge-booking-{booking_id}",
                         "ExtraServiceIndex": track_key, "Kind": defn["Kind"],
                     })
                     self.log.info("Charged booking #%d [%s] (booking id=%s)",

@@ -127,7 +127,7 @@ class FinancialGenerator(BaseGenerator):
 
         billing_coworker_ids = self._billable_coworker_ids(contract_defs, coworker_ids)
         self._raise_invoices(billing_coworker_ids, nexudus_run_command)
-        invoices = self._list_invoices(biz, nexudus_list)
+        invoices = self._list_invoices(biz, coworker_ids, nexudus_list)
 
         to_pay, to_void, to_credit, refund_candidates, need_refund = self._select_invoices(invoices)
         self._pay_invoices(biz, to_pay, nexudus_create)
@@ -244,7 +244,7 @@ class FinancialGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     # Discover raised invoices
     # ------------------------------------------------------------------
-    def _list_invoices(self, biz, nexudus_list):
+    def _list_invoices(self, biz, coworker_ids, nexudus_list):
         self.log.info("--- Listing generated invoices ---")
         # Single call via the abstracted nexudus_list(entity, filters) signature
         # used throughout this codebase — it does not expose pageSize/page here.
@@ -253,6 +253,36 @@ class FinancialGenerator(BaseGenerator):
         # via the real MCP tool before calling _pay_invoices.
         invoices = nexudus_list("coworkerinvoices", {"CoworkerInvoice_Business": biz})
         self.log.info("Found %d invoices", len(invoices))
+
+        # COWORKER_BILL_RUN raises these server-side and returns nothing
+        # usable (confirmed live — its response is just None), so this
+        # discovery step is the only place any invoice ID is ever seen.
+        # Nothing tracked them before now, which meant teardown.py had no
+        # way to find (let alone delete) the vast majority of invoices
+        # this tool causes to exist — only the small subset later voided/
+        # credited/refunded, which get their own explicit tracking further
+        # down, were ever recorded. Track every invoice here instead, but
+        # only ones belonging to a coworker this tool created — never by
+        # bare business-scope alone, matching the "only ever touch our own
+        # tracked records" rule this project holds everywhere else (a
+        # shared business could have real invoices from real coworkers
+        # mixed in, and CoworkerInvoice_Business only filters by business,
+        # not by coworker). Skipped entirely in dry-run — nothing here is
+        # a real Id to persist, and every other track_id() call site in
+        # this codebase is already gated the same way.
+        if self.dry_run:
+            return invoices
+
+        our_coworker_ids = set(coworker_ids.values())
+        for inv in invoices:
+            if inv.get("CoworkerId") not in our_coworker_ids:
+                continue
+            track_key = str(inv["Id"])
+            if not self.already_created("DiscoveredInvoiceId", track_key):
+                self.track_id({
+                    "entity": "coworkerinvoices", "Id": inv["Id"], "DiscoveredInvoiceId": track_key,
+                })
+
         return invoices
 
     # ------------------------------------------------------------------

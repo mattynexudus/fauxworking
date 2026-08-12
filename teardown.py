@@ -14,8 +14,21 @@ nexudus_describe_entity while building the generators) are skipped, not
 attempted: CancelledBooking snapshots aren't independently deletable and
 are removed automatically when their originating Booking is deleted (which
 already happened at seed time for the 40 "to cancel" bookings — see
-04_activity.py); CoworkerBookingCreditUseHistory and CoworkerInvoice
-support list/get/update only, no delete.
+04_activity.py); CoworkerBookingCreditUseHistory supports list/get/update
+only, no delete.
+
+CoworkerInvoice has no plain DELETE endpoint either, but — unlike the
+above — it does support real deletion via a command, COWORKER_INVOICE_DELETE
+(confirmed live, see CLAUDE.md rule 12: a genuine delete, 404 on a
+follow-up GET, not a void). This is the one entity in ENTITY_DELETE_ORDER
+deleted via nexudus_run_command instead of nexudus_delete (see
+_delete_one() below). Only invoices 06_financial.py has explicitly tracked
+against a coworker this tool created are ever touched — see
+06_financial.py::_list_invoices for why that tracking exists at all (it
+didn't, until this was added: COWORKER_BILL_RUN returns nothing usable, so
+without this the majority of invoices this tool causes to exist were
+invisible to teardown entirely, which meant anything they blocked — e.g. a
+CoworkerProduct swept into one of them — could never be cleanly deleted).
 
 Records that fail to delete (or belong to a no-delete entity) are kept in
 the tracking file for a future retry; only confirmed deletions are cleared.
@@ -43,6 +56,11 @@ ENTITY_DELETE_ORDER = [
     "crmopportunities",
     "coworkerledgerentries",
     "coworkerinvoicehistories",
+    # CoworkerInvoice — deleted here, before anything it might have swept
+    # up as a line item (coworkerproducts, coworkertimepasses,
+    # coworkerextraservices, bookings via CHARGE_BOOKING). Its own
+    # children (ledger entries, invoice histories) are already gone above.
+    "coworkerinvoices",
     # Layer 4b
     "coworkertasks",
     "blogposts",
@@ -55,10 +73,14 @@ ENTITY_DELETE_ORDER = [
     "coworkerdeliveries",
     # Layer 4a
     "coworkerproducts",
+    # CheckIn before CoworkerTimePass — a CheckIn can reference a
+    # CoworkerTimePass via CoworkerTimePassGuid (see
+    # 04_activity.py::_grant_day_pass), so the pass needs to outlive its
+    # check-ins, not the other way around.
+    "checkins",
     "coworkertimepasses",
     "coworkerbookingcredits",
     "coworkerextraservices",
-    "checkins",
     "bookingvisitors",
     "bookings",
     # Layer 3
@@ -93,7 +115,19 @@ ENTITY_DELETE_ORDER = [
 ]
 
 # No delete operation in the Nexudus API for these — see module docstring.
-NO_DELETE_SUPPORT = {"cancelledbookings", "coworkerbookingcreditusehistories", "coworkerinvoices"}
+NO_DELETE_SUPPORT = {"cancelledbookings", "coworkerbookingcreditusehistories"}
+
+# A few entities reject a plain DELETE outright (405 Method Not Allowed —
+# not a dependency block, the HTTP verb itself isn't supported) and only
+# delete via a command instead, found by capturing the real admin UI's
+# network request (same technique as PROPOSAL_SEND/PROPOSAL_ACCEPT and
+# COWORKER_INVOICE_CANCEL/REFUND — see CLAUDE.md rule 27). Confirmed live
+# for both entries below. Every other entity in ENTITY_DELETE_ORDER uses
+# nexudus_delete.
+COMMAND_DELETE = {
+    "coworkerinvoices": "COWORKER_INVOICE_DELETE",
+    "coworkers": "COWORKER_DELETE",
+}
 
 
 def load_tracked_records():
@@ -111,7 +145,17 @@ def load_tracked_records():
     return files
 
 
-def run_teardown(nexudus_delete, dry_run):
+def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command):
+    """Most entities use a plain DELETE; a few (see COMMAND_DELETE) only
+    support deletion via a run-command."""
+    command = COMMAND_DELETE.get(entity)
+    if command is None:
+        nexudus_delete(entity, record_id)
+    else:
+        nexudus_run_command(entity, command, [record_id])
+
+
+def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None):
     files = load_tracked_records()
     if not files:
         print("No tracked records found in data/created-ids/ — nothing to tear down.")
@@ -158,12 +202,24 @@ def run_teardown(nexudus_delete, dry_run):
                 continue
 
             try:
-                nexudus_delete(entity, record_id)
+                _delete_one(entity, record_id, nexudus_delete, nexudus_run_command)
                 deleted_keys.add((path, i))
                 total_deleted += 1
             except Exception as e:  # noqa: BLE001 — log and continue tearing down the rest
-                print(f"  FAILED to delete {entity} {record_id}: {e}")
-                total_failed += 1
+                # A 404 means the record is already gone — some other path
+                # (a cascade delete, a manual cleanup, an earlier partial
+                # teardown) already got it. That's the end state teardown
+                # wants anyway, so treat it as deleted rather than a
+                # failure — otherwise a stale tracked ID sits in the file
+                # forever, re-reported as "failed" on every future run.
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                if status == 404:
+                    print(f"  {entity} {record_id} already gone (404) — treating as deleted")
+                    deleted_keys.add((path, i))
+                    total_deleted += 1
+                else:
+                    print(f"  FAILED to delete {entity} {record_id}: {e}")
+                    total_failed += 1
 
     print()
     print(f"Seen: {total_seen}  Deleted: {total_deleted}  "
@@ -188,4 +244,5 @@ if __name__ == "__main__":
         run_teardown(nexudus_delete=None, dry_run=True)
     else:
         import nexudus_client as client
-        run_teardown(nexudus_delete=client.nexudus_delete, dry_run=False)
+        run_teardown(nexudus_delete=client.nexudus_delete, dry_run=False,
+                     nexudus_run_command=client.nexudus_run_command)
