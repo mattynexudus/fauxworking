@@ -119,14 +119,16 @@ NO_DELETE_SUPPORT = {"cancelledbookings", "coworkerbookingcreditusehistories"}
 
 # A few entities reject a plain DELETE outright (405 Method Not Allowed —
 # not a dependency block, the HTTP verb itself isn't supported) and only
-# delete via a command instead, found by capturing the real admin UI's
-# network request (same technique as PROPOSAL_SEND/PROPOSAL_ACCEPT and
-# COWORKER_INVOICE_CANCEL/REFUND — see CLAUDE.md rule 27). Confirmed live
-# for both entries below. Every other entity in ENTITY_DELETE_ORDER uses
-# nexudus_delete.
+# delete via one or more commands instead, found by capturing the real
+# admin UI's network request (same technique as PROPOSAL_SEND/
+# PROPOSAL_ACCEPT and COWORKER_INVOICE_CANCEL/REFUND — see CLAUDE.md rule
+# 27). Confirmed live for every entry below. coworkercontracts needs two
+# commands in sequence — it must be cancelled before it can be deleted.
+# Every other entity in ENTITY_DELETE_ORDER uses a plain nexudus_delete.
 COMMAND_DELETE = {
-    "coworkerinvoices": "COWORKER_INVOICE_DELETE",
-    "coworkers": "COWORKER_DELETE",
+    "coworkerinvoices": ["COWORKER_INVOICE_DELETE"],
+    "coworkers": ["COWORKER_DELETE"],
+    "coworkercontracts": ["CANCEL_CONTRACT", "DELETE_CONTRACT"],
 }
 
 
@@ -147,12 +149,26 @@ def load_tracked_records():
 
 def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command):
     """Most entities use a plain DELETE; a few (see COMMAND_DELETE) only
-    support deletion via a run-command."""
-    command = COMMAND_DELETE.get(entity)
-    if command is None:
+    support deletion via one or more run-commands, executed in order.
+
+    An earlier step failing (e.g. CANCEL_CONTRACT on a contract that's
+    already cancelled from a prior partial teardown) shouldn't block a
+    later step that might still succeed on its own — only raise if the
+    LAST command in the sequence is the one that fails."""
+    commands = COMMAND_DELETE.get(entity)
+    if commands is None:
         nexudus_delete(entity, record_id)
-    else:
-        nexudus_run_command(entity, command, [record_id])
+        return
+
+    last_error = None
+    for command in commands:
+        try:
+            nexudus_run_command(entity, command, [record_id])
+            last_error = None
+        except Exception as e:  # noqa: BLE001
+            last_error = e
+    if last_error is not None:
+        raise last_error
 
 
 def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None):
