@@ -93,7 +93,7 @@ class CrmProposalsGenerator(BaseGenerator):
         discount_code_ids = prev_output["discount_code_ids"]
 
         self._create_opportunities(coworker_ids, crm_board_column_ids, opportunity_type_ids,
-                                    nexudus_create, nexudus_update)
+                                    nexudus_create)
         self._create_opportunity_history(crm_board_column_ids, nexudus_create)
         self._create_proposals(biz, admin_id, coworker_ids, tariff_ids, discount_code_ids,
                                 nexudus_create, nexudus_update, nexudus_run_command)
@@ -117,7 +117,7 @@ class CrmProposalsGenerator(BaseGenerator):
     # CrmOpportunity
     # ------------------------------------------------------------------
     def _create_opportunities(self, coworker_ids, crm_board_column_ids, opportunity_type_ids,
-                               nexudus_create, nexudus_update):
+                               nexudus_create):
         self.log.info("--- CRM Opportunities (%d) ---", len(self.opportunity_defs))
         lead_column_id = crm_board_column_ids.get(STAGE_COLUMN_KEY["Lead"])
         opportunity_type_id_list = list(opportunity_type_ids.values())
@@ -137,24 +137,30 @@ class CrmProposalsGenerator(BaseGenerator):
                 continue
 
             stage = defn["Stage"]
-            # Confirmed live: creating directly into any column other than
-            # the board's entry stage (Lead) fails with a generic 500,
-            # regardless of coworker/body content — this account only
-            # allows new opportunities to enter at Lead, matching a normal
-            # Kanban pipeline (deals start at the front and get moved).
-            # Status (Won/Lost) at create time isn't restricted the same
-            # way, only the column. So always create at Lead, Status=1,
-            # then update to the real target column/status/won-lost-date —
-            # confirmed live an update (unlike create) can move an
-            # opportunity to any column.
+            # Previously created every opportunity at Lead then moved it
+            # via a second UPDATE call, based on a "confirmed live" comment
+            # claiming direct creation into any other column fails. That
+            # turned out to be wrong — disproven two ways: the user
+            # successfully created one directly on Negotiation through the
+            # admin UI (CreatedOn == UpdatedOn on the resulting record,
+            # meaning no follow-up move happened), and a direct live test
+            # here creating straight onto Negotiation, Won, and Lost all
+            # succeeded on the first try. The two-call version also had a
+            # real gap: the move UPDATE wasn't wrapped in the same
+            # try/except as the create, so a transient failure on *that*
+            # call (see rule 37) could still crash the rest of the layer,
+            # including every proposal after it — never actually verified
+            # as the cause of a specific report, but plausible and no
+            # longer possible now that it's one call. Single-step create
+            # at the real target column/status/won-lost-date instead.
             body = {
-                "CrmBoardColumnId": lead_column_id,
+                "CrmBoardColumnId": crm_board_column_ids.get(STAGE_COLUMN_KEY[stage], lead_column_id),
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
                 # Optional per the schema but effectively required on this
                 # account — create fails with a generic 500 without one.
                 "OpportunityTypeId": (opportunity_type_id_list[idx % len(opportunity_type_id_list)]
                                       if opportunity_type_id_list else None),
-                "Status": 1,
+                "Status": STAGE_STATUS.get(stage, 1),
                 "Value": defn["Value"],
                 "LeadSource": defn["LeadSource"],
                 # Confirmed live: Nexudus auto-normalizes Position to spaced
@@ -171,12 +177,14 @@ class CrmProposalsGenerator(BaseGenerator):
                 "Position": 1,
                 "DueDate": self._at(defn["DueDayOffset"]),
             }
+            if stage == "Won":
+                body["WonOn"] = self._at(defn["DueDayOffset"])
+            elif stage == "Lost":
+                body["LostOn"] = self._at(defn["DueDayOffset"])
 
             if self.dry_run:
                 self.log_would_create("crmopportunities", body)
                 self.opportunity_ids[idx] = f"DRY-OPP-{idx}"
-                if stage != "Lead":
-                    self.log.info("WOULD UPDATE crmopportunities DRY: move to stage=%s", stage)
             else:
                 try:
                     result = nexudus_create("crmopportunities", body)
@@ -195,19 +203,7 @@ class CrmProposalsGenerator(BaseGenerator):
                     "entity": "crmopportunities", "Id": result["Id"],
                     "OpportunityIndex": track_key, "Stage": stage,
                 })
-                self.log.info("Created opportunity #%d [Lead] (id=%s)", idx, result["Id"])
-
-                if stage != "Lead":
-                    move_body = {
-                        "CrmBoardColumnId": crm_board_column_ids.get(STAGE_COLUMN_KEY[stage]),
-                        "Status": STAGE_STATUS.get(stage, 1),
-                    }
-                    if stage == "Won":
-                        move_body["WonOn"] = self._at(defn["DueDayOffset"])
-                    elif stage == "Lost":
-                        move_body["LostOn"] = self._at(defn["DueDayOffset"])
-                    nexudus_update("crmopportunities", result["Id"], move_body)
-                    self.log.info("Moved opportunity #%d to stage=%s", idx, stage)
+                self.log.info("Created opportunity #%d [%s] (id=%s)", idx, stage, result["Id"])
 
     # ------------------------------------------------------------------
     # CrmOpportunityHistory
