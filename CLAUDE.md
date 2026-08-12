@@ -1,4 +1,4 @@
-# Nexudus Test Data — Agent Instructions
+# Fauxworking — Agent Instructions
 
 ## What this repo does
 
@@ -20,7 +20,7 @@ The data populates all reports and dashboards defined in the reports repo.
 - `bash scripts/seed_all.sh` — Run all generators in order
 - `bash scripts/daily.sh` — Run daily update (fresh records for today)
 - `bash scripts/verify.sh` — Count tracked records against config.py targets
-- `bash scripts/teardown.sh` — Confirmation prompt + dry-run preview; live deletion needs an agent (see `teardown.py`)
+- `bash scripts/teardown.sh` — Confirmation prompt, then runs `teardown.py` live for real (see `teardown.py` for `--dry-run`)
 
 ## Standing rules
 

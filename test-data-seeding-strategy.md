@@ -607,7 +607,7 @@ python generators/daily_update.py --date 2026-08-01  # Specific date
 Can be run manually or via cron/launchd:
 ```bash
 # Daily at 09:00 local time
-0 9 * * * cd /path/to/data-generator && python generators/daily_update.py
+0 9 * * * cd /path/to/fauxworking && python generators/daily_update.py
 ```
 
 Or run on-demand before reviewing dashboards that show "today" data.
@@ -617,7 +617,7 @@ Or run on-demand before reviewing dashboards that show "today" data.
 ## 6. Repo Structure (as built)
 
 ```
-data-generator/
+fauxworking/
 ├── CLAUDE.md                    ← Agent instructions — source of truth, supersedes §7 below
 ├── README.md                    ← Human overview
 ├── config.py                    ← Volumes, rolling date helpers, TEST_NAME_PREFIX="", scale multiplier

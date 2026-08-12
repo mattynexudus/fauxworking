@@ -1,4 +1,4 @@
-# Nexudus Test Data Generator
+# Fauxworking
 
 This tool fills a Nexudus account with realistic-looking test data — customers, bookings, invoices, contracts, and more — so you have something real to test against, without having to create it all by hand.
 
@@ -53,7 +53,7 @@ git checkout -b my-name-test-run
 The easiest way is the interactive wizard — it walks you through everything:
 
 ```bash
-python3 wizard.py
+./fauxworking
 ```
 
 It will:
@@ -73,21 +73,29 @@ At the end, it prints a summary — how many records were created, how many alre
 If you want to remove everything this tool created:
 
 ```bash
-python3 teardown.py --dry-run    # Shows what would be deleted, without deleting anything
-python3 teardown.py              # Actually deletes it
+./fauxworking teardown
 ```
 
-This only ever deletes records it created and tracked itself — never anything else in the account, and never by guessing based on names.
+It'll show you what it's about to delete and ask you to type "yes" first. This only ever deletes records it created and tracked itself — never anything else in the account, and never by guessing based on names.
 
 ## Getting more control (optional)
 
-If you don't want to use the wizard, you can run the same steps yourself:
+`./fauxworking` also has a couple of other commands:
+
+```bash
+./fauxworking daily     # Add a few fresh records "for today" (handy to run daily)
+./fauxworking verify    # Check what's in the account against expected counts
+```
+
+If you don't want to use the wrapper at all, you can run the same steps yourself directly:
 
 ```bash
 python3 prebuild.py              # Generate the test data (one-time, or re-run to change volumes)
 bash scripts/seed_all.sh         # Push it all to Nexudus
 bash scripts/daily.sh            # Add a few fresh records "for today" (handy to run daily)
 bash scripts/verify.sh           # Check what's in the account against expected counts
+python3 teardown.py --dry-run    # Shows what would be deleted, without deleting anything
+python3 teardown.py              # Actually deletes it
 ```
 
 You can also adjust how much data gets created, e.g.:

@@ -13,9 +13,5 @@ if [[ "$confirm" != "yes" ]]; then
   exit 1
 fi
 
-echo "Teardown deletes real records via the Nexudus MCP connector, which"
-echo "this shell script cannot call directly (see teardown.py for why every"
-echo "live operation in this repo is agent-orchestrated, not CLI-driven)."
-echo "Ask the agent to run teardown live, or dry-run it yourself below."
 echo ""
-python3 teardown.py --dry-run
+python3 teardown.py

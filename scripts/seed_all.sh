@@ -7,7 +7,7 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-echo "=== Nexudus Test Data Seeder ==="
+echo "=== Fauxworking Seeder ==="
 echo "Running all layers 0-7 in one pass..."
 echo ""
 
