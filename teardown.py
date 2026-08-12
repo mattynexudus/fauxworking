@@ -33,9 +33,24 @@ CoworkerProduct swept into one of them — could never be cleanly deleted).
 Records that fail to delete (or belong to a no-delete entity) are kept in
 the tracking file for a future retry; only confirmed deletions are cleared.
 
+After a live teardown finishes, it also offers to reset that business's
+Billing.Current{Booking,CreditNote,Draft,Invoice}Number counters back to 0
+(see maybe_reset_business_counters below) — deleting the tracked records
+doesn't roll these back, since Nexudus just keeps auto-incrementing them on
+every booking/invoice/draft/credit note this tool ever caused. Asked
+interactively rather than done automatically because this account mixes
+real, pre-existing data with seeded test data at the same business (see
+CLAUDE.md rule 46) — resetting to 0 makes the next real invoice/booking
+reuse a number a real historical record already has.
+
 Usage:
     python teardown.py              # Live mode — deletes for real
     python teardown.py --dry-run    # Log what would be deleted
+    python teardown.py --business-id 12345   # pick which business's
+                                               # counters to offer resetting,
+                                               # for logins with access to
+                                               # more than one (see
+                                               # pipeline.py::_select_business)
 """
 
 import argparse
@@ -100,6 +115,14 @@ ENTITY_DELETE_ORDER = [
     "floorplandesks",
     "floorplans",
     "resources",
+    # TariffTimePass/TariffExtraService are join tables (Tariff<->TimePass,
+    # Tariff<->ExtraService) — confirmed live they block deletion of both
+    # sides ("You must delete all price plan time passes...",
+    # "...resource credits...") if left until later. Neither was in this
+    # list at all before, so they only ever got processed last
+    # (alphabetically, after everything explicit) — too late to help.
+    "tarifftimepasses",
+    "tariffextraservices",
     "timepasses",
     "extraservices",
     "products",
@@ -359,15 +382,113 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
     print("Updated data/created-ids/*.json to remove deleted records.")
 
 
+# The four auto-incrementing counters Nexudus bumps on every booking,
+# invoice, draft, and credit note — never rolled back by deleting the
+# records themselves, since they're settings on the business, not fields on
+# those records.
+COUNTER_SETTINGS_TO_RESET = [
+    "Billing.CurrentBookingNumber",
+    "Billing.CurrentCreditNoteNumber",
+    "Billing.CurrentDraftNumber",
+    "Billing.CurrentInvoiceNumber",
+]
+
+
+def _fetch_counter_settings(business_id, nexudus_list):
+    """businesssettings' list endpoint ignores every filter param tried —
+    BusinessId/Name directly and the Entity_Field convention used
+    elsewhere in this codebase both no-op, confirmed live (every page
+    comes back unfiltered regardless) — so this pulls the whole table and
+    filters client-side instead."""
+    all_settings = nexudus_list("businesssettings", {"size": 200})
+    return [
+        s for s in all_settings
+        if s.get("BusinessId") == business_id and s.get("Name") in COUNTER_SETTINGS_TO_RESET
+    ]
+
+
+def maybe_reset_business_counters(business_id, business_name, nexudus_list, nexudus_update):
+    """Ask whether to reset business_id's billing counters to 0, now that
+    teardown has cleared every tracked record. Purely optional — see the
+    module docstring for why this doesn't just happen automatically."""
+    settings = _fetch_counter_settings(business_id, nexudus_list)
+    if not settings:
+        print(f"\nNo billing counter settings found for {business_name} (id={business_id}).")
+        return
+
+    print(f"\n--- Billing counters for {business_name} (id={business_id}) ---")
+    for s in settings:
+        print(f"  {s['Name']}: {s['Value']}")
+
+    answer = input(
+        "\nReset these to 0? This location may also have real invoices/bookings "
+        "issued outside this tool — resetting reuses their numbers (y/N): "
+    ).strip().lower()
+    if answer != "y":
+        print("Leaving counters as-is.")
+        return
+
+    for s in settings:
+        nexudus_update("businesssettings", s["Id"], {"Value": "0"})
+        print(f"  {s['Name']}: {s['Value']} -> 0")
+    print("Counters reset.")
+
+
+def _prompt_business_id(businesses):
+    """Numbered-list prompt for picking a business — same pattern as
+    wizard.py's collect_business_id. _select_business() deliberately
+    fails loudly instead of guessing when --business-id is missing and
+    there's more than one business (see rule 8) — appropriate for a
+    script driven entirely by flags, but teardown is meant to be
+    runnable standalone too, so ask interactively here instead of just
+    letting that error end the run before the counter-reset offer."""
+    print(f"\nThis login has access to {len(businesses)} businesses — "
+          "which one's billing counters should be checked?\n")
+    for i, b in enumerate(businesses, start=1):
+        print(f"  {i}. {b.get('Name', '?')}")
+    while True:
+        raw = input(f"\nEnter a number (1-{len(businesses)}): ").strip()
+        try:
+            choice = int(raw)
+        except ValueError:
+            print("Please enter a number from the list above.")
+            continue
+        if not (1 <= choice <= len(businesses)):
+            print(f"Please enter a number between 1 and {len(businesses)}.")
+            continue
+        return businesses[choice - 1]
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--business-id", type=int, default=None,
+                         help="Which business/location's billing counters to offer "
+                              "resetting afterward, if this login has access to more than one")
     args = parser.parse_args()
 
     if args.dry_run:
         run_teardown(nexudus_delete=None, dry_run=True)
     else:
         import nexudus_client as client
+        from pipeline import _select_business, list_businesses
+
         run_teardown(nexudus_delete=client.nexudus_delete, dry_run=False,
                      nexudus_run_command=client.nexudus_run_command,
                      nexudus_list=client.nexudus_list)
+
+        try:
+            businesses = list_businesses()
+            if args.business_id is not None or len(businesses) <= 1:
+                business = _select_business(businesses, args.business_id)
+            else:
+                business = _prompt_business_id(businesses)
+            maybe_reset_business_counters(
+                business["Id"], business.get("Name", "?"),
+                client.nexudus_list, client.nexudus_update,
+            )
+        except EOFError:
+            # No stdin to read from (piped/non-interactive run) — the
+            # teardown itself already finished above; the counter-reset
+            # offer is optional, so skip it cleanly instead of a traceback.
+            print("\n\nNo input available — skipping the billing counter reset offer.")
