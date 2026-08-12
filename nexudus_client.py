@@ -72,6 +72,7 @@ ENTITY_MODULES = {
     "proposals": "billing", "coworkerdatafiles": "spaces", "users": "sys",
     "businesses": "sys", "cancelledbookings": "spaces",
     "tarifftimepasses": "billing", "tariffextraservices": "billing",
+    "businesssettings": "sys",
 }
 
 DEFAULT_TIMEOUT = 30
