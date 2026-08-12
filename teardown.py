@@ -174,19 +174,14 @@ def load_tracked_records():
     return files
 
 
-def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command):
-    """Most entities use a plain DELETE; a few (see COMMAND_DELETE) need
-    one or more steps first — a run-command, a plain DELETE, or both in
-    sequence (e.g. cancel via command, then delete).
+_ALREADY_CHARGED_TEXT = "already been charged to this customer"
 
-    An earlier step failing (e.g. cancelling something already cancelled
-    by a prior partial teardown) shouldn't block a later step that might
-    still succeed on its own — only raise if the LAST step fails."""
-    steps = COMMAND_DELETE.get(entity)
-    if steps is None:
-        nexudus_delete(entity, record_id)
-        return
 
+def _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command):
+    """Run a COMMAND_DELETE step list in order. An earlier step failing
+    (e.g. cancelling something already cancelled by a prior partial
+    teardown) shouldn't block a later step that might still succeed on
+    its own — only raise if the LAST step fails."""
     last_error = None
     for step in steps:
         try:
@@ -202,7 +197,39 @@ def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command):
         raise last_error
 
 
-def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None):
+def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command, nexudus_list=None):
+    """Most entities use a plain DELETE; a few (see COMMAND_DELETE) need
+    one or more steps first — a run-command, a plain DELETE, or both in
+    sequence (e.g. cancel via command, then delete)."""
+    steps = COMMAND_DELETE.get(entity)
+    if steps is None:
+        nexudus_delete(entity, record_id)
+        return
+
+    try:
+        _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
+    except Exception as e:  # noqa: BLE001
+        if entity != "bookings" or nexudus_list is None or _ALREADY_CHARGED_TEXT not in str(e):
+            raise
+        # A booking that's already been charged (CHARGE_BOOKING created a
+        # linked CoworkerExtraService) rejects DELETE even after
+        # cancelling — confirmed live. Some pre-existing charges tracked
+        # under a fake, non-deletable Id before the rule 41 fix are still
+        # sitting on their bookings under a real Id that was never
+        # tracked, so the standalone coworkerextraservices step earlier
+        # in ENTITY_DELETE_ORDER never actually touched them. Look the
+        # charge up live by BookingId and delete it, then retry once
+        # rather than leaving the booking permanently stuck.
+        charges = nexudus_list("coworkerextraservices", {"CoworkerExtraService_BookingId": record_id})
+        for charge in charges:
+            try:
+                nexudus_delete("coworkerextraservices", charge["Id"])
+            except Exception:  # noqa: BLE001 — best-effort; the retry below surfaces any real problem
+                pass
+        _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
+
+
+def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list=None):
     files = load_tracked_records()
     if not files:
         print("No tracked records found in data/created-ids/ — nothing to tear down.")
@@ -233,6 +260,16 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None):
         if not items:
             continue
 
+        if entity == "coworkerinvoices":
+            # A credit note (COWORKER_INVOICE_CANCEL's output, see rule
+            # 12) is itself a separate CoworkerInvoice linked back to the
+            # one it credited via OriginalInvoiceGuid/OriginalInvoiceId —
+            # a genuine child-before-parent dependency within this one
+            # entity type, confirmed by the user. Sort credit notes
+            # (tracked with an OriginalInvoiceId) to the front of this
+            # batch so they're deleted before the invoice they reference.
+            items = sorted(items, key=lambda item: item[2].get("OriginalInvoiceId") is None)
+
         if entity in NO_DELETE_SUPPORT:
             print(f"--- {entity} ({len(items)}) --- SKIPPED (no delete support in API)")
             total_skipped_no_support += len(items)
@@ -249,7 +286,7 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None):
                 continue
 
             try:
-                _delete_one(entity, record_id, nexudus_delete, nexudus_run_command)
+                _delete_one(entity, record_id, nexudus_delete, nexudus_run_command, nexudus_list)
                 deleted_keys.add((path, i))
                 total_deleted += 1
             except Exception as e:  # noqa: BLE001 — log and continue tearing down the rest
@@ -292,4 +329,5 @@ if __name__ == "__main__":
     else:
         import nexudus_client as client
         run_teardown(nexudus_delete=client.nexudus_delete, dry_run=False,
-                     nexudus_run_command=client.nexudus_run_command)
+                     nexudus_run_command=client.nexudus_run_command,
+                     nexudus_list=client.nexudus_list)
