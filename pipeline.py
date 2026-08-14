@@ -31,6 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import config
 import nexudus_client as client
 import report_lib
 
@@ -192,6 +193,15 @@ def run_up_to(layer_index, dry_run=False, business_id=None):
                 print(gen.summary_line())
                 for key in totals:
                     totals[key] += gen.counts[key]
+                if not dry_run:
+                    # Once this layer's entities are done, their CSVs are
+                    # complete — write them now rather than waiting for the
+                    # whole run to finish. Re-derives the full picture from
+                    # all created-ids files every time (cheap at this record
+                    # volume), so it's also correct standalone (a single
+                    # `python3 generators/03_contracts.py` run still gets
+                    # every entity's CSV refreshed, not just its own).
+                    report_lib.write_entity_csvs(config.OUTPUT_DIR)
     finally:
         print(f"\nTotal — Created: {totals['created']}  Skipped: {totals['skipped']}  Failed: {totals['failed']}")
         if not dry_run:
@@ -200,7 +210,9 @@ def run_up_to(layer_index, dry_run=False, business_id=None):
             print("\n=== What's in the account now ===")
             print("\n".join(report_lib.report_lines()))
             report_lib.write_report(report_lib.REPORT_PATH)
-            print(f"\n(saved to {report_lib.REPORT_PATH})")
+            config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+            report_lib.write_report(config.OUTPUT_DIR / "run-report.txt")
+            print(f"\n(saved to {report_lib.REPORT_PATH} and {config.OUTPUT_DIR})")
 
     return prev_output
 

@@ -81,6 +81,17 @@ class TestConfigurableGenerators(unittest.TestCase):
         bookings = prebuild.generate_bookings(self.rng, coworkers, visitors, total=12)
         self.assertEqual(len(bookings), 12)
 
+    def test_generate_bookings_below_fixed_recurring_count(self):
+        # RECURRING_BOOKING_DEFS always sums to 10 — a total below that used
+        # to still produce all 10 recurring bookings regardless of what was
+        # requested (e.g. total=1 produced 10). Should scale down instead.
+        coworkers = prebuild.generate_coworkers(self.rng, self.fake, count=10)
+        visitors = prebuild.generate_visitors(self.rng, self.fake, coworker_count=10, count=5)
+        for total in [0, 1, 5, 9]:
+            with self.subTest(total=total):
+                bookings = prebuild.generate_bookings(self.rng, coworkers, visitors, total=total)
+                self.assertEqual(len(bookings), total)
+
     def test_generate_checkins_small_total_no_crash(self):
         coworkers = prebuild.generate_coworkers(self.rng, self.fake, count=10)
         # This used to crash: rng.sample(pool, 5) when the resolved pool has

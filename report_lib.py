@@ -11,6 +11,7 @@ not config.VOLUMES' fixed default. Everything else still compares against
 VOLUMES, since those entities have no per-run override.
 """
 
+import csv
 import json
 from pathlib import Path
 
@@ -63,9 +64,18 @@ DATA_FILE_BY_VOLUME_KEY = {
 }
 
 
-def tracked_counts():
-    """{entity: count}, tallied from every data/created-ids/*.json record."""
-    counts = {}
+def _grouped_records():
+    """(by_entity, malformed_count) — every data/created-ids/*.json record,
+    grouped by its "entity" tag. Records missing that tag aren't a real
+    entity (they're not what track_id() produces) — most likely a stray
+    file sitting in data/created-ids/ that belongs elsewhere (e.g.
+    prebuild.py's plan output, which lives in data/ instead — this is
+    exactly what silently inflated a bogus "?" row here before). They're
+    counted separately rather than folded into the table so that keeps
+    happening loudly instead of quietly.
+    """
+    by_entity = {}
+    malformed_count = 0
     if CREATED_IDS_DIR.exists():
         for path in sorted(CREATED_IDS_DIR.glob("*.json")):
             try:
@@ -73,9 +83,18 @@ def tracked_counts():
             except json.JSONDecodeError:
                 records = []
             for r in records:
-                entity = r.get("entity", "?")
-                counts[entity] = counts.get(entity, 0) + 1
-    return counts
+                entity = r.get("entity")
+                if entity is None:
+                    malformed_count += 1
+                    continue
+                by_entity.setdefault(entity, []).append(r)
+    return by_entity, malformed_count
+
+
+def tracked_counts():
+    """{entity: count}, tallied from every data/created-ids/*.json record."""
+    by_entity, _malformed_count = _grouped_records()
+    return {entity: len(records) for entity, records in by_entity.items()}
 
 
 def target_for(entity):
@@ -96,8 +115,9 @@ def target_for(entity):
 
 def report_lines():
     """The full 'what's in the account' table, as a list of printable lines."""
-    counts = tracked_counts()
-    if not counts:
+    by_entity, malformed_count = _grouped_records()
+    counts = {entity: len(records) for entity, records in by_entity.items()}
+    if not counts and not malformed_count:
         return ["No tracked records found — nothing has been seeded live yet."]
 
     lines = [f"{'Entity':<32} {'Created':>8} {'Target':>8}", "-" * 50]
@@ -108,7 +128,34 @@ def report_lines():
         lines.append(f"{entity:<32} {created:>8} {str(target) if target is not None else '-':>8}{flag}")
     lines.append("")
     lines.append(f"Total tracked records: {sum(counts.values())}")
+    if malformed_count:
+        lines.append("")
+        lines.append(
+            f"WARNING: {malformed_count} records across data/created-ids/*.json are "
+            f"missing an 'entity' tag and were excluded from the counts above — "
+            f"check data/created-ids/ for stray files that belong in data/ instead."
+        )
     return lines
+
+
+def write_entity_csvs(output_dir):
+    """One CSV per entity, from the full accumulated created-ids records —
+    each track_id() call across the generators now stores the full live
+    record (create response, or the matching record from a list/get lookup),
+    not just a curated few fields, so this needs no extra Nexudus calls of
+    its own. Overwrites on every call, which is safe (and simple) since it
+    always re-derives the complete picture from data/created-ids/*.json
+    rather than trying to append incrementally."""
+    by_entity, _malformed_count = _grouped_records()
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for entity, rows in by_entity.items():
+        fieldnames = ["Id"] + sorted({k for r in rows for k in r if k not in ("Id", "entity")})
+        with (output_dir / f"{entity}.csv").open("w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, restval="", extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
 
 
 def write_report(path):

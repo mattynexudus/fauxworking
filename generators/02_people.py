@@ -157,7 +157,7 @@ class PeopleGenerator(BaseGenerator):
                     raise
                 self.coworker_ids[idx] = result["Id"]
                 self.track_id({
-                    "entity": "coworkers", "Id": result["Id"],
+                    "entity": "coworkers", **result,
                     "Email": email, "Scenario": defn["Scenario"],
                     "Index": idx,
                 })
@@ -204,7 +204,7 @@ class PeopleGenerator(BaseGenerator):
                 result = nexudus_create("visitors", body)
                 self.visitor_ids[idx] = result["Id"]
                 self.track_id({
-                    "entity": "visitors", "Id": result["Id"],
+                    "entity": "visitors", **result,
                     "Email": email, "Index": idx,
                 })
                 self.log.info("Created visitor #%d '%s' (id=%s)",

@@ -165,7 +165,7 @@ class ContractsGenerator(BaseGenerator):
                 result = nexudus_create("coworkercontracts", body)
                 self.contract_ids[idx] = result["Id"]
                 self.track_id({
-                    "entity": "coworkercontracts", "Id": result["Id"],
+                    "entity": "coworkercontracts", **result,
                     "ContractIndex": track_key, "Scenario": defn["Scenario"],
                 })
                 self.log.info("Created contract #%d [%s/%s] (id=%s)",
@@ -200,7 +200,7 @@ class ContractsGenerator(BaseGenerator):
             else:
                 result = nexudus_create("contractproducts", body)
                 self.track_id({
-                    "entity": "contractproducts", "Id": result["Id"],
+                    "entity": "contractproducts", **result,
                     "ContractProductIndex": track_key,
                 })
                 self.log.info("Created contract product #%d on contract #%d (id=%s)",
@@ -237,7 +237,7 @@ class ContractsGenerator(BaseGenerator):
             else:
                 result = nexudus_create("contractpausedperiods", body)
                 self.track_id({
-                    "entity": "contractpausedperiods", "Id": result["Id"],
+                    "entity": "contractpausedperiods", **result,
                     "PausedPeriodIndex": track_key,
                 })
                 self.log.info("Created paused period #%d [%s] on contract #%d (id=%s)",
@@ -273,7 +273,7 @@ class ContractsGenerator(BaseGenerator):
             else:
                 result = nexudus_create("contractdeposits", body)
                 self.track_id({
-                    "entity": "contractdeposits", "Id": result["Id"],
+                    "entity": "contractdeposits", **result,
                     "DepositIndex": track_key,
                 })
                 self.log.info("Created deposit #%d on contract #%d (id=%s)",
@@ -310,7 +310,7 @@ class ContractsGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkerinventoryassets", body)
                 self.track_id({
-                    "entity": "coworkerinventoryassets", "Id": result["Id"],
+                    "entity": "coworkerinventoryassets", **result,
                     "InventoryAssignmentIndex": track_key,
                 })
                 self.log.info("Assigned '%s' to coworker #%d (id=%s)",
@@ -340,9 +340,9 @@ class ContractsGenerator(BaseGenerator):
             if self.dry_run:
                 self.log.info("WOULD UPDATE floorplandesks %s: %s", desk_id, json.dumps(body))
             else:
-                nexudus_update("floorplandesks", desk_id, body)
+                result = nexudus_update("floorplandesks", desk_id, body)
                 self.track_id({
-                    "entity": "floorplandesks", "Id": desk_id,
+                    "entity": "floorplandesks", **result,
                     "DeskAssignmentIndex": track_key,
                 })
                 self.log.info("Assigned desk '%s' to coworker #%d",

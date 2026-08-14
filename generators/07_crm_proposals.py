@@ -200,7 +200,7 @@ class CrmProposalsGenerator(BaseGenerator):
                     continue
                 self.opportunity_ids[idx] = result["Id"]
                 self.track_id({
-                    "entity": "crmopportunities", "Id": result["Id"],
+                    "entity": "crmopportunities", **result,
                     "OpportunityIndex": track_key, "Stage": stage,
                 })
                 self.log.info("Created opportunity #%d [%s] (id=%s)", idx, stage, result["Id"])
@@ -233,7 +233,7 @@ class CrmProposalsGenerator(BaseGenerator):
             else:
                 result = nexudus_create("crmopportunityhistories", body)
                 self.track_id({
-                    "entity": "crmopportunityhistories", "Id": result["Id"], "HistoryIndex": track_key,
+                    "entity": "crmopportunityhistories", **result, "HistoryIndex": track_key,
                 })
                 self.log.info("Created history #%d (%s -> %s) on opportunity #%d (id=%s)",
                               defn["index"], defn["OldStage"], defn["NewStage"],
@@ -291,7 +291,7 @@ class CrmProposalsGenerator(BaseGenerator):
                 self.proposal_ids[idx] = result["Id"]
                 self.proposal_guids[idx] = result.get("UniqueId")
                 self.track_id({
-                    "entity": "proposals", "Id": result["Id"], "ProposalIndex": track_key,
+                    "entity": "proposals", **result, "ProposalIndex": track_key,
                     "TargetStatus": defn["ProposalStatus"], "UniqueId": result.get("UniqueId"),
                 })
                 self.log.info("Created proposal #%d '%s' (id=%s)", idx, defn["Reference"], result["Id"])
@@ -355,7 +355,7 @@ class CrmProposalsGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkerdatafiles", body)
                 self.track_id({
-                    "entity": "coworkerdatafiles", "Id": result["Id"], "DataFileIndex": track_key,
+                    "entity": "coworkerdatafiles", **result, "DataFileIndex": track_key,
                 })
                 self.log.info("Created data file #%d (id=%s)", defn["index"], result["Id"])
 

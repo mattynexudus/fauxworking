@@ -176,7 +176,7 @@ class ActivityGenerator(BaseGenerator):
                     raise
                 self.booking_ids[idx] = result["Id"]
                 self.track_id({
-                    "entity": "bookings", "Id": result["Id"], "BookingIndex": track_key,
+                    "entity": "bookings", **result, "BookingIndex": track_key,
                     "ToCancel": defn["ToCancel"],
                 })
                 self.log.info("Created booking #%d on '%s' (id=%s)",
@@ -218,7 +218,7 @@ class ActivityGenerator(BaseGenerator):
                 else:
                     result = nexudus_create("bookingvisitors", body)
                     self.track_id({
-                        "entity": "bookingvisitors", "Id": result["Id"], "GuestKey": track_key,
+                        "entity": "bookingvisitors", **result, "GuestKey": track_key,
                         "BookingIndex": defn["index"],
                     })
                     self.log.info("Linked visitor #%d to booking #%d (id=%s)",
@@ -344,7 +344,7 @@ class ActivityGenerator(BaseGenerator):
                                       defn["index"], e2, skip=True)
                     continue
 
-            self.track_id({"entity": "checkins", "Id": result["Id"], "CheckinIndex": track_key})
+            self.track_id({"entity": "checkins", **result, "CheckinIndex": track_key})
             self.log.info("Created check-in #%d (id=%s)", defn["index"], result["Id"])
 
     def _grant_day_pass(self, biz, coworker_id, day_pass_id, checkin_day_offset,
@@ -365,7 +365,7 @@ class ActivityGenerator(BaseGenerator):
             return None
 
         self.track_id({
-            "entity": "coworkertimepasses", "Id": result["Id"],
+            "entity": "coworkertimepasses", **result,
             "GrantedForCheckin": True,
         })
         try:
@@ -423,7 +423,7 @@ class ActivityGenerator(BaseGenerator):
                         "coworkerextraservices", {"CoworkerExtraService_BookingId": booking_id})), None)
                     self.track_id({
                         "entity": "coworkerextraservices",
-                        "Id": charge["Id"] if charge else f"charge-booking-{booking_id}",
+                        **(charge if charge else {"Id": f"charge-booking-{booking_id}"}),
                         "ExtraServiceIndex": track_key, "Kind": defn["Kind"],
                     })
                     self.log.info("Charged booking #%d [%s] (booking id=%s)",
@@ -448,7 +448,7 @@ class ActivityGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkerextraservices", body)
                 self.track_id({
-                    "entity": "coworkerextraservices", "Id": result["Id"],
+                    "entity": "coworkerextraservices", **result,
                     "ExtraServiceIndex": track_key, "Kind": defn["Kind"],
                 })
                 self.log.info("Created extra service #%d [%s] (id=%s)",
@@ -499,7 +499,7 @@ class ActivityGenerator(BaseGenerator):
                     raise
                 self.credit_ids[idx] = result["Id"]
                 self.track_id({
-                    "entity": "coworkerbookingcredits", "Id": result["Id"],
+                    "entity": "coworkerbookingcredits", **result,
                     "CreditIndex": track_key, "Bucket": defn["Bucket"],
                 })
                 self.log.info("Created booking credit #%d [%s] (id=%s)",
@@ -542,7 +542,7 @@ class ActivityGenerator(BaseGenerator):
                         defn["index"], defn["CreditIndex"], e, skip=True)
                     continue
                 self.track_id({
-                    "entity": "coworkerbookingcreditusehistories", "Id": result["Id"],
+                    "entity": "coworkerbookingcreditusehistories", **result,
                     "UseHistoryIndex": track_key,
                 })
                 self.log.info("Created credit use #%d on credit #%d (id=%s)",
@@ -579,7 +579,7 @@ class ActivityGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkertimepasses", body)
                 self.track_id({
-                    "entity": "coworkertimepasses", "Id": result["Id"],
+                    "entity": "coworkertimepasses", **result,
                     "TimePassIndex": track_key, "Status": defn["Status"],
                 })
                 self.log.info("Created time pass #%d [%s] (id=%s)",
@@ -624,7 +624,7 @@ class ActivityGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkerproducts", body)
                 self.track_id({
-                    "entity": "coworkerproducts", "Id": result["Id"],
+                    "entity": "coworkerproducts", **result,
                     "CoworkerProductIndex": track_key,
                 })
                 self.log.info("Created coworker product #%d (id=%s)", defn["index"], result["Id"])

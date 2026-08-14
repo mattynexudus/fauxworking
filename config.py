@@ -159,3 +159,4 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent
 DATA_DIR = PROJECT_ROOT / "data"
 CREATED_IDS_DIR = DATA_DIR / "created-ids"
+OUTPUT_DIR = PROJECT_ROOT / "output"

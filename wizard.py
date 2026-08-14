@@ -151,7 +151,13 @@ def collect_volumes(args):
         if cli_value is not None:
             overrides[volume_key] = cli_value
         else:
-            overrides[volume_key] = _prompt_int(VOLUME_LABELS[volume_key], config.VOLUMES[volume_key])
+            default = config.VOLUMES[volume_key]
+            if volume_key == "coworkers":
+                # Suggest a default that's already within the daily API limit
+                # instead of showing 60 and immediately warning-and-capping
+                # it down to 50 the moment someone accepts it.
+                default = min(default, COWORKER_DAILY_LIMIT)
+            overrides[volume_key] = _prompt_int(VOLUME_LABELS[volume_key], default)
         if volume_key == "coworkers":
             overrides[volume_key] = _cap_coworkers(overrides[volume_key])
     print()

@@ -130,7 +130,7 @@ class ReferenceGenerator(BaseGenerator):
             else:
                 result = nexudus_create("taxrates", body)
                 self.tax_rate_ids[name] = result["Id"]
-                self.track_id({"entity": "taxrates", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "taxrates", **result, "Name": name})
                 self.log.info("Created tax rate '%s' (id=%s)", name, result["Id"])
 
     def _create_financial_accounts(self, nexudus_list, nexudus_create):
@@ -153,7 +153,7 @@ class ReferenceGenerator(BaseGenerator):
             else:
                 result = nexudus_create("financialaccounts", body)
                 self.fin_account_ids[code] = result["Id"]
-                self.track_id({"entity": "financialaccounts", "Id": result["Id"], "Code": code})
+                self.track_id({"entity": "financialaccounts", **result, "Code": code})
                 self.log.info("Created account '%s' (id=%s)", code, result["Id"])
 
     def _create_resource_types(self, nexudus_list, nexudus_create):
@@ -176,7 +176,7 @@ class ReferenceGenerator(BaseGenerator):
             else:
                 result = nexudus_create("resourcetypes", body)
                 self.resource_type_ids[name] = result["Id"]
-                self.track_id({"entity": "resourcetypes", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "resourcetypes", **result, "Name": name})
                 self.log.info("Created resource type '%s' (id=%s)", name, result["Id"])
 
 

@@ -470,7 +470,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create(entity, body)
                 id_map[name] = result["Id"]
-                self.track_id({"entity": entity, "Id": result["Id"], "Name": name})
+                self.track_id({"entity": entity, **result, "Name": name})
                 self.log.info("Created '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
@@ -511,7 +511,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("tariffs", body)
                 self.tariff_ids[name] = result["Id"]
-                self.track_id({"entity": "tariffs", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "tariffs", **result, "Name": name})
                 self.log.info("Created tariff '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
@@ -549,7 +549,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("products", body)
                 self.product_ids[name] = result["Id"]
-                self.track_id({"entity": "products", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "products", **result, "Name": name})
                 self.log.info("Created product '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
@@ -594,7 +594,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("extraservices", body)
                 self.extra_service_ids[name] = result["Id"]
-                self.track_id({"entity": "extraservices", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "extraservices", **result, "Name": name})
                 self.log.info("Created extra service '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
@@ -621,7 +621,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("timepasses", body)
                 self.time_pass_ids[name] = result["Id"]
-                self.track_id({"entity": "timepasses", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "timepasses", **result, "Name": name})
                 self.log.info("Created time pass '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
@@ -670,7 +670,7 @@ class StructuralGenerator(BaseGenerator):
             self.log_would_create("tarifftimepasses", body)
         else:
             result = nexudus_create("tarifftimepasses", body)
-            self.track_id({"entity": "tarifftimepasses", "Id": result["Id"], "Tariff": tariff_name})
+            self.track_id({"entity": "tarifftimepasses", **result, "Tariff": tariff_name})
             self.log.info("Added Day Pass benefit (%dx) to '%s' (id=%s)",
                           passes_included, tariff_name, result["Id"])
 
@@ -690,7 +690,7 @@ class StructuralGenerator(BaseGenerator):
             self.log_would_create("tariffextraservices", body)
         else:
             result = nexudus_create("tariffextraservices", body)
-            self.track_id({"entity": "tariffextraservices", "Id": result["Id"], "Tariff": tariff_name})
+            self.track_id({"entity": "tariffextraservices", **result, "Tariff": tariff_name})
             self.log.info("Added %s benefit (%d) to '%s' (id=%s)",
                           label, uses_included, tariff_name, result["Id"])
 
@@ -725,7 +725,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("resources", body)
                 self.resource_ids[name] = result["Id"]
-                self.track_id({"entity": "resources", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "resources", **result, "Name": name})
                 self.log.info("Created resource '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
@@ -760,7 +760,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("floorplans", body)
                 self.floor_plan_ids[name] = result["Id"]
-                self.track_id({"entity": "floorplans", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "floorplans", **result, "Name": name})
                 self.log.info("Created floor plan '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
@@ -800,7 +800,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("floorplandesks", body)
                 self.floor_plan_desk_ids[name] = result["Id"]
-                self.track_id({"entity": "floorplandesks", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "floorplandesks", **result, "Name": name})
                 self.log.info("Created desk '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
@@ -844,7 +844,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("inventoryassets", body)
                 self.inventory_asset_ids[name] = result["Id"]
-                self.track_id({"entity": "inventoryassets", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "inventoryassets", **result, "Name": name})
                 self.log.info("Created asset '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
@@ -879,7 +879,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("discountcodes", body)
                 self.discount_code_ids[code] = result["Id"]
-                self.track_id({"entity": "discountcodes", "Id": result["Id"], "Code": code})
+                self.track_id({"entity": "discountcodes", **result, "Code": code})
                 self.log.info("Created discount '%s' (id=%s)", code, result["Id"])
 
     # ------------------------------------------------------------------
@@ -902,7 +902,7 @@ class StructuralGenerator(BaseGenerator):
             else:
                 result = nexudus_create("crmboards", {**defn, "BusinessId": biz})
                 self.crm_board_ids[name] = result["Id"]
-                self.track_id({"entity": "crmboards", "Id": result["Id"], "Name": name})
+                self.track_id({"entity": "crmboards", **result, "Name": name})
                 self.log.info("Created board '%s' (id=%s)", name, result["Id"])
 
         # Columns
@@ -939,7 +939,7 @@ class StructuralGenerator(BaseGenerator):
                 else:
                     result = nexudus_create("crmboardcolumns", body)
                     self.crm_board_column_ids[full_key] = result["Id"]
-                    self.track_id({"entity": "crmboardcolumns", "Id": result["Id"],
+                    self.track_id({"entity": "crmboardcolumns", **result,
                                    "Board": board_short_name, "Name": col_name})
                     self.log.info("Created column '%s' (id=%s)", full_key, result["Id"])
 

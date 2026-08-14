@@ -145,7 +145,7 @@ class CommunityGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkerdeliveries", body)
                 self.track_id({
-                    "entity": "coworkerdeliveries", "Id": result["Id"], "DeliveryIndex": track_key,
+                    "entity": "coworkerdeliveries", **result, "DeliveryIndex": track_key,
                 })
                 self.log.info("Created delivery #%d [%s] (id=%s)",
                               defn["index"], defn["Outcome"], result["Id"])
@@ -209,7 +209,7 @@ class CommunityGenerator(BaseGenerator):
                 result = nexudus_create("calendarevents", body)
                 self.event_ids[idx] = result["Id"]
                 self.track_id({
-                    "entity": "calendarevents", "Id": result["Id"], "EventIndex": track_key,
+                    "entity": "calendarevents", **result, "EventIndex": track_key,
                 })
                 self.log.info("Created event #%d '%s' (id=%s)", idx, defn["Name"], result["Id"])
 
@@ -250,7 +250,7 @@ class CommunityGenerator(BaseGenerator):
                 result = nexudus_create("eventproducts", body)
                 self.event_product_ids[idx] = result["Id"]
                 self.track_id({
-                    "entity": "eventproducts", "Id": result["Id"], "EventProductIndex": track_key,
+                    "entity": "eventproducts", **result, "EventProductIndex": track_key,
                 })
                 self.log.info("Created ticket for event #%d (id=%s)", defn["EventIndex"], result["Id"])
 
@@ -301,7 +301,7 @@ class CommunityGenerator(BaseGenerator):
                                       defn["index"], e, skip=True)
                     continue
                 self.track_id({
-                    "entity": "eventattendees", "Id": result["Id"], "AttendeeIndex": track_key,
+                    "entity": "eventattendees", **result, "AttendeeIndex": track_key,
                 })
                 self.log.info("Registered attendee #%d for event #%d (id=%s)",
                               defn["index"], defn["EventIndex"], result["Id"])
@@ -338,7 +338,7 @@ class CommunityGenerator(BaseGenerator):
             else:
                 result = nexudus_create("helpdeskmessages", body)
                 self.track_id({
-                    "entity": "helpdeskmessages", "Id": result["Id"], "HelpDeskIndex": track_key,
+                    "entity": "helpdeskmessages", **result, "HelpDeskIndex": track_key,
                 })
                 self.log.info("Created help desk ticket #%d [%s] (id=%s)",
                               defn["index"], defn["DepartmentName"], result["Id"])
@@ -380,7 +380,7 @@ class CommunityGenerator(BaseGenerator):
                 result = nexudus_create("communitythreads", body)
                 self.thread_ids[idx] = result["Id"]
                 self.track_id({
-                    "entity": "communitythreads", "Id": result["Id"], "ThreadIndex": track_key,
+                    "entity": "communitythreads", **result, "ThreadIndex": track_key,
                 })
                 self.log.info("Created thread #%d [%s] (id=%s)", idx, defn["GroupName"], result["Id"])
 
@@ -416,7 +416,7 @@ class CommunityGenerator(BaseGenerator):
             else:
                 result = nexudus_create("communitymessages", body)
                 self.track_id({
-                    "entity": "communitymessages", "Id": result["Id"], "MessageIndex": track_key,
+                    "entity": "communitymessages", **result, "MessageIndex": track_key,
                 })
                 self.log.info("Created reply #%d on thread #%d (id=%s)",
                               defn["index"], defn["ThreadIndex"], result["Id"])
@@ -449,7 +449,7 @@ class CommunityGenerator(BaseGenerator):
             else:
                 result = nexudus_create("blogposts", body)
                 self.track_id({
-                    "entity": "blogposts", "Id": result["Id"], "BlogPostIndex": track_key,
+                    "entity": "blogposts", **result, "BlogPostIndex": track_key,
                 })
                 self.log.info("Created blog post #%d '%s' (id=%s)",
                               defn["index"], defn["Title"], result["Id"])
@@ -484,7 +484,7 @@ class CommunityGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkertasks", body)
                 self.track_id({
-                    "entity": "coworkertasks", "Id": result["Id"], "TaskIndex": track_key,
+                    "entity": "coworkertasks", **result, "TaskIndex": track_key,
                 })
                 self.log.info("Created task #%d '%s' (id=%s)", defn["index"], defn["Name"], result["Id"])
 

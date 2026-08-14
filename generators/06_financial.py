@@ -297,7 +297,7 @@ class FinancialGenerator(BaseGenerator):
             track_key = str(inv["Id"])
             if not self.already_created("DiscoveredInvoiceId", track_key):
                 self.track_id({
-                    "entity": "coworkerinvoices", "Id": inv["Id"], "DiscoveredInvoiceId": track_key,
+                    "entity": "coworkerinvoices", **inv, "DiscoveredInvoiceId": track_key,
                 })
 
         return invoices
@@ -330,7 +330,7 @@ class FinancialGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkerledgerentries", body)
                 self.track_id({
-                    "entity": "coworkerledgerentries", "Id": result["Id"], "PaidInvoiceId": track_key,
+                    "entity": "coworkerledgerentries", **result, "PaidInvoiceId": track_key,
                 })
                 self.log.info("Paid invoice %s (id=%s)", inv.get("Id"), result["Id"])
 
@@ -368,7 +368,7 @@ class FinancialGenerator(BaseGenerator):
                 continue
             nexudus_run_command("coworkerinvoices", "VOID_INVOICE", [inv["Id"]])
             self.track_id({
-                "entity": "coworkerinvoices", "Id": inv["Id"], "VoidedInvoiceId": track_key,
+                "entity": "coworkerinvoices", **inv, "VoidedInvoiceId": track_key,
             })
             self.log.info("Voided invoice %s", inv["Id"])
 
@@ -387,7 +387,9 @@ class FinancialGenerator(BaseGenerator):
             ])
             credit_note_id = result[0]["Id"] if result else None
             self.track_id({
-                "entity": "coworkerinvoices", "Id": credit_note_id, "CreditedInvoiceId": track_key,
+                "entity": "coworkerinvoices",
+                **(result[0] if result else {"Id": credit_note_id}),
+                "CreditedInvoiceId": track_key,
                 "OriginalInvoiceId": inv["Id"],
             })
             self.log.info("Issued credit note for invoice %s (new credit note invoice id=%s)",
@@ -443,7 +445,7 @@ class FinancialGenerator(BaseGenerator):
                                   inv["Id"], e, skip=True)
                 continue
             self.track_id({
-                "entity": "coworkerinvoices", "Id": inv["Id"], "RefundedInvoiceId": track_key,
+                "entity": "coworkerinvoices", **inv, "RefundedInvoiceId": track_key,
             })
             self.log.info("Refunded invoice %s", inv["Id"])
             refunded += 1
@@ -514,7 +516,7 @@ class FinancialGenerator(BaseGenerator):
                 continue
 
             self.track_id({
-                "entity": "coworkerinvoices", "Id": inv_id, "BackdatedInvoiceId": track_key,
+                "entity": "coworkerinvoices", **current, "BackdatedInvoiceId": track_key,
             })
             self.log.info("Backdated invoice %s by %d days (CreatedOn now %s)",
                           inv_id, days_ago, body.get("CreatedOn"))
@@ -552,7 +554,7 @@ class FinancialGenerator(BaseGenerator):
             else:
                 result = nexudus_create("coworkerledgerentries", body)
                 self.track_id({
-                    "entity": "coworkerledgerentries", "Id": result["Id"], "SupplementIndex": track_key,
+                    "entity": "coworkerledgerentries", **result, "SupplementIndex": track_key,
                 })
                 self.log.info("Created ledger supplement #%d (id=%s)", i, result["Id"])
 

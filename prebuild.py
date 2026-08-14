@@ -608,8 +608,18 @@ def generate_bookings(rng, coworkers, visitors, total=None):
     rest one-off, with a proportional slice flagged to-cancel and layered
     BookingProducts/guests, all scaled off `total`."""
     total = VOLUMES["bookings_total"] if total is None else total
-    n_recurring = sum(d["count"] for d in RECURRING_BOOKING_DEFS)
-    n_one_off = max(0, total - n_recurring)
+    n_recurring_full = sum(d["count"] for d in RECURRING_BOOKING_DEFS)
+    if total >= n_recurring_full:
+        recurring_defs = RECURRING_BOOKING_DEFS
+        n_one_off = total - n_recurring_full
+    else:
+        # A small requested total shouldn't still produce all 10 fixed
+        # recurring bookings regardless — scale them down proportionally
+        # (same apportionment as everywhere else in this file) and skip
+        # one-offs entirely rather than overshoot `total`.
+        scaled = rescale_plan([(i, d["count"]) for i, d in enumerate(RECURRING_BOOKING_DEFS)], total)
+        recurring_defs = [{**RECURRING_BOOKING_DEFS[i], "count": c} for i, c in scaled if c > 0]
+        n_one_off = 0
 
     bookings = []
     idx = 0
@@ -632,7 +642,7 @@ def generate_bookings(rng, coworkers, visitors, total=None):
     def _overlaps(a_from, a_to, b_from, b_to):
         return a_from < b_to and b_from < a_to
 
-    for rdef in RECURRING_BOOKING_DEFS:
+    for rdef in recurring_defs:
         names, rate_name = RESOURCE_CATEGORIES[rdef["category"]]
         for _ in range(rdef["count"]):
             cw = rng.choice(active_pool)
