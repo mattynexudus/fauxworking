@@ -95,12 +95,13 @@ Usage:
 
 import json
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from generators.base import BaseGenerator, parse_args
-from config import DATA_DIR
+from config import DATA_DIR, TODAY, WINDOW_START
 
 # (description, code, debit, credit) — manual ledger adjustments unrelated
 # to any invoice. Code is free text; not an API-enforced convention.
@@ -120,6 +121,21 @@ class FinancialGenerator(BaseGenerator):
     CREDIT_NOTE_COUNT = 10
     REFUND_COUNT = 5
 
+    # How far into the past a raised invoice's dates can get shifted —
+    # reuses the same WINDOW_MONTHS (24) history every other layer spreads
+    # its data across, so invoice volume has the same spread as everything
+    # else instead of clustering at seed time. See _backdate_invoices.
+    INVOICE_BACKDATE_MAX_DAYS_AGO = (TODAY - WINDOW_START).days
+
+    # Every one of these round-tripped a changed value on a follow-up GET
+    # when tested directly against a live tracked invoice (PUT to
+    # coworkerinvoices) — including CreatedOn, which on every other entity
+    # in this codebase has always turned out to be a read-only, system-set
+    # audit timestamp. Confirmed live this is NOT the case here.
+    INVOICE_DATE_FIELDS = [
+        "CreatedOn", "DueDate", "InvoiceFromDate", "InvoiceToDate", "PaidOn", "RefundedOn", "SentOn",
+    ]
+
     def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_run_command, prev_output):
         biz = prev_output["business_id"]
         contract_defs = prev_output["contract_defs"]
@@ -134,6 +150,7 @@ class FinancialGenerator(BaseGenerator):
         self._void_and_credit_invoices(to_void, to_credit, nexudus_run_command)
         self._refund_invoices(to_refund, nexudus_run_command)
         self._create_ledger_supplements(biz, coworker_ids, nexudus_create)
+        self._backdate_invoices(invoices, biz, coworker_ids, nexudus_list, nexudus_update)
 
         self.log.info("Layer 5 Financial complete. Billed coworkers: %d, invoices seen: %d",
                       len(billing_coworker_ids), len(invoices))
@@ -360,6 +377,77 @@ class FinancialGenerator(BaseGenerator):
                 "entity": "coworkerinvoices", "Id": inv["Id"], "RefundedInvoiceId": track_key,
             })
             self.log.info("Refunded invoice %s", inv["Id"])
+
+    # ------------------------------------------------------------------
+    # Backdate invoice dates — for variety across the 24-month window
+    #
+    # COWORKER_BILL_RUN always raises an invoice dated "now" (it takes no
+    # date parameter), so every invoice this tool ever creates would
+    # otherwise cluster at whatever moment each seed run happened, which
+    # is far less meaningful for any report that cares about spread over
+    # time (aging, cash flow, month-over-month trends). Testing directly
+    # against a live tracked invoice confirmed the whole
+    # INVOICE_DATE_FIELDS set round-trips a changed value via a plain
+    # update — including CreatedOn, which is a read-only system timestamp
+    # on every other entity in this codebase.
+    #
+    # Runs last (after paying/voiding/crediting/refunding), and re-fetches
+    # fresh rather than reusing the `invoices` list from _list_invoices —
+    # PaidOn/RefundedOn don't exist until those actions actually run, so
+    # backdating off the pre-action snapshot would silently skip them.
+    # Every populated date field on a given invoice is shifted by ONE
+    # common delta (not recomputed independently per field), so the
+    # invoice's internal structure — days-to-due, billing period length,
+    # days-to-pay — stays intact; only *when* it happened moves.
+    # ------------------------------------------------------------------
+    def _backdate_invoices(self, invoices, biz, coworker_ids, nexudus_list, nexudus_update):
+        self.log.info("--- Backdating invoice dates for variety (up to %d days ago) ---",
+                      self.INVOICE_BACKDATE_MAX_DAYS_AGO)
+        if self.dry_run:
+            return
+
+        fresh = nexudus_list("coworkerinvoices", {"CoworkerInvoice_Business": biz})
+        our_coworker_ids = set(coworker_ids.values())
+        fresh_by_id = {inv["Id"]: inv for inv in fresh if inv.get("CoworkerId") in our_coworker_ids}
+
+        for inv in invoices:
+            inv_id = inv.get("Id")
+            track_key = str(inv_id)
+            if self.already_created("BackdatedInvoiceId", track_key):
+                continue
+
+            current = fresh_by_id.get(inv_id)
+            if current is None or not current.get("CreatedOn"):
+                continue
+
+            days_ago = self.rng.randint(1, self.INVOICE_BACKDATE_MAX_DAYS_AGO)
+            delta = -timedelta(days=days_ago)
+
+            body = {}
+            for field in self.INVOICE_DATE_FIELDS:
+                raw = current.get(field)
+                if not raw:
+                    continue
+                try:
+                    dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+                body[field] = (dt + delta).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            if not body:
+                continue
+
+            try:
+                nexudus_update("coworkerinvoices", inv_id, body)
+            except Exception as e:  # noqa: BLE001
+                self.log.warning("Failed to backdate invoice %s: %s", inv_id, e, skip=True)
+                continue
+
+            self.track_id({
+                "entity": "coworkerinvoices", "Id": inv_id, "BackdatedInvoiceId": track_key,
+            })
+            self.log.info("Backdated invoice %s by %d days (CreatedOn now %s)",
+                          inv_id, days_ago, body.get("CreatedOn"))
 
     # ------------------------------------------------------------------
     # Ledger supplements
