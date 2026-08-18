@@ -7,10 +7,11 @@ regenerates data/*.json via prebuild.generate_all, offers an optional
 preview (dry run) that flows straight into a real run in the same session
 if you confirm — no re-entering your answers, no restarting the script —
 then asks which business (location) to seed into if the login has access
-to more than one (see pipeline.list_businesses / pipeline._select_business),
-runs the pipeline via pipeline.run_up_to, and prints the per-layer/total
-summary and the QA-facing "what's in the account now" report as it goes
-(see generators/base.py and report_lib.py).
+to more than one (see pipeline.list_businesses / pipeline._select_business)
+and whether to export a CSV per entity to output/ once done (optional —
+see report_lib.write_entity_csvs), runs the pipeline via pipeline.run_up_to,
+and prints the per-layer/total summary and the QA-facing "what's in the
+account now" report as it goes (see generators/base.py and report_lib.py).
 
 Stdlib only — no new dependency beyond what's already in requirements.txt.
 
@@ -68,6 +69,9 @@ def parse_args():
                          help="Skip the live-run confirmation prompt (for non-interactive/scripted use)")
     parser.add_argument("--business-id", type=int, default=None,
                          help="Which business/location to seed into, if this login has access to more than one (default: prompt)")
+    parser.add_argument("--export-csv", action=argparse.BooleanOptionalAction, default=None,
+                         help="Write a CSV per entity (plus a copy of the run report) to output/ "
+                              "after a live run (default: prompt)")
     return parser.parse_args()
 
 
@@ -210,13 +214,24 @@ def collect_business_id(args):
         return businesses[choice - 1]["Id"]
 
 
+def collect_export_csvs(args):
+    """Whether to write a CSV per entity (plus a copy of the run report) to
+    output/ once the live run finishes — see report_lib.write_entity_csvs.
+    Only asked once we're actually about to go live; a dry run has nothing
+    real to export regardless."""
+    if args.export_csv is not None:
+        return args.export_csv
+    return _confirm("\nExport a CSV of everything created to output/ when done (recommended)?",
+                     default=True)
+
+
 def confirm_live():
     answer = input("\nThis will create real records in the live Nexudus account. "
                     "Type 'yes' to continue: ").strip()
     return answer == "yes"
 
 
-def run_live(layer_index, args):
+def run_live(layer_index, args, export_csvs):
     """Runs the live pipeline, retrying in place on failure rather than
     letting the whole wizard die and forcing a restart from scratch.
 
@@ -236,7 +251,7 @@ def run_live(layer_index, args):
     while True:
         print(f"\n=== Running layers 0-{layer_index} (LIVE) ===")
         try:
-            pipeline.run_up_to(layer_index, dry_run=False, business_id=business_id)
+            pipeline.run_up_to(layer_index, dry_run=False, business_id=business_id, write_csvs=export_csvs)
             print("\nDone.")
             return
         except Exception as e:
@@ -280,7 +295,8 @@ def main():
                 print("\nDone — no real records were created. Run `python3 wizard.py` again anytime.")
                 return
 
-    run_live(layer_index, args)
+    export_csvs = collect_export_csvs(args)
+    run_live(layer_index, args, export_csvs)
 
 
 if __name__ == "__main__":

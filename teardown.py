@@ -33,7 +33,16 @@ CoworkerProduct swept into one of them — could never be cleanly deleted).
 Records that fail to delete (or belong to a no-delete entity) are kept in
 the tracking file for a future retry; only confirmed deletions are cleared.
 
-After a live teardown finishes, it also offers to reset that business's
+After a live teardown finishes, it also offers to delete data/*.json — the
+pre-generated test data plan files prebuild.py writes and the generators
+read from (coworkers.json, bookings.json, ...). Teardown clearing the live
+account and data/created-ids/ tracking never touches these on its own —
+they're deliberately reusable across reseed cycles (see README's two-step
+data flow) — so keeping them is the default; this only offers to remove
+them too for someone who wants a genuinely clean project directory (see
+maybe_clear_generated_data below).
+
+It also offers to reset that business's
 Billing.Current{Booking,CreditNote,Draft,Invoice}Number counters back to 0
 (see maybe_reset_business_counters below) — deleting the tracked records
 doesn't roll these back, since Nexudus just keeps auto-incrementing them on
@@ -60,7 +69,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config import CREATED_IDS_DIR
+from config import CREATED_IDS_DIR, DATA_DIR
 
 # Reverse of the creation dependency order (§3) — children before parents.
 ENTITY_DELETE_ORDER = [
@@ -382,6 +391,34 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
     print("Updated data/created-ids/*.json to remove deleted records.")
 
 
+def maybe_clear_generated_data():
+    """Ask whether to also delete data/*.json — the pre-generated test data
+    plan files (coworkers.json, bookings.json, ...) that prebuild.py writes
+    and the generators read from. Teardown clearing the live account and
+    data/created-ids/ tracking (above) never touches these — they're
+    reusable across reseed cycles by design, so keeping them is the default;
+    this only offers to remove them too for someone who wants the project
+    directory itself back to a clean slate, not just the live account."""
+    files = sorted(DATA_DIR.glob("*.json"))
+    if not files:
+        return
+
+    print(f"\n--- Generated data files in {DATA_DIR} ---")
+    print(f"  {len(files)} files (coworkers.json, bookings.json, ...)")
+
+    answer = input(
+        "\nAlso delete these local generated data files? They're safe to keep — "
+        "prebuild.py overwrites them next time you generate new data anyway (y/N): "
+    ).strip().lower()
+    if answer != "y":
+        print("Keeping generated data files.")
+        return
+
+    for path in files:
+        path.unlink()
+    print(f"Deleted {len(files)} generated data files from {DATA_DIR}.")
+
+
 # The four auto-incrementing counters Nexudus bumps on every booking,
 # invoice, draft, and credit note — never rolled back by deleting the
 # records themselves, since they're settings on the business, not fields on
@@ -476,6 +513,13 @@ if __name__ == "__main__":
         run_teardown(nexudus_delete=client.nexudus_delete, dry_run=False,
                      nexudus_run_command=client.nexudus_run_command,
                      nexudus_list=client.nexudus_list)
+
+        try:
+            maybe_clear_generated_data()
+        except EOFError:
+            # No stdin to read from (piped/non-interactive run) — skip this
+            # optional offer cleanly, same as the counter-reset one below.
+            print("\n\nNo input available — skipping the generated-data cleanup offer.")
 
         try:
             businesses = list_businesses()

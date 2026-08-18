@@ -151,12 +151,19 @@ def _whoami(business_id=None):
     }
 
 
-def run_up_to(layer_index, dry_run=False, business_id=None):
+def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
     """Run layers 0..layer_index (inclusive), return the final prev_output.
 
     business_id picks which business (location) to seed into, for accounts
     with access to more than one — see _select_business(). Ignored in
     dry-run mode (MOCK_WHOAMI is used instead, nothing live is queried).
+
+    write_csvs controls the output/ folder (per-entity CSVs + a copy of the
+    run report) — on by default for every non-wizard caller (standalone
+    generators, `python3 pipeline.py`, scripts/seed_all.sh), but wizard.py
+    exposes it as an interactive/CLI choice since not everyone running the
+    guided flow wants it. Always skipped for a dry run regardless — there's
+    nothing real to export.
 
     Prints each layer's created/skipped/failed summary (see
     generators/base.py::BaseGenerator.summary_line) as it finishes, and the
@@ -193,7 +200,7 @@ def run_up_to(layer_index, dry_run=False, business_id=None):
                 print(gen.summary_line())
                 for key in totals:
                     totals[key] += gen.counts[key]
-                if not dry_run:
+                if not dry_run and write_csvs:
                     # Once this layer's entities are done, their CSVs are
                     # complete — write them now rather than waiting for the
                     # whole run to finish. Re-derives the full picture from
@@ -210,9 +217,12 @@ def run_up_to(layer_index, dry_run=False, business_id=None):
             print("\n=== What's in the account now ===")
             print("\n".join(report_lib.report_lines()))
             report_lib.write_report(report_lib.REPORT_PATH)
-            config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-            report_lib.write_report(config.OUTPUT_DIR / "run-report.txt")
-            print(f"\n(saved to {report_lib.REPORT_PATH} and {config.OUTPUT_DIR})")
+            if write_csvs:
+                config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+                report_lib.write_report(config.OUTPUT_DIR / "run-report.txt")
+                print(f"\n(saved to {report_lib.REPORT_PATH} and {config.OUTPUT_DIR})")
+            else:
+                print(f"\n(saved to {report_lib.REPORT_PATH})")
 
     return prev_output
 
