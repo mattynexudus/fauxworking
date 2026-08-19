@@ -72,6 +72,17 @@ class DailyUpdateGenerator(BaseGenerator):
         self._close_yesterdays_open_checkins(biz, nexudus_list, nexudus_update)
         self._collect_some_pending_deliveries(biz, nexudus_list, nexudus_update)
 
+        if not coworkers:
+            # Every entity created below needs a CoworkerId — if filtering
+            # to Active test-domain coworkers left nothing (all archived,
+            # or none seeded yet), there's genuinely nothing valid to
+            # attach today's records to. Skip cleanly instead of crashing
+            # on whichever call happens to run first.
+            self.log.warning(
+                "No active test-domain coworkers found — skipping today's "
+                "check-ins, bookings, visitors, and deliveries.", skip=True)
+            return
+
         self._create_checkins(biz, coworkers, nexudus_list, nexudus_create)
         self._create_bookings(coworkers, resource_ids, nexudus_create)
         self._create_visitors(biz, coworkers, visitors_seed, nexudus_create)
@@ -261,10 +272,20 @@ def resolve_context(nexudus_list):
     # Coworker_Email is an exact-match filter, not a substring/contains —
     # filtering by "@{domain}" always returns zero results. List every
     # coworker and filter client-side by domain instead.
+    #
+    # Also filter to Active coworkers only. Repeated reseed cycles on the
+    # same account can leave multiple coworker records behind for the same
+    # test email (confirmed live: 127 test-domain records for only 60
+    # unique emails on this account) — some active, some archived/inactive
+    # duplicates from an earlier cycle. Nexudus rejects creating a checkin/
+    # booking/delivery for an inactive coworker with a generic "This
+    # account is disabled" error, which previously surfaced as a raw
+    # traceback on whichever record happened to be picked. Filtering here
+    # means only genuinely usable coworkers are ever selected.
     all_coworkers = nexudus_list("coworkers", {})
     active_coworkers = [
         {"Id": c["Id"], "Email": c.get("Email")} for c in all_coworkers
-        if c.get("Email", "").endswith(f"@{TEST_EMAIL_DOMAIN}")
+        if c.get("Email", "").endswith(f"@{TEST_EMAIL_DOMAIN}") and c.get("Active")
     ]
 
     resources = nexudus_list("resources", {"Resource_Business": business_id})
