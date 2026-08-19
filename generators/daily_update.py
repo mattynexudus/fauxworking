@@ -41,7 +41,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from generators.base import BaseGenerator
-from config import TEST_EMAIL_DOMAIN, to_utc_str
+from config import TEST_EMAIL_DOMAIN, TEST_NAME_PREFIX, to_utc_str
 
 DELIVERY_NAMES = ["Amazon Parcel", "Bank Statement", "Office Supplies Box", "Client Payment Check"]
 
@@ -83,7 +83,7 @@ class DailyUpdateGenerator(BaseGenerator):
                 "check-ins, bookings, visitors, and deliveries.", skip=True)
             return
 
-        self._create_checkins(biz, coworkers, nexudus_list, nexudus_create)
+        self._create_checkins(biz, coworkers, context.get("day_pass_id"), nexudus_list, nexudus_create, nexudus_update)
         self._create_bookings(coworkers, resource_ids, nexudus_create)
         self._create_visitors(biz, coworkers, visitors_seed, nexudus_create)
         self._create_deliveries(biz, coworkers, nexudus_create)
@@ -144,7 +144,7 @@ class DailyUpdateGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     # Today's check-ins
     # ------------------------------------------------------------------
-    def _create_checkins(self, biz, coworkers, nexudus_list, nexudus_create):
+    def _create_checkins(self, biz, coworkers, day_pass_id, nexudus_list, nexudus_create, nexudus_update):
         count = self.rng.randint(8, 15)
         self.log.info("--- Today's Check-ins (%d) ---", count)
 
@@ -175,10 +175,64 @@ class DailyUpdateGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("checkins", body)
-            else:
+                continue
+
+            # An active contract doesn't always imply access on its own —
+            # same "no valid time pass" pattern already handled in
+            # 04_activity.py::_create_checkins. On that specific failure,
+            # grant a Day Pass covering today and retry once instead of
+            # crashing the whole daily run over one coworker.
+            try:
                 result = nexudus_create("checkins", body)
-                self.log.info("Created check-in (id=%s)", result["Id"])
-                self.count_create()
+            except Exception as e:  # noqa: BLE001
+                if "does not have a valid time pass" not in str(e) or day_pass_id is None:
+                    self.log.warning("Skipping check-in for coworker %s — create failed: %s",
+                                      cw["Id"], e, skip=True)
+                    continue
+                pass_guid = self._grant_day_pass(biz, cw["Id"], day_pass_id, nexudus_create, nexudus_update)
+                if pass_guid is None:
+                    self.log.warning("Skipping check-in for coworker %s — could not grant a covering day pass",
+                                      cw["Id"], skip=True)
+                    continue
+                body["CoworkerTimePassGuid"] = pass_guid
+                try:
+                    result = nexudus_create("checkins", body)
+                except Exception as e2:  # noqa: BLE001
+                    self.log.warning("Skipping check-in for coworker %s — still failed after granting a day pass: %s",
+                                      cw["Id"], e2, skip=True)
+                    continue
+
+            self.log.info("Created check-in (id=%s)", result["Id"])
+            self.count_create()
+
+    def _grant_day_pass(self, biz, coworker_id, day_pass_id, nexudus_create, nexudus_update):
+        """Create + mark-used a CoworkerTimePass covering today, for a
+        check-in that couldn't rely on implicit contract access — mirrors
+        04_activity.py::_grant_day_pass. Doesn't track_id() the pass
+        (this generator deliberately doesn't track IDs at all, see the
+        module docstring), but does count it as a real created record."""
+        body = {
+            "CoworkerId": coworker_id,
+            "BusinessId": biz,
+            "TimePassId": day_pass_id,
+            "CreateMultiple": 1,
+            "ExpireDate": self._at(0, day_delta=1),
+        }
+        try:
+            result = nexudus_create("coworkertimepasses", body)
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Failed to grant a day pass to coworker %s: %s", coworker_id, e)
+            return None
+        self.count_create()
+
+        try:
+            nexudus_update("coworkertimepasses", result["Id"], {
+                "Used": True,
+                "UsedDate": self._at(0),
+            })
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Granted day pass %s but failed to mark it used: %s", result["Id"], e)
+        return result.get("UniqueId")
 
     # ------------------------------------------------------------------
     # Today's bookings
@@ -291,6 +345,14 @@ def resolve_context(nexudus_list):
     resources = nexudus_list("resources", {"Resource_Business": business_id})
     resource_ids = {r["Name"]: r["Id"] for r in resources}
 
+    # Resolved for _grant_day_pass's "no valid time pass" fallback — see
+    # _create_checkins. None if this business has no "Day Pass" time pass
+    # (e.g. 01_structural.py hasn't been run yet); the fallback is then
+    # simply unavailable and a blocked check-in gets skipped instead.
+    timepasses = nexudus_list("timepasses", {"TimePass_Business": business_id})
+    day_pass_id = next(
+        (t["Id"] for t in timepasses if t.get("Name") == f"{TEST_NAME_PREFIX}Day Pass"), None)
+
     visitor_pool = [
         ("Alex Morgan", "alex.morgan.guest"), ("Jamie Chen", "jamie.chen.guest"),
         ("Priya Patel", "priya.patel.guest"), ("Sam Okafor", "sam.okafor.guest"),
@@ -301,6 +363,7 @@ def resolve_context(nexudus_list):
         "business_id": business_id,
         "active_coworkers": active_coworkers,
         "resource_ids": resource_ids,
+        "day_pass_id": day_pass_id,
         "visitor_pool": visitor_pool,
     }
 
@@ -320,6 +383,7 @@ if __name__ == "__main__":
             "business_id": "DRY-BIZ-1",
             "active_coworkers": [{"Id": f"DRY-CW-{i}", "Email": f"test-{i:03d}@seeddata.local"} for i in range(1, 61)],
             "resource_ids": {"Boardroom Alpha": "DRY-RES-1", "Hot Desk Area A": "DRY-RES-2"},
+            "day_pass_id": "DRY-TP-Day Pass",
             "visitor_pool": [("Alex Morgan", "alex.morgan.guest"), ("Jamie Chen", "jamie.chen.guest")],
         }
 
