@@ -1,4 +1,4 @@
-Report generated 2026-08-07T14:05:08.462325+00:00
+Report generated 2026-08-20T16:21:11.252883+00:00
 
 Entity                            Created   Target
 --------------------------------------------------
@@ -22,10 +22,9 @@ coworkerdatafiles                      10       10
 coworkerdeliveries                     40       40
 coworkerextraservices                  80       80
 coworkerinventoryassets                12       12
-coworkerinvoices                       20        -
-coworkerledgerentries                 365        -
+coworkerinvoices                      486        -
 coworkerproducts                       20       20
-coworkers                              60       60
+coworkers                              70       60
 coworkertasks                          20       20
 coworkertimepasses                    159       40
 crmboardcolumns                        10       10
@@ -55,4 +54,4 @@ teams                                   5        5
 timepasses                              4        4
 visitors                               60       60
 
-Total tracked records: 2255
+Total tracked records: 2366

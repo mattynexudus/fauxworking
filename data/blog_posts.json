@@ -2,26 +2,26 @@
   {
     "index": 1,
     "Title": "Welcome to Our New Space",
-    "SummaryText": "We're delighted to officially open our doors â€” here's what's new.",
+    "SummaryText": "We're delighted to officially open our doors — here's what's new.",
     "FullText": "After months of planning and renovation, we're thrilled to welcome you to the space. From redesigned hot desks to brand new meeting rooms, every corner has been built with our community in mind. Drop by reception if you'd like a tour, and keep an eye on this blog for updates as we settle in.",
     "PublishDayOffset": -365,
     "OnlyForMembers": false,
-    "ShowInHomePage": false
+    "ShowInHomePage": true
   },
   {
     "index": 2,
     "Title": "Summer Networking Tips",
     "SummaryText": "A few ideas for making the most of the community this summer.",
-    "FullText": "Summer is a great time to build new connections â€” the space tends to be a little quieter, which makes it easier to strike up conversations. Try grabbing a coffee at the shared kitchen during peak hours, joining one of our upcoming events, or posting an introduction in the Networking community group. You'd be surprised how many members are just as keen to meet new people as you are.",
+    "FullText": "Summer is a great time to build new connections — the space tends to be a little quieter, which makes it easier to strike up conversations. Try grabbing a coffee at the shared kitchen during peak hours, joining one of our upcoming events, or posting an introduction in the Networking community group. You'd be surprised how many members are just as keen to meet new people as you are.",
     "PublishDayOffset": -326,
-    "OnlyForMembers": false,
+    "OnlyForMembers": true,
     "ShowInHomePage": false
   },
   {
     "index": 3,
     "Title": "How to Maximise Your Hot Desk",
     "SummaryText": "Simple habits that make hot-desking smoother for everyone.",
-    "FullText": "Hot desking works best when a few small courtesies are followed: clear your desk at the end of the day, keep noise levels considerate near the quiet zones, and use the booking system if you know you'll need a specific spot. Lockers are available if you'd rather not carry everything home each evening â€” ask reception for details.",
+    "FullText": "Hot desking works best when a few small courtesies are followed: clear your desk at the end of the day, keep noise levels considerate near the quiet zones, and use the booking system if you know you'll need a specific spot. Lockers are available if you'd rather not carry everything home each evening — ask reception for details.",
     "PublishDayOffset": -286,
     "OnlyForMembers": true,
     "ShowInHomePage": true
@@ -30,9 +30,9 @@
     "index": 4,
     "Title": "New Facilities Announcement",
     "SummaryText": "Two new meeting rooms and an upgraded kitchen are now open.",
-    "FullText": "We've expanded our facilities based on member feedback. Two additional meeting rooms are now bookable through the app, and the kitchen has been upgraded with a second coffee machine and more fridge space. We're always listening â€” if there's something you'd like to see next, let the team know.",
+    "FullText": "We've expanded our facilities based on member feedback. Two additional meeting rooms are now bookable through the app, and the kitchen has been upgraded with a second coffee machine and more fridge space. We're always listening — if there's something you'd like to see next, let the team know.",
     "PublishDayOffset": -247,
-    "OnlyForMembers": true,
+    "OnlyForMembers": false,
     "ShowInHomePage": true
   },
   {
@@ -42,33 +42,33 @@
     "FullText": "Every so often we like to shine a light on members who've made this space feel like home. This month, we're celebrating someone who's been with us since the early days, has helped organise several community events, and is always the first to welcome newcomers. Thank you for everything you bring to this community.",
     "PublishDayOffset": -207,
     "OnlyForMembers": false,
-    "ShowInHomePage": true
+    "ShowInHomePage": false
   },
   {
     "index": 6,
     "Title": "Community Guidelines Update",
     "SummaryText": "A few updates to our community guidelines, effective this month.",
-    "FullText": "We've refreshed our community guidelines to keep things running smoothly as we grow. The key changes cover shared space etiquette, guest policies, and how to report an issue. Nothing here should come as a surprise â€” it's mostly a matter of putting into writing the standards we already hold ourselves to. Full details are available on the members portal.",
+    "FullText": "We've refreshed our community guidelines to keep things running smoothly as we grow. The key changes cover shared space etiquette, guest policies, and how to report an issue. Nothing here should come as a surprise — it's mostly a matter of putting into writing the standards we already hold ourselves to. Full details are available on the members portal.",
     "PublishDayOffset": -168,
     "OnlyForMembers": true,
-    "ShowInHomePage": false
+    "ShowInHomePage": true
   },
   {
     "index": 7,
     "Title": "Year in Review",
     "SummaryText": "Looking back at a busy year for the space and our community.",
-    "FullText": "It's been a big year â€” new members joined, new facilities opened, and dozens of events brought the community together. Thank you to everyone who made it what it was. We're already planning for an even better year ahead, with more events, more flexibility, and more ways to connect.",
+    "FullText": "It's been a big year — new members joined, new facilities opened, and dozens of events brought the community together. Thank you to everyone who made it what it was. We're already planning for an even better year ahead, with more events, more flexibility, and more ways to connect.",
     "PublishDayOffset": -128,
     "OnlyForMembers": false,
-    "ShowInHomePage": true
+    "ShowInHomePage": false
   },
   {
     "index": 8,
     "Title": "New Plans Available",
     "SummaryText": "A look at the new membership plans now available to join.",
-    "FullText": "Based on member feedback, we've introduced more flexible plan options â€” whether you need a dedicated desk, a private office, or just a few days a month. Existing members can switch plans at any time from the portal, and our team is happy to help you find the right fit.",
+    "FullText": "Based on member feedback, we've introduced more flexible plan options — whether you need a dedicated desk, a private office, or just a few days a month. Existing members can switch plans at any time from the portal, and our team is happy to help you find the right fit.",
     "PublishDayOffset": -89,
-    "OnlyForMembers": false,
+    "OnlyForMembers": true,
     "ShowInHomePage": true
   },
   {
@@ -77,16 +77,16 @@
     "SummaryText": "How to get the most out of the booking system.",
     "FullText": "Booking a room or resource is quick, but a few habits make it even smoother: book as early as you can for popular slots, cancel promptly if your plans change so others can use the space, and double check the resource capacity before inviting guests. The booking system is available in the app and on the web portal.",
     "PublishDayOffset": -49,
-    "OnlyForMembers": true,
-    "ShowInHomePage": true
+    "OnlyForMembers": false,
+    "ShowInHomePage": false
   },
   {
     "index": 10,
     "Title": "Upcoming Events This Quarter",
     "SummaryText": "A preview of the workshops, socials, and networking events coming up.",
-    "FullText": "We've got a packed quarter ahead â€” from hands-on workshops to casual social nights and focused networking sessions. Keep an eye on the events calendar and RSVP early, as spaces for some sessions are limited. We hope to see you there.",
+    "FullText": "We've got a packed quarter ahead — from hands-on workshops to casual social nights and focused networking sessions. Keep an eye on the events calendar and RSVP early, as spaces for some sessions are limited. We hope to see you there.",
     "PublishDayOffset": -10,
     "OnlyForMembers": false,
-    "ShowInHomePage": false
+    "ShowInHomePage": true
   }
 ]

@@ -1,86 +1,86 @@
 [
   {
     "index": 1,
-    "ContractIndex": 74,
-    "PauseFromMonthOffset": 3,
+    "ContractIndex": 53,
+    "PauseFromMonthOffset": -2,
+    "DurationMonths": 3,
+    "Bucket": "current"
+  },
+  {
+    "index": 2,
+    "ContractIndex": 63,
+    "PauseFromMonthOffset": 2,
     "DurationMonths": 1,
     "Bucket": "future"
   },
   {
-    "index": 2,
-    "ContractIndex": 12,
-    "PauseFromMonthOffset": -3,
-    "DurationMonths": 4,
-    "Bucket": "current"
-  },
-  {
     "index": 3,
-    "ContractIndex": 57,
-    "PauseFromMonthOffset": -2,
-    "DurationMonths": 2,
-    "Bucket": "current"
-  },
-  {
-    "index": 4,
-    "ContractIndex": 17,
-    "PauseFromMonthOffset": -7,
+    "ContractIndex": 37,
+    "PauseFromMonthOffset": -6,
     "DurationMonths": 1,
     "Bucket": "past"
   },
   {
-    "index": 5,
-    "ContractIndex": 1,
+    "index": 4,
+    "ContractIndex": 22,
     "PauseFromMonthOffset": 3,
-    "DurationMonths": 2,
+    "DurationMonths": 1,
     "Bucket": "future"
   },
   {
+    "index": 5,
+    "ContractIndex": 46,
+    "PauseFromMonthOffset": -7,
+    "DurationMonths": 3,
+    "Bucket": "past"
+  },
+  {
     "index": 6,
-    "ContractIndex": 30,
-    "PauseFromMonthOffset": -11,
-    "DurationMonths": 1,
+    "ContractIndex": 32,
+    "PauseFromMonthOffset": -7,
+    "DurationMonths": 3,
     "Bucket": "past"
   },
   {
     "index": 7,
-    "ContractIndex": 37,
+    "ContractIndex": 54,
+    "PauseFromMonthOffset": 1,
+    "DurationMonths": 1,
+    "Bucket": "future"
+  },
+  {
+    "index": 8,
+    "ContractIndex": 30,
+    "PauseFromMonthOffset": 4,
+    "DurationMonths": 2,
+    "Bucket": "future"
+  },
+  {
+    "index": 9,
+    "ContractIndex": 11,
     "PauseFromMonthOffset": -12,
     "DurationMonths": 3,
     "Bucket": "past"
   },
   {
-    "index": 8,
-    "ContractIndex": 50,
-    "PauseFromMonthOffset": -2,
+    "index": 10,
+    "ContractIndex": 5,
+    "PauseFromMonthOffset": -3,
     "DurationMonths": 3,
     "Bucket": "current"
   },
   {
-    "index": 9,
-    "ContractIndex": 52,
-    "PauseFromMonthOffset": 1,
-    "DurationMonths": 1,
-    "Bucket": "future"
-  },
-  {
-    "index": 10,
-    "ContractIndex": 10,
-    "PauseFromMonthOffset": 1,
-    "DurationMonths": 2,
-    "Bucket": "future"
-  },
-  {
     "index": 11,
-    "ContractIndex": 67,
-    "PauseFromMonthOffset": -1,
-    "DurationMonths": 2,
+    "ContractIndex": 9,
+    "PauseFromMonthOffset": -3,
+    "DurationMonths": 4,
     "Bucket": "current"
   },
   {
     "index": 12,
-    "ContractIndex": 80,
-    "PauseFromMonthOffset": -10,
-    "DurationMonths": 3,
-    "Bucket": "past"
+    "ContractIndex": 59,
+    "PauseFromMonthOffset": -3,
+    "DurationMonths": 4,
+    "Bucket": "current"
   }
 ]
