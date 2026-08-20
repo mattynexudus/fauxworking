@@ -1,11 +1,9 @@
 # Runtime output — created by generators at upload time
-data/created-ids/*.json
-last-run-report.txt
-output/
+
 
 # Pre-generated test data — run `python3 prebuild.py` to create your own
 # rather than sharing one specific run's output. See README.md.
-data/*.json
+
 
 # Credentials — never committed. See nexudus_auth.py.
 .env
