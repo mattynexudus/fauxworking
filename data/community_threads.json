@@ -1,0 +1,152 @@
+[
+  {
+    "index": 1,
+    "GroupName": "General",
+    "CoworkerIndex": 59,
+    "Subject": "Best time to book the meeting rooms?",
+    "Message": "Would appreciate any pointers, thanks!",
+    "DayOffset": -44,
+    "MessageCount": 4,
+    "Private": false
+  },
+  {
+    "index": 2,
+    "GroupName": "General",
+    "CoworkerIndex": 7,
+    "Subject": "Lost a black jacket in the kitchen area",
+    "Message": "Happy to buy coffee for anyone who can help.",
+    "DayOffset": -40,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 3,
+    "GroupName": "General",
+    "CoworkerIndex": 31,
+    "Subject": "Recommendations for lunch places around here",
+    "Message": "Just wondering if anyone else has run into this.",
+    "DayOffset": -27,
+    "MessageCount": 4,
+    "Private": true
+  },
+  {
+    "index": 4,
+    "GroupName": "General",
+    "CoworkerIndex": 21,
+    "Subject": "Printer on 1st floor out of toner again",
+    "Message": "Open to suggestions from anyone in the space.",
+    "DayOffset": -151,
+    "MessageCount": 3,
+    "Private": true
+  },
+  {
+    "index": 5,
+    "GroupName": "General",
+    "CoworkerIndex": 56,
+    "Subject": "Anyone know a good coffee spot nearby?",
+    "Message": "Posting here in case it helps someone else too.",
+    "DayOffset": -109,
+    "MessageCount": 3,
+    "Private": false
+  },
+  {
+    "index": 6,
+    "GroupName": "General",
+    "CoworkerIndex": 48,
+    "Subject": "Wifi's been patchy on the 2nd floor",
+    "Message": "Let me know if you've dealt with this before.",
+    "DayOffset": -37,
+    "MessageCount": 3,
+    "Private": true
+  },
+  {
+    "index": 7,
+    "GroupName": "Networking",
+    "CoworkerIndex": 15,
+    "Subject": "Anyone else working in fintech?",
+    "Message": "Let me know if you've dealt with this before.",
+    "DayOffset": -34,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 8,
+    "GroupName": "Networking",
+    "CoworkerIndex": 4,
+    "Subject": "Freelancers — want to grab coffee and swap notes?",
+    "Message": "Happy to buy coffee for anyone who can help.",
+    "DayOffset": -97,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 9,
+    "GroupName": "Networking",
+    "CoworkerIndex": 7,
+    "Subject": "Looking for a UX designer to collaborate with",
+    "Message": "Open to suggestions from anyone in the space.",
+    "DayOffset": -158,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 10,
+    "GroupName": "Networking",
+    "CoworkerIndex": 8,
+    "Subject": "Looking for a co-founder for a side project",
+    "Message": "Would appreciate any pointers, thanks!",
+    "DayOffset": -66,
+    "MessageCount": 4,
+    "Private": false
+  },
+  {
+    "index": 11,
+    "GroupName": "Networking",
+    "CoworkerIndex": 15,
+    "Subject": "Any developers interested in a weekend hackathon?",
+    "Message": "Let me know if you've dealt with this before.",
+    "DayOffset": -26,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 12,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 8,
+    "Subject": "New meeting room booking system live now",
+    "Message": "Would appreciate any pointers, thanks!",
+    "DayOffset": -41,
+    "MessageCount": 1,
+    "Private": false
+  },
+  {
+    "index": 13,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 17,
+    "Subject": "Kitchen will be closed for cleaning Monday AM",
+    "Message": "Happy to buy coffee for anyone who can help.",
+    "DayOffset": -106,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 14,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 14,
+    "Subject": "Building maintenance this Saturday morning",
+    "Message": "Happy to buy coffee for anyone who can help.",
+    "DayOffset": -48,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 15,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 52,
+    "Subject": "Reminder: annual member survey closes Friday",
+    "Message": "Happy to buy coffee for anyone who can help.",
+    "DayOffset": -157,
+    "MessageCount": 2,
+    "Private": false
+  }
+]

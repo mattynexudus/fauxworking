@@ -1,0 +1,142 @@
+[
+  {
+    "index": 1,
+    "EventIndex": 1,
+    "Price": 25,
+    "SaleStartDayOffset": -101,
+    "SaleEndDayOffset": -71
+  },
+  {
+    "index": 2,
+    "EventIndex": 2,
+    "Price": 0,
+    "SaleStartDayOffset": -98,
+    "SaleEndDayOffset": -68
+  },
+  {
+    "index": 3,
+    "EventIndex": 3,
+    "Price": 25,
+    "SaleStartDayOffset": -109,
+    "SaleEndDayOffset": -79
+  },
+  {
+    "index": 4,
+    "EventIndex": 4,
+    "Price": 0,
+    "SaleStartDayOffset": -178,
+    "SaleEndDayOffset": -148
+  },
+  {
+    "index": 5,
+    "EventIndex": 5,
+    "Price": 0,
+    "SaleStartDayOffset": -283,
+    "SaleEndDayOffset": -253
+  },
+  {
+    "index": 6,
+    "EventIndex": 6,
+    "Price": 15,
+    "SaleStartDayOffset": -221,
+    "SaleEndDayOffset": -191
+  },
+  {
+    "index": 7,
+    "EventIndex": 7,
+    "Price": 0,
+    "SaleStartDayOffset": -86,
+    "SaleEndDayOffset": -56
+  },
+  {
+    "index": 8,
+    "EventIndex": 8,
+    "Price": 0,
+    "SaleStartDayOffset": 42,
+    "SaleEndDayOffset": 72
+  },
+  {
+    "index": 9,
+    "EventIndex": 9,
+    "Price": 15,
+    "SaleStartDayOffset": 83,
+    "SaleEndDayOffset": 113
+  },
+  {
+    "index": 10,
+    "EventIndex": 10,
+    "Price": 0,
+    "SaleStartDayOffset": 67,
+    "SaleEndDayOffset": 97
+  },
+  {
+    "index": 11,
+    "EventIndex": 11,
+    "Price": 25,
+    "SaleStartDayOffset": 54,
+    "SaleEndDayOffset": 84
+  },
+  {
+    "index": 12,
+    "EventIndex": 12,
+    "Price": 25,
+    "SaleStartDayOffset": -66,
+    "SaleEndDayOffset": -36
+  },
+  {
+    "index": 13,
+    "EventIndex": 13,
+    "Price": 0,
+    "SaleStartDayOffset": -6,
+    "SaleEndDayOffset": 24
+  },
+  {
+    "index": 14,
+    "EventIndex": 14,
+    "Price": 25,
+    "SaleStartDayOffset": -200,
+    "SaleEndDayOffset": -170
+  },
+  {
+    "index": 15,
+    "EventIndex": 15,
+    "Price": 0,
+    "SaleStartDayOffset": 43,
+    "SaleEndDayOffset": 73
+  },
+  {
+    "index": 16,
+    "EventIndex": 16,
+    "Price": 0,
+    "SaleStartDayOffset": 29,
+    "SaleEndDayOffset": 59
+  },
+  {
+    "index": 17,
+    "EventIndex": 17,
+    "Price": 0,
+    "SaleStartDayOffset": -249,
+    "SaleEndDayOffset": -219
+  },
+  {
+    "index": 18,
+    "EventIndex": 18,
+    "Price": 0,
+    "SaleStartDayOffset": -196,
+    "SaleEndDayOffset": -166
+  },
+  {
+    "index": 19,
+    "EventIndex": 19,
+    "Price": 0,
+    "SaleStartDayOffset": 49,
+    "SaleEndDayOffset": 79
+  },
+  {
+    "index": 20,
+    "EventIndex": 20,
+    "Price": 0,
+    "SaleStartDayOffset": 59,
+    "SaleEndDayOffset": 89
+  }
+]

@@ -1,0 +1,82 @@
+[
+  {
+    "entity": "taxrates",
+    "Id": 1415140492,
+    "Name": "Standard"
+  },
+  {
+    "entity": "taxrates",
+    "Id": 1415140493,
+    "Name": "Reduced"
+  },
+  {
+    "entity": "taxrates",
+    "Id": 1415140593,
+    "Name": "Zero-rated"
+  },
+  {
+    "entity": "financialaccounts",
+    "Id": 1415060702,
+    "Code": "MEM-001"
+  },
+  {
+    "entity": "financialaccounts",
+    "Id": 1415060803,
+    "Code": "BKG-001"
+  },
+  {
+    "entity": "financialaccounts",
+    "Id": 1415060804,
+    "Code": "PRD-001"
+  },
+  {
+    "entity": "financialaccounts",
+    "Id": 1415060805,
+    "Code": "EVT-001"
+  },
+  {
+    "entity": "financialaccounts",
+    "Id": 1415060703,
+    "Code": "CRD-001"
+  },
+  {
+    "entity": "financialaccounts",
+    "Id": 1415060806,
+    "Code": "PAY-001"
+  },
+  {
+    "entity": "financialaccounts",
+    "Id": 1415060807,
+    "Code": "DEP-001"
+  },
+  {
+    "entity": "financialaccounts",
+    "Id": 1415060704,
+    "Code": "REF-001"
+  },
+  {
+    "entity": "resourcetypes",
+    "Id": 1415372692,
+    "Name": "Meeting Room"
+  },
+  {
+    "entity": "resourcetypes",
+    "Id": 1415372693,
+    "Name": "Hot Desk"
+  },
+  {
+    "entity": "resourcetypes",
+    "Id": 1415372694,
+    "Name": "Private Office"
+  },
+  {
+    "entity": "resourcetypes",
+    "Id": 1415372591,
+    "Name": "Phone Booth"
+  },
+  {
+    "entity": "resourcetypes",
+    "Id": 1415372695,
+    "Name": "Parking"
+  }
+]
