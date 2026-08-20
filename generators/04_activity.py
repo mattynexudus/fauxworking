@@ -269,7 +269,15 @@ class ActivityGenerator(BaseGenerator):
                             "another booking left a BookingVisitor link stuck: %s",
                             idx, e, skip=True)
                         continue
-                    raise
+                    # Any other failure — e.g. "this command cannot be run for
+                    # the booking", confirmed live on a same-day booking whose
+                    # start time had already arrived by the time this ran —
+                    # shouldn't take down the rest of the layer either. Log
+                    # in full and move on, same as every other per-record
+                    # skip in this file.
+                    self.log.warning("Skipping cancellation of booking #%d — command failed: %s",
+                                      idx, e, skip=True)
+                    continue
                 self.track_id({
                     "entity": "cancelledbookings", "Id": booking_id,
                     "CancelledBookingIndex": track_key, "Category": defn["CancellationCategory"],
@@ -410,7 +418,19 @@ class ActivityGenerator(BaseGenerator):
                 if self.dry_run:
                     self.log.info("WOULD RUN COMMAND bookings.CHARGE_BOOKING id=%s", booking_id)
                 else:
-                    nexudus_run_command("bookings", "CHARGE_BOOKING", [booking_id])
+                    # A booking's current state can reject this command
+                    # outright — confirmed live, e.g. "this command cannot be
+                    # run for the booking" on a same-day booking whose start
+                    # time had already arrived. One bad booking shouldn't
+                    # take down the rest of the layer (time/printing credits
+                    # still run after this loop) — skip it and move on, same
+                    # as every other per-record skip in this file.
+                    try:
+                        nexudus_run_command("bookings", "CHARGE_BOOKING", [booking_id])
+                    except Exception as e:  # noqa: BLE001
+                        self.log.warning("Skipping charge for booking #%d — command failed: %s",
+                                          defn["index"], e, skip=True)
+                        continue
                     # CHARGE_BOOKING's response doesn't carry the new
                     # CoworkerExtraService's own Id (just a bare success
                     # envelope) — look it up by BookingId to get a real,
