@@ -71,6 +71,16 @@ class CommunityGenerator(BaseGenerator):
         self.blog_defs = self._load_data("blog_posts.json")
         self.task_defs = self._load_data("coworker_tasks.json")
 
+        self.set_target("coworkerdeliveries", len(self.delivery_defs))
+        self.set_target("calendarevents", len(self.event_defs))
+        self.set_target("eventproducts", len(self.event_product_defs))
+        self.set_target("eventattendees", len(self.event_attendee_defs))
+        self.set_target("helpdeskmessages", len(self.helpdesk_defs))
+        self.set_target("communitythreads", len(self.thread_defs))
+        self.set_target("communitymessages", len(self.message_defs))
+        self.set_target("blogposts", len(self.blog_defs))
+        self.set_target("coworkertasks", len(self.task_defs))
+
     @staticmethod
     def _load_data(filename):
         path = DATA_DIR / filename
@@ -121,12 +131,13 @@ class CommunityGenerator(BaseGenerator):
 
         for defn in self.delivery_defs:
             track_key = str(defn["index"])
-            if self.already_created("DeliveryIndex", track_key):
+            if self.already_created("DeliveryIndex", track_key, entity="coworkerdeliveries"):
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping delivery #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="coworkerdeliveries", reason="parent_skipped")
                 continue
 
             body = {
@@ -142,20 +153,41 @@ class CommunityGenerator(BaseGenerator):
                 self.log_would_create("coworkerdeliveries", body)
                 if defn["Outcome"] != "pending":
                     self.log.info("WOULD UPDATE coworkerdeliveries DRY: %s=true", defn["Outcome"])
-            else:
-                result = nexudus_create("coworkerdeliveries", body)
-                self.track_id({
-                    "entity": "coworkerdeliveries", **result, "DeliveryIndex": track_key,
-                })
-                self.log.info("Created delivery #%d [%s] (id=%s)",
-                              defn["index"], defn["Outcome"], result["Id"])
+                continue
 
-                if defn["Outcome"] != "pending":
-                    bool_field, date_field = DELIVERY_OUTCOME_FIELDS[defn["Outcome"]]
+            try:
+                result = nexudus_create("coworkerdeliveries", body)
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkerdeliveries", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping delivery creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkerdeliveries", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping delivery #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="coworkerdeliveries", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "coworkerdeliveries", **result, "DeliveryIndex": track_key,
+            })
+            self.log.info("Created delivery #%d [%s] (id=%s)",
+                          defn["index"], defn["Outcome"], result["Id"])
+
+            if defn["Outcome"] != "pending":
+                # Not a skip=True/entity= failure — the delivery itself was
+                # already created and counted above; this is a best-effort
+                # follow-up mutation, not a planned record that failed to exist.
+                bool_field, date_field = DELIVERY_OUTCOME_FIELDS[defn["Outcome"]]
+                try:
                     nexudus_update("coworkerdeliveries", result["Id"], {
                         bool_field: True,
                         date_field: self._at(defn["OutcomeDayOffset"]),
                     })
+                except Exception as e:  # noqa: BLE001
+                    self.log.warning("Created delivery #%d but failed to mark it %s: %s",
+                                      defn["index"], defn["Outcome"], e)
 
     # ------------------------------------------------------------------
     # CalendarEvent
@@ -166,7 +198,7 @@ class CommunityGenerator(BaseGenerator):
         for defn in self.event_defs:
             idx = defn["index"]
             track_key = str(idx)
-            if self.already_created("EventIndex", track_key):
+            if self.already_created("EventIndex", track_key, entity="calendarevents"):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "calendarevents" and r.get("EventIndex") == track_key)
                 self.event_ids[idx] = existing["Id"]
@@ -205,13 +237,27 @@ class CommunityGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("calendarevents", body)
                 self.event_ids[idx] = f"DRY-EVENT-{idx}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("calendarevents", body)
-                self.event_ids[idx] = result["Id"]
-                self.track_id({
-                    "entity": "calendarevents", **result, "EventIndex": track_key,
-                })
-                self.log.info("Created event #%d '%s' (id=%s)", idx, defn["Name"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("calendarevents", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping event creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="calendarevents", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping event #%d — create failed: %s", idx, e,
+                                  skip=True, entity="calendarevents", reason="unknown_error")
+                continue
+
+            self.event_ids[idx] = result["Id"]
+            self.track_id({
+                "entity": "calendarevents", **result, "EventIndex": track_key,
+            })
+            self.log.info("Created event #%d '%s' (id=%s)", idx, defn["Name"], result["Id"])
 
     # ------------------------------------------------------------------
     # EventProduct (ticket type — required before EventAttendee)
@@ -224,8 +270,11 @@ class CommunityGenerator(BaseGenerator):
             track_key = str(idx)
             event_id = self.event_ids.get(defn["EventIndex"])
             if event_id is None:
+                self.log.warning("Skipping event product #%d — event #%d was never created",
+                                  idx, defn["EventIndex"],
+                                  skip=True, entity="eventproducts", reason="parent_skipped")
                 continue
-            if self.already_created("EventProductIndex", track_key):
+            if self.already_created("EventProductIndex", track_key, entity="eventproducts"):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "eventproducts" and r.get("EventProductIndex") == track_key)
                 self.event_product_ids[idx] = existing["Id"]
@@ -246,13 +295,27 @@ class CommunityGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("eventproducts", body)
                 self.event_product_ids[idx] = f"DRY-EVENTPROD-{idx}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("eventproducts", body)
-                self.event_product_ids[idx] = result["Id"]
-                self.track_id({
-                    "entity": "eventproducts", **result, "EventProductIndex": track_key,
-                })
-                self.log.info("Created ticket for event #%d (id=%s)", defn["EventIndex"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("eventproducts", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping event product creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="eventproducts", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping event product #%d — create failed: %s", idx, e,
+                                  skip=True, entity="eventproducts", reason="unknown_error")
+                continue
+
+            self.event_product_ids[idx] = result["Id"]
+            self.track_id({
+                "entity": "eventproducts", **result, "EventProductIndex": track_key,
+            })
+            self.log.info("Created ticket for event #%d (id=%s)", defn["EventIndex"], result["Id"])
 
     # ------------------------------------------------------------------
     # EventAttendee
@@ -262,18 +325,22 @@ class CommunityGenerator(BaseGenerator):
 
         for defn in self.event_attendee_defs:
             track_key = str(defn["index"])
-            if self.already_created("AttendeeIndex", track_key):
+            if self.already_created("AttendeeIndex", track_key, entity="eventattendees"):
                 continue
 
             event_id = self.event_ids.get(defn["EventIndex"])
             event_product_id = self.event_product_ids.get(defn["EventIndex"])
             if event_id is None or event_product_id is None:
+                self.log.warning("Skipping attendee #%d — event #%d or its ticket was never created",
+                                  defn["index"], defn["EventIndex"],
+                                  skip=True, entity="eventattendees", reason="parent_skipped")
                 continue
 
             if defn["CoworkerIndex"] is not None:
                 if defn["CoworkerIndex"] not in coworker_ids:
                     self.log.warning("Skipping attendee #%d — coworker #%d was never created (seat limit?)",
-                                      defn["index"], defn["CoworkerIndex"], skip=True)
+                                      defn["index"], defn["CoworkerIndex"],
+                                      skip=True, entity="eventattendees", reason="parent_skipped")
                     continue
                 cw = coworker_defs_by_index[defn["CoworkerIndex"]]
                 full_name, email = cw["FullName"], cw["Email"]
@@ -293,18 +360,27 @@ class CommunityGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("eventattendees", body)
-            else:
-                try:
-                    result = nexudus_create("eventattendees", body)
-                except Exception as e:  # noqa: BLE001
-                    self.log.warning("Skipping attendee #%d — create failed: %s",
-                                      defn["index"], e, skip=True)
-                    continue
-                self.track_id({
-                    "entity": "eventattendees", **result, "AttendeeIndex": track_key,
-                })
-                self.log.info("Registered attendee #%d for event #%d (id=%s)",
-                              defn["index"], defn["EventIndex"], result["Id"])
+                continue
+
+            try:
+                result = nexudus_create("eventattendees", body)
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("eventattendees", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping attendee registration — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="eventattendees", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping attendee #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="eventattendees", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "eventattendees", **result, "AttendeeIndex": track_key,
+            })
+            self.log.info("Registered attendee #%d for event #%d (id=%s)",
+                          defn["index"], defn["EventIndex"], result["Id"])
 
     # ------------------------------------------------------------------
     # HelpDeskMessage
@@ -314,12 +390,13 @@ class CommunityGenerator(BaseGenerator):
 
         for defn in self.helpdesk_defs:
             track_key = str(defn["index"])
-            if self.already_created("HelpDeskIndex", track_key):
+            if self.already_created("HelpDeskIndex", track_key, entity="helpdeskmessages"):
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping help desk message #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="helpdeskmessages", reason="parent_skipped")
                 continue
 
             body = {
@@ -335,13 +412,27 @@ class CommunityGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("helpdeskmessages", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("helpdeskmessages", body)
-                self.track_id({
-                    "entity": "helpdeskmessages", **result, "HelpDeskIndex": track_key,
-                })
-                self.log.info("Created help desk ticket #%d [%s] (id=%s)",
-                              defn["index"], defn["DepartmentName"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("helpdeskmessages", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping help desk message creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="helpdeskmessages", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping help desk message #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="helpdeskmessages", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "helpdeskmessages", **result, "HelpDeskIndex": track_key,
+            })
+            self.log.info("Created help desk ticket #%d [%s] (id=%s)",
+                          defn["index"], defn["DepartmentName"], result["Id"])
 
     # ------------------------------------------------------------------
     # CommunityThread
@@ -352,7 +443,7 @@ class CommunityGenerator(BaseGenerator):
         for defn in self.thread_defs:
             idx = defn["index"]
             track_key = str(idx)
-            if self.already_created("ThreadIndex", track_key):
+            if self.already_created("ThreadIndex", track_key, entity="communitythreads"):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "communitythreads" and r.get("ThreadIndex") == track_key)
                 self.thread_ids[idx] = existing["Id"]
@@ -360,7 +451,8 @@ class CommunityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping thread #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"], skip=True)
+                                  idx, defn["CoworkerIndex"],
+                                  skip=True, entity="communitythreads", reason="parent_skipped")
                 continue
 
             body = {
@@ -376,13 +468,27 @@ class CommunityGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("communitythreads", body)
                 self.thread_ids[idx] = f"DRY-THREAD-{idx}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("communitythreads", body)
-                self.thread_ids[idx] = result["Id"]
-                self.track_id({
-                    "entity": "communitythreads", **result, "ThreadIndex": track_key,
-                })
-                self.log.info("Created thread #%d [%s] (id=%s)", idx, defn["GroupName"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("communitythreads", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping community thread creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="communitythreads", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping thread #%d — create failed: %s", idx, e,
+                                  skip=True, entity="communitythreads", reason="unknown_error")
+                continue
+
+            self.thread_ids[idx] = result["Id"]
+            self.track_id({
+                "entity": "communitythreads", **result, "ThreadIndex": track_key,
+            })
+            self.log.info("Created thread #%d [%s] (id=%s)", idx, defn["GroupName"], result["Id"])
 
     # ------------------------------------------------------------------
     # CommunityMessage
@@ -392,16 +498,20 @@ class CommunityGenerator(BaseGenerator):
 
         for defn in self.message_defs:
             track_key = str(defn["index"])
-            if self.already_created("MessageIndex", track_key):
+            if self.already_created("MessageIndex", track_key, entity="communitymessages"):
                 continue
 
             thread_id = self.thread_ids.get(defn["ThreadIndex"])
             if thread_id is None:
+                self.log.warning("Skipping community message #%d — thread #%d was never created",
+                                  defn["index"], defn["ThreadIndex"],
+                                  skip=True, entity="communitymessages", reason="parent_skipped")
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping community message #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="communitymessages", reason="parent_skipped")
                 continue
 
             body = {
@@ -413,13 +523,27 @@ class CommunityGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("communitymessages", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("communitymessages", body)
-                self.track_id({
-                    "entity": "communitymessages", **result, "MessageIndex": track_key,
-                })
-                self.log.info("Created reply #%d on thread #%d (id=%s)",
-                              defn["index"], defn["ThreadIndex"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("communitymessages", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping community message creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="communitymessages", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping community message #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="communitymessages", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "communitymessages", **result, "MessageIndex": track_key,
+            })
+            self.log.info("Created reply #%d on thread #%d (id=%s)",
+                          defn["index"], defn["ThreadIndex"], result["Id"])
 
     # ------------------------------------------------------------------
     # BlogPost
@@ -429,7 +553,7 @@ class CommunityGenerator(BaseGenerator):
 
         for defn in self.blog_defs:
             track_key = str(defn["index"])
-            if self.already_created("BlogPostIndex", track_key):
+            if self.already_created("BlogPostIndex", track_key, entity="blogposts"):
                 continue
 
             body = {
@@ -446,13 +570,27 @@ class CommunityGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("blogposts", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("blogposts", body)
-                self.track_id({
-                    "entity": "blogposts", **result, "BlogPostIndex": track_key,
-                })
-                self.log.info("Created blog post #%d '%s' (id=%s)",
-                              defn["index"], defn["Title"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("blogposts", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping blog post creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="blogposts", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping blog post #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="blogposts", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "blogposts", **result, "BlogPostIndex": track_key,
+            })
+            self.log.info("Created blog post #%d '%s' (id=%s)",
+                          defn["index"], defn["Title"], result["Id"])
 
     # ------------------------------------------------------------------
     # CoworkerTask
@@ -462,12 +600,13 @@ class CommunityGenerator(BaseGenerator):
 
         for defn in self.task_defs:
             track_key = str(defn["index"])
-            if self.already_created("TaskIndex", track_key):
+            if self.already_created("TaskIndex", track_key, entity="coworkertasks"):
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping task #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="coworkertasks", reason="parent_skipped")
                 continue
 
             body = {
@@ -481,12 +620,26 @@ class CommunityGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("coworkertasks", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("coworkertasks", body)
-                self.track_id({
-                    "entity": "coworkertasks", **result, "TaskIndex": track_key,
-                })
-                self.log.info("Created task #%d '%s' (id=%s)", defn["index"], defn["Name"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkertasks", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping task creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkertasks", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping task #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="coworkertasks", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "coworkertasks", **result, "TaskIndex": track_key,
+            })
+            self.log.info("Created task #%d '%s' (id=%s)", defn["index"], defn["Name"], result["Id"])
 
 
 if __name__ == "__main__":
