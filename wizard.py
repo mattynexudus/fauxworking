@@ -33,6 +33,7 @@ import config
 import nexudus_auth
 import pipeline
 import prebuild
+import report_lib
 
 VOLUME_LABELS = {
     "coworkers": "Coworkers",
@@ -241,19 +242,29 @@ def run_live(layer_index, args, export_csvs):
     retry picks back up right where the failure happened instead of
     recreating what already succeeded. Nothing here hides or swallows the
     actual error; it's always shown in full before asking whether to retry.
+
+    Returns an exit code: 0 if the run completed with every entity's target
+    fully accounted for, 1 if it was cancelled, gave up after a failure, or
+    completed but fell short somewhere (see report_lib.has_shortfall) — so
+    a CI/QA harness driving this non-interactively can tell "fully
+    succeeded" apart from "needs a look" without parsing report text.
     """
     business_id = collect_business_id(args)
 
     if not args.yes and not confirm_live():
         print("Cancelled — nothing was run live.")
-        return
+        return 1
 
     while True:
         print(f"\n=== Running layers 0-{layer_index} (LIVE) ===")
         try:
             pipeline.run_up_to(layer_index, dry_run=False, business_id=business_id, write_csvs=export_csvs)
             print("\nDone.")
-            return
+            if report_lib.has_shortfall(pipeline.LAST_RUN_ENTITY_COUNTS):
+                print("Note: this run fell short of its target for one or more entities — "
+                      "see the reconciliation above (or last-run-report.txt) for details.")
+                return 1
+            return 0
         except Exception as e:
             print(f"\n--- Something went wrong partway through ---\n{e}\n")
             print("Records already created are safely tracked, so retrying "
@@ -261,7 +272,7 @@ def run_live(layer_index, args, export_csvs):
             if not _confirm("Try again?", default=True):
                 print("\nStopped. Run `python3 wizard.py` again anytime — "
                       "it'll pick back up from where this left off.")
-                return
+                return 1
 
 
 def main():
@@ -283,7 +294,7 @@ def main():
         print(f"\n=== Previewing layers 0-{layer_index} (nothing will be created) ===")
         pipeline.run_up_to(layer_index, dry_run=True)
         print("\nDone — that was a preview, nothing was created.")
-        return
+        return 0
 
     if not args.live:
         # Interactive default: offer a preview, then — without restarting
@@ -293,16 +304,17 @@ def main():
             pipeline.run_up_to(layer_index, dry_run=True)
             if not _confirm("\nThat was a preview. Run this for real now?", default=False):
                 print("\nDone — no real records were created. Run `python3 wizard.py` again anytime.")
-                return
+                return 0
 
     export_csvs = collect_export_csvs(args)
-    run_live(layer_index, args, export_csvs)
+    return run_live(layer_index, args, export_csvs)
 
 
 if __name__ == "__main__":
     try:
-        main()
+        sys.exit(main())
     except EOFError:
         # No more input to read (e.g. stdin closed/piped dry) — a clean
         # message beats a raw traceback here.
         print("\n\nNo more input to read — stopping. Run `python3 wizard.py` again anytime.")
+        sys.exit(1)

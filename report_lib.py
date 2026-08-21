@@ -13,6 +13,7 @@ VOLUMES, since those entities have no per-run override.
 
 import csv
 import json
+from collections import Counter
 from pathlib import Path
 
 from config import CREATED_IDS_DIR, DATA_DIR, PROJECT_ROOT, VOLUMES, CONFIGURABLE_VOLUME_KEYS
@@ -138,6 +139,68 @@ def report_lines():
     return lines
 
 
+def merge_entity_counts(accumulator, layer_entity_counts):
+    """Add one generator's entity_counts into a running accumulator —
+    additive, not overwrite, since more than one layer can touch the same
+    entity (e.g. floorplandesks: created in 01_structural.py, occupancy-
+    assigned via update in 03_contracts.py — both legitimately contribute
+    to the same entity's tally for one run)."""
+    for entity, c in layer_entity_counts.items():
+        bucket = accumulator.setdefault(entity, {
+            "target": 0, "created": 0, "skipped": 0, "failed": 0, "failure_reasons": Counter(),
+        })
+        bucket["target"] += c["target"]
+        bucket["created"] += c["created"]
+        bucket["skipped"] += c["skipped"]
+        bucket["failed"] += c["failed"]
+        bucket["failure_reasons"].update(c["failure_reasons"])
+
+
+def run_reconciliation_lines(entity_counts):
+    """What THIS run specifically planned vs. actually achieved, per
+    entity — distinct from report_lines()'s cumulative, lifetime-tracked
+    view. Built from entity_counts accumulated across every generator this
+    run touched (see merge_entity_counts / pipeline.run_up_to). Only
+    entities with a real shortfall get flagged, and only ones with at
+    least one failure get their reasons shown — a clean run stays quiet,
+    matching report_lines()'s own "only flag below target" convention."""
+    if not entity_counts:
+        return []
+
+    lines = [f"{'Entity':<32} {'Target':>8} {'Created':>8} {'Existed':>8} {'Failed':>8}", "-" * 68]
+    any_shortfall = False
+    for entity in sorted(entity_counts):
+        c = entity_counts[entity]
+        target, created, skipped, failed = c["target"], c["created"], c["skipped"], c["failed"]
+        accounted = created + skipped
+        short = target and accounted < target
+        any_shortfall = any_shortfall or short
+        flag = "  <-- short" if short else ""
+        lines.append(f"{entity:<32} {target:>8} {created:>8} {skipped:>8} {failed:>8}{flag}")
+        if c["failure_reasons"]:
+            reasons = ", ".join(f"{reason}={n}" for reason, n in c["failure_reasons"].most_common())
+            lines.append(f"    reasons: {reasons}")
+
+    lines.append("")
+    lines.append(
+        "Some entities fell short of this run's target — see reasons above."
+        if any_shortfall else
+        "Every entity's target was fully accounted for this run (created + already-existing)."
+    )
+    return lines
+
+
+def has_shortfall(entity_counts):
+    """True if any entity in a run_reconciliation_lines()-shaped dict fell
+    short of its target — the machine-readable version of that report's
+    "<-- short" flag, for a caller (e.g. wizard.py) that wants to signal a
+    non-fully-successful run (exit code) without parsing report text."""
+    return any(
+        c["target"] and (c["created"] + c["skipped"]) < c["target"]
+        for c in entity_counts.values()
+    )
+
+
 def write_entity_csvs(output_dir):
     """One CSV per entity, from the full accumulated created-ids records —
     each track_id() call across the generators now stores the full live
@@ -158,11 +221,22 @@ def write_entity_csvs(output_dir):
             writer.writerows(rows)
 
 
-def write_report(path):
+def write_report(path, reconciliation_entity_counts=None):
     """Write the report to a file with a timestamp header, for later
     reference — the point being a QA person can open this without re-running
-    anything or scrolling back through a terminal."""
+    anything or scrolling back through a terminal.
+
+    reconciliation_entity_counts (optional) adds a "this run" section ahead
+    of the existing cumulative "what's in the account now" table — see
+    run_reconciliation_lines. Omitted by callers with nothing run-specific
+    to report (e.g. scripts/verify.sh, which only ever wants the cumulative
+    view)."""
     from datetime import datetime, timezone
     lines = [f"Report generated {datetime.now(timezone.utc).isoformat()}", ""]
+    if reconciliation_entity_counts is not None:
+        lines.append("=== This run: target vs. actual ===")
+        lines += run_reconciliation_lines(reconciliation_entity_counts)
+        lines.append("")
+        lines.append("=== What's in the account now (cumulative, all runs) ===")
     lines += report_lines()
     Path(path).write_text("\n".join(lines) + "\n")

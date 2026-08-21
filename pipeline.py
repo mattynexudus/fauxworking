@@ -92,6 +92,14 @@ MOCK_WHOAMI = {
     "AdminUserId": "DRY-ADMIN-1",
 }
 
+# This run's target-vs-actual reconciliation (see report_lib.merge_entity_
+# counts/run_reconciliation_lines), set at the end of run_up_to(). Exposed
+# at module level rather than changing run_up_to()'s return value (every
+# generator's own __main__ already depends on that being prev_output) —
+# a caller that cares (e.g. wizard.py, for its exit code) reads this right
+# after calling run_up_to().
+LAST_RUN_ENTITY_COUNTS = {}
+
 
 def list_businesses():
     """Every business (location) this logged-in account can access."""
@@ -171,8 +179,10 @@ def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
     layer that raises still gets its partial counts reported before the
     exception continues propagating (nothing here catches or hides errors).
     """
+    global LAST_RUN_ENTITY_COUNTS
     prev_output = None
     totals = {"created": 0, "skipped": 0, "failed": 0}
+    reconciliation = {}
     pool = DRY_RUN_POOL if dry_run else CALLABLE_POOL
 
     try:
@@ -200,6 +210,7 @@ def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
                 print(gen.summary_line())
                 for key in totals:
                     totals[key] += gen.counts[key]
+                report_lib.merge_entity_counts(reconciliation, gen.entity_counts)
                 if not dry_run and write_csvs:
                     # Once this layer's entities are done, their CSVs are
                     # complete — write them now rather than waiting for the
@@ -211,15 +222,20 @@ def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
                     report_lib.write_entity_csvs(config.OUTPUT_DIR)
     finally:
         print(f"\nTotal — Created: {totals['created']}  Skipped: {totals['skipped']}  Failed: {totals['failed']}")
+        LAST_RUN_ENTITY_COUNTS = reconciliation
         if not dry_run:
-            # What's actually in the account now, not just what this run did —
-            # a dry run has no real records to report on, so skip it there.
-            print("\n=== What's in the account now ===")
+            # This run's target-vs-actual, then the cumulative "what's
+            # actually in the account now" — a dry run has no real records
+            # to report on, so both are skipped there.
+            print("\n=== This run: target vs. actual ===")
+            print("\n".join(report_lib.run_reconciliation_lines(reconciliation)))
+            print("\n=== What's in the account now (cumulative, all runs) ===")
             print("\n".join(report_lib.report_lines()))
-            report_lib.write_report(report_lib.REPORT_PATH)
+            report_lib.write_report(report_lib.REPORT_PATH, reconciliation_entity_counts=reconciliation)
             if write_csvs:
                 config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-                report_lib.write_report(config.OUTPUT_DIR / "run-report.txt")
+                report_lib.write_report(config.OUTPUT_DIR / "run-report.txt",
+                                         reconciliation_entity_counts=reconciliation)
                 print(f"\n(saved to {report_lib.REPORT_PATH} and {config.OUTPUT_DIR})")
             else:
                 print(f"\n(saved to {report_lib.REPORT_PATH})")
