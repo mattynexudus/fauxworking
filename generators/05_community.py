@@ -204,6 +204,13 @@ class CommunityGenerator(BaseGenerator):
                 self.event_ids[idx] = existing["Id"]
                 continue
 
+            category_id = event_category_ids.get(defn["Category"])
+            if category_id is None:
+                self.log.warning("Skipping event #%d — category '%s' was never created",
+                                  idx, defn["Category"],
+                                  skip=True, entity="calendarevents", reason="parent_skipped")
+                continue
+
             start_time = self._at(defn["StartDayOffset"], hour=defn["StartHour"])
             end_time = to_utc_str(
                 datetime.fromisoformat(start_time.replace("Z", "+00:00"))
@@ -217,7 +224,7 @@ class CommunityGenerator(BaseGenerator):
                 "LongDescription": defn["LongDescription"],
                 "StartDate": start_time,
                 "EndDate": end_time,
-                "CalendarEventCategoryId": event_category_ids.get(defn["Category"]),
+                "CalendarEventCategoryId": category_id,
                 "OnlyForMembers": defn["OnlyForMembers"],
                 "ShowInHomePage": defn["ShowInHomePage"],
                 # Repeats is flagged required by the schema even for one-offs;
@@ -280,6 +287,15 @@ class CommunityGenerator(BaseGenerator):
                 self.event_product_ids[idx] = existing["Id"]
                 continue
 
+            fin_account_id = fin_account_ids.get("EVT-001")
+            tax_rate_id = tax_rate_ids.get("Standard")
+            if fin_account_id is None or tax_rate_id is None:
+                self.log.warning(
+                    "Skipping event product #%d — financial account 'EVT-001' or tax rate "
+                    "'Standard' was never created", idx,
+                    skip=True, entity="eventproducts", reason="parent_skipped")
+                continue
+
             body = {
                 "CalendarEventId": event_id,
                 "Name": "General Admission",
@@ -288,8 +304,8 @@ class CommunityGenerator(BaseGenerator):
                 "EndDate": self._at(defn["SaleEndDayOffset"]),
                 "Price": defn["Price"],
                 "CurrencyId": currency_id,
-                "FinancialAccountId": fin_account_ids.get("EVT-001"),
-                "TaxRateId": tax_rate_ids.get("Standard"),
+                "FinancialAccountId": fin_account_id,
+                "TaxRateId": tax_rate_id,
             }
 
             if self.dry_run:
@@ -399,6 +415,13 @@ class CommunityGenerator(BaseGenerator):
                                   skip=True, entity="helpdeskmessages", reason="parent_skipped")
                 continue
 
+            dept_id = help_desk_dept_ids.get(defn["DepartmentName"])
+            if dept_id is None:
+                self.log.warning("Skipping help desk message #%d — department '%s' was never created",
+                                  defn["index"], defn["DepartmentName"],
+                                  skip=True, entity="helpdeskmessages", reason="parent_skipped")
+                continue
+
             body = {
                 "BusinessId": biz,
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
@@ -406,7 +429,7 @@ class CommunityGenerator(BaseGenerator):
                 "MessageText": f"{defn['Subject']}. Please look into this when you get a chance.",
                 "Priority": defn["Priority"],
                 "AiProcessingResult": 1,  # NotProcessed
-                "HelpDeskDepartmentId": help_desk_dept_ids.get(defn["DepartmentName"]),
+                "HelpDeskDepartmentId": dept_id,
                 "Closed": defn["Closed"],
             }
 
@@ -455,11 +478,18 @@ class CommunityGenerator(BaseGenerator):
                                   skip=True, entity="communitythreads", reason="parent_skipped")
                 continue
 
+            group_id = community_group_ids.get(defn["GroupName"])
+            if group_id is None:
+                self.log.warning("Skipping thread #%d — community group '%s' was never created",
+                                  idx, defn["GroupName"],
+                                  skip=True, entity="communitythreads", reason="parent_skipped")
+                continue
+
             body = {
                 "BusinessId": biz,
                 "UserId": admin_id,
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
-                "CommunityGroupId": community_group_ids.get(defn["GroupName"]),
+                "CommunityGroupId": group_id,
                 "Subject": defn["Subject"],
                 "Message": defn["Message"],
                 "Private": defn["Private"],

@@ -212,5 +212,43 @@ class TestClassifyFailure(unittest.TestCase):
         self.assertEqual(gen.classify_failure("widgets", ValueError("boom")), "systemic")
 
 
+class TestFailLoudly(unittest.TestCase):
+    """Foundational-entity hard-stop (see generators/base.py::fail_loudly) —
+    unlike classify_failure, always raises, but records the failure into
+    entity_counts first so it still shows up in the run reconciliation
+    report even though the run is about to stop."""
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self._orig_dir = base.CREATED_IDS_DIR
+        base.CREATED_IDS_DIR = Path(self._tmpdir.name)
+
+    def tearDown(self):
+        base.CREATED_IDS_DIR = self._orig_dir
+        self._tmpdir.cleanup()
+
+    def test_records_failure_before_raising(self):
+        gen = _Probe()
+        gen.set_target("widgets", 3)
+        with self.assertRaises(RuntimeError):
+            gen.fail_loudly("widgets", ValueError("boom"))
+        self.assertEqual(gen.entity_counts["widgets"]["target"], 3)
+        self.assertEqual(gen.entity_counts["widgets"]["failed"], 1)
+        self.assertEqual(gen.entity_counts["widgets"]["failure_reasons"]["foundational_failure"], 1)
+
+    def test_custom_reason(self):
+        gen = _Probe()
+        with self.assertRaises(RuntimeError):
+            gen.fail_loudly("widgets", ValueError("boom"), reason="something_specific")
+        self.assertEqual(gen.entity_counts["widgets"]["failure_reasons"]["something_specific"], 1)
+
+    def test_original_error_chained(self):
+        gen = _Probe()
+        original = ValueError("boom")
+        with self.assertRaises(RuntimeError) as ctx:
+            gen.fail_loudly("widgets", original)
+        self.assertIs(ctx.exception.__cause__, original)
+
+
 if __name__ == "__main__":
     unittest.main()

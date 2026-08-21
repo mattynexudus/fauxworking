@@ -66,6 +66,10 @@ class ReferenceGenerator(BaseGenerator):
         self.resource_type_ids = {}  # name -> id
         self.admin_user_id = None
 
+        self.set_target("taxrates", len(TAX_RATES))
+        self.set_target("financialaccounts", len(FINANCIAL_ACCOUNTS))
+        self.set_target("resourcetypes", len(RESOURCE_TYPES))
+
     def run(self, nexudus_list, nexudus_create, whoami_data):
         """
         Execute Layer 0 creation.
@@ -119,7 +123,7 @@ class ReferenceGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Tax rate '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="taxrates")
                 self.tax_rate_ids[name] = existing_by_name[name]
                 continue
 
@@ -127,11 +131,15 @@ class ReferenceGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("taxrates", body)
                 self.tax_rate_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("taxrates", body)
-                self.tax_rate_ids[name] = result["Id"]
-                self.track_id({"entity": "taxrates", **result, "Name": name})
-                self.log.info("Created tax rate '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                self.fail_loudly("taxrates", e)
+            self.tax_rate_ids[name] = result["Id"]
+            self.track_id({"entity": "taxrates", **result, "Name": name})
+            self.log.info("Created tax rate '%s' (id=%s)", name, result["Id"])
 
     def _create_financial_accounts(self, nexudus_list, nexudus_create):
         self.log.info("--- Financial Accounts ---")
@@ -142,7 +150,7 @@ class ReferenceGenerator(BaseGenerator):
             code = defn["Code"]
             if code in existing_by_code:
                 self.log.info("Account '%s' already exists (id=%s)", code, existing_by_code[code])
-                self.count_skip()
+                self.count_skip(entity="financialaccounts")
                 self.fin_account_ids[code] = existing_by_code[code]
                 continue
 
@@ -150,11 +158,15 @@ class ReferenceGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("financialaccounts", body)
                 self.fin_account_ids[code] = f"DRY-{code}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("financialaccounts", body)
-                self.fin_account_ids[code] = result["Id"]
-                self.track_id({"entity": "financialaccounts", **result, "Code": code})
-                self.log.info("Created account '%s' (id=%s)", code, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                self.fail_loudly("financialaccounts", e)
+            self.fin_account_ids[code] = result["Id"]
+            self.track_id({"entity": "financialaccounts", **result, "Code": code})
+            self.log.info("Created account '%s' (id=%s)", code, result["Id"])
 
     def _create_resource_types(self, nexudus_list, nexudus_create):
         self.log.info("--- Resource Types ---")
@@ -165,7 +177,7 @@ class ReferenceGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Resource type '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="resourcetypes")
                 self.resource_type_ids[name] = existing_by_name[name]
                 continue
 
@@ -173,11 +185,15 @@ class ReferenceGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("resourcetypes", body)
                 self.resource_type_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("resourcetypes", body)
-                self.resource_type_ids[name] = result["Id"]
-                self.track_id({"entity": "resourcetypes", **result, "Name": name})
-                self.log.info("Created resource type '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                self.fail_loudly("resourcetypes", e)
+            self.resource_type_ids[name] = result["Id"]
+            self.track_id({"entity": "resourcetypes", **result, "Name": name})
+            self.log.info("Created resource type '%s' (id=%s)", name, result["Id"])
 
 
 if __name__ == "__main__":

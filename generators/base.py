@@ -165,6 +165,28 @@ class BaseGenerator:
         self._failure_streaks[entity] = (text, count)
         return "systemic" if count >= repeat_threshold else "skip"
 
+    def fail_loudly(self, entity: str, error: Exception, reason: str = "foundational_failure"):
+        """For small, fixed-size, foundational entities where almost
+        everything downstream depends on every single one existing (see
+        00_reference.py's tax rates/financial accounts/resource types) —
+        unlike classify_failure's skip/systemic, there's no "try the next
+        one and see": one failure here would otherwise cascade silently
+        into dozens of unrelated-looking "parent_skipped" reasons across
+        every later layer instead of pointing at its real cause. Records
+        the failure into entity_counts first (skip=True) so it's still
+        visible in the run reconciliation report — pipeline.py's existing
+        try/finally prints and writes that report even as this exception
+        propagates and stops the run — then raises.
+        """
+        self.log.warning(
+            "Stopping this run — '%s' is a foundational entity almost everything "
+            "downstream depends on, so a failure here isn't safe to skip past: %s",
+            entity, error, skip=True, entity=entity, reason=reason)
+        raise RuntimeError(
+            f"Foundational entity '{entity}' failed to create — stopping rather than "
+            f"cascading a missing dependency silently through everything downstream: {error}"
+        ) from error
+
     # ------------------------------------------------------------------
     # Idempotency helpers
     # ------------------------------------------------------------------

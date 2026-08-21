@@ -489,6 +489,15 @@ class StructuralGenerator(BaseGenerator):
                 self.tariff_ids[name] = existing_by_name[name]
                 continue
 
+            fin_account_id = fin_ids.get(defn["FinAcctCode"])
+            tax_rate_id = tax_ids.get(defn["TaxRate"])
+            if fin_account_id is None or tax_rate_id is None:
+                self.log.warning(
+                    "Skipping tariff '%s' — financial account '%s' or tax rate '%s' was never created",
+                    name, defn["FinAcctCode"], defn["TaxRate"],
+                    skip=True, entity="tariffs", reason="parent_skipped")
+                continue
+
             body = {
                 "BusinessId": biz,
                 "CurrencyId": cur,
@@ -501,8 +510,8 @@ class StructuralGenerator(BaseGenerator):
                 "InvoiceEveryWeeks": defn["InvoiceEveryWeeks"],
                 "CancellationPeriod": 30,
                 "Visible": True,
-                "FinancialAccountId": fin_ids.get(defn["FinAcctCode"]),
-                "TaxRateId": tax_ids.get(defn["TaxRate"]),
+                "FinancialAccountId": fin_account_id,
+                "TaxRateId": tax_rate_id,
             }
 
             if self.dry_run:
@@ -530,6 +539,15 @@ class StructuralGenerator(BaseGenerator):
                 self.product_ids[name] = existing_by_name[name]
                 continue
 
+            fin_account_id = fin_ids.get(defn["FinAcctCode"])
+            tax_rate_id = tax_ids.get(defn["TaxRate"])
+            if fin_account_id is None or tax_rate_id is None:
+                self.log.warning(
+                    "Skipping product '%s' — financial account '%s' or tax rate '%s' was never created",
+                    name, defn["FinAcctCode"], defn["TaxRate"],
+                    skip=True, entity="products", reason="parent_skipped")
+                continue
+
             body = {
                 "BusinessId": biz,
                 "CurrencyId": cur,
@@ -539,8 +557,8 @@ class StructuralGenerator(BaseGenerator):
                 "AvailableAs": defn["AvailableAs"],
                 "SystemProductType": defn["SystemProductType"],
                 "DisplayOrder": idx + 1,
-                "FinancialAccountId": fin_ids.get(defn["FinAcctCode"]),
-                "TaxRateId": tax_ids.get(defn["TaxRate"]),
+                "FinancialAccountId": fin_account_id,
+                "TaxRateId": tax_rate_id,
             }
 
             if self.dry_run:
@@ -569,6 +587,23 @@ class StructuralGenerator(BaseGenerator):
                 self.extra_service_ids[name] = existing_by_name[name]
                 continue
 
+            fin_account_id = fin_ids.get(defn["FinAcctCode"])
+            tax_rate_id = tax_ids.get(defn["TaxRate"])
+            resource_type_names = defn.get("ResourceTypes", [defn.get("ResourceType")])
+            resource_type_ids = [rt_ids[n] for n in resource_type_names if n in rt_ids]
+            if fin_account_id is None or tax_rate_id is None:
+                self.log.warning(
+                    "Skipping extra service '%s' — financial account '%s' or tax rate '%s' was never created",
+                    name, defn["FinAcctCode"], defn["TaxRate"],
+                    skip=True, entity="extraservices", reason="parent_skipped")
+                continue
+            if len(resource_type_ids) != len(resource_type_names):
+                self.log.warning(
+                    "Skipping extra service '%s' — one or more of its resource types %s was never created",
+                    name, resource_type_names,
+                    skip=True, entity="extraservices", reason="parent_skipped")
+                continue
+
             body = {
                 "BusinessId": biz,
                 "CurrencyId": cur,
@@ -577,9 +612,9 @@ class StructuralGenerator(BaseGenerator):
                 "ChargePeriod": defn["ChargePeriod"],
                 "DisplayOrder": idx + 1,
                 "LastMinuteAdjustmentType": 1,
-                "FinancialAccountId": fin_ids.get(defn["FinAcctCode"]),
-                "TaxRateId": tax_ids.get(defn["TaxRate"]),
-                "ResourceTypes": [rt_ids.get(rt_name) for rt_name in defn.get("ResourceTypes", [defn.get("ResourceType")])],
+                "FinancialAccountId": fin_account_id,
+                "TaxRateId": tax_rate_id,
+                "ResourceTypes": resource_type_ids,
             }
             if defn.get("MaximumPrice") is not None:
                 body["MaximumPrice"] = defn["MaximumPrice"]
@@ -710,11 +745,19 @@ class StructuralGenerator(BaseGenerator):
                 self.resource_ids[name] = existing_by_name[name]
                 continue
 
+            resource_type_id = rt_ids.get(defn["ResourceType"])
+            if resource_type_id is None:
+                self.log.warning(
+                    "Skipping resource '%s' — resource type '%s' was never created",
+                    name, defn["ResourceType"],
+                    skip=True, entity="resources", reason="parent_skipped")
+                continue
+
             body = {
                 "BusinessId": biz,
                 "Name": name,
                 "SystemResourceType": defn["SystemResourceType"],
-                "ResourceTypeId": rt_ids.get(defn["ResourceType"]),
+                "ResourceTypeId": resource_type_id,
                 "DisplayOrder": idx + 1,
                 "CancellationFeeType": 1,
             }
@@ -780,6 +823,12 @@ class StructuralGenerator(BaseGenerator):
 
             fp_name = f"{TEST_NAME_PREFIX}{defn['FloorPlan']}"
             fp_id = self.floor_plan_ids.get(fp_name)
+            if fp_id is None:
+                self.log.warning(
+                    "Skipping desk '%s' — floor plan '%s' was never created",
+                    name, fp_name,
+                    skip=True, entity="floorplandesks", reason="parent_skipped")
+                continue
 
             body = {
                 "FloorPlanId": fp_id,
@@ -910,6 +959,12 @@ class StructuralGenerator(BaseGenerator):
         for board_short_name, columns in CRM_BOARD_COLUMNS.items():
             board_name = f"{TEST_NAME_PREFIX}{board_short_name}"
             board_id = self.crm_board_ids.get(board_name)
+            if board_id is None:
+                self.log.warning(
+                    "Skipping all %d columns for board '%s' — the board itself was never created",
+                    len(columns), board_name,
+                    skip=True, entity="crmboardcolumns", reason="parent_skipped")
+                continue
 
             existing_cols = nexudus_list("crmboardcolumns", {"CrmBoardColumn_CrmBoard": board_id})
             existing_cols_by_name = {r["Name"]: r["Id"] for r in existing_cols}
