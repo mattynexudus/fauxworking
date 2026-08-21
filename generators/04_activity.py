@@ -70,6 +70,13 @@ class ActivityGenerator(BaseGenerator):
         self.set_target("bookings", len(self.booking_defs))
         self.set_target("bookingvisitors",
                          sum(len(d["GuestVisitorIndices"]) for d in self.booking_defs))
+        self.set_target("cancelledbookings", sum(1 for d in self.booking_defs if d["ToCancel"]))
+        self.set_target("checkins", len(self.checkin_defs))
+        self.set_target("coworkerextraservices", len(self.extra_service_defs))
+        self.set_target("coworkerbookingcredits", len(self.booking_credit_defs))
+        self.set_target("coworkerbookingcreditusehistories", len(self.credit_use_history_defs))
+        self.set_target("coworkertimepasses", len(self.time_pass_defs))
+        self.set_target("coworkerproducts", len(self.coworker_product_defs))
 
     @staticmethod
     def _load_data(filename):
@@ -121,7 +128,7 @@ class ActivityGenerator(BaseGenerator):
             idx = defn["index"]
             track_key = str(idx)
 
-            if self.already_created("BookingIndex", track_key):
+            if self.already_created("BookingIndex", track_key, entity="bookings"):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "bookings" and r.get("BookingIndex") == track_key)
                 self.booking_ids[idx] = existing["Id"]
@@ -129,7 +136,8 @@ class ActivityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping booking #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"], skip=True)
+                                  idx, defn["CoworkerIndex"],
+                                  skip=True, entity="bookings", reason="parent_skipped")
                 continue
 
             from_time = self._at(defn["StartDayOffset"], hour=defn["FromHour"])
@@ -175,9 +183,19 @@ class ActivityGenerator(BaseGenerator):
                         self.log.warning(
                             "Skipping booking #%d on '%s' — resource conflict with "
                             "another seeded booking (no conflict-checking in prebuild "
-                            "data generation): %s", idx, defn["ResourceName"], e, skip=True)
+                            "data generation): %s", idx, defn["ResourceName"], e,
+                            skip=True, entity="bookings", reason="validation_rejected")
                         continue
-                    raise
+                    verdict = self.classify_failure("bookings", e)
+                    if verdict == "systemic":
+                        self.log.warning(
+                            "Stopping booking creation — this error has repeated several "
+                            "times in a row, likely an account-wide condition: %s", e,
+                            skip=True, entity="bookings", reason="systemic_rate_limit")
+                        break
+                    self.log.warning("Skipping booking #%d — create failed: %s", idx, e,
+                                      skip=True, entity="bookings", reason="unknown_error")
+                    continue
                 self.booking_ids[idx] = result["Id"]
                 self.track_id({
                     "entity": "bookings", **result, "BookingIndex": track_key,
@@ -272,11 +290,13 @@ class ActivityGenerator(BaseGenerator):
         for defn in to_cancel:
             idx = defn["index"]
             track_key = str(idx)
-            if self.already_created("CancelledBookingIndex", track_key):
+            if self.already_created("CancelledBookingIndex", track_key, entity="cancelledbookings"):
                 continue
 
             booking_id = self.booking_ids.get(idx)
             if booking_id is None:
+                self.log.warning("Skipping cancellation of booking #%d — never created (seat limit?)",
+                                  idx, skip=True, entity="cancelledbookings", reason="parent_skipped")
                 continue
 
             reason = CANCELLATION_REASON_MAP.get(defn["CancellationCategory"], 7)  # 7 = Other
@@ -295,16 +315,23 @@ class ActivityGenerator(BaseGenerator):
                         self.log.warning(
                             "Skipping cancellation of booking #%d — a guest shared with "
                             "another booking left a BookingVisitor link stuck: %s",
-                            idx, e, skip=True)
+                            idx, e, skip=True, entity="cancelledbookings", reason="validation_rejected")
                         continue
                     # Any other failure — e.g. "this command cannot be run for
                     # the booking", confirmed live on a same-day booking whose
-                    # start time had already arrived by the time this ran —
-                    # shouldn't take down the rest of the layer either. Log
-                    # in full and move on, same as every other per-record
-                    # skip in this file.
+                    # start time had already arrived by the time this ran.
+                    # classify_failure tells a one-off from the same error
+                    # repeating (systemic — stop rather than hammer through
+                    # every remaining cancellation the same way).
+                    verdict = self.classify_failure("cancelledbookings", e)
+                    if verdict == "systemic":
+                        self.log.warning(
+                            "Stopping booking cancellation — this error has repeated "
+                            "several times in a row, likely an account-wide condition: %s", e,
+                            skip=True, entity="cancelledbookings", reason="systemic_rate_limit")
+                        break
                     self.log.warning("Skipping cancellation of booking #%d — command failed: %s",
-                                      idx, e, skip=True)
+                                      idx, e, skip=True, entity="cancelledbookings", reason="unknown_error")
                     continue
                 self.track_id({
                     "entity": "cancelledbookings", "Id": booking_id,
@@ -322,12 +349,13 @@ class ActivityGenerator(BaseGenerator):
 
         for defn in self.checkin_defs:
             track_key = str(defn["index"])
-            if self.already_created("CheckinIndex", track_key):
+            if self.already_created("CheckinIndex", track_key, entity="checkins"):
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping check-in #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="checkins", reason="parent_skipped")
                 continue
 
             from_time = self._at(defn["FromDayOffset"], hour=defn["FromHour"], minute=defn["FromMinute"])
@@ -359,25 +387,34 @@ class ActivityGenerator(BaseGenerator):
                 if "does not have a valid time pass" not in str(e) or day_pass_id is None:
                     # A single bad check-in shouldn't take down the rest of
                     # the layer (extra services, credits, time passes,
-                    # coworker products all still run after this loop) — log
-                    # the real error in full and move on, same as every
-                    # other per-record skip in this file.
+                    # coworker products all still run after this loop).
+                    # classify_failure tells a one-off from the same error
+                    # repeating (systemic — stop rather than hammer through
+                    # the remaining checkins, the highest-volume loop here).
+                    verdict = self.classify_failure("checkins", e)
+                    if verdict == "systemic":
+                        self.log.warning(
+                            "Stopping check-in creation — this error has repeated "
+                            "several times in a row, likely an account-wide condition: %s", e,
+                            skip=True, entity="checkins", reason="systemic_rate_limit")
+                        break
                     self.log.warning("Skipping check-in #%d — create failed: %s",
-                                      defn["index"], e, skip=True)
+                                      defn["index"], e, skip=True, entity="checkins", reason="unknown_error")
                     continue
                 pass_guid = self._grant_day_pass(
                     biz, coworker_ids[defn["CoworkerIndex"]], day_pass_id,
                     defn["FromDayOffset"], nexudus_create, nexudus_update)
                 if pass_guid is None:
                     self.log.warning("Skipping check-in #%d — could not grant a covering day pass",
-                                      defn["index"], skip=True)
+                                      defn["index"], skip=True, entity="checkins", reason="unknown_error")
                     continue
                 body["CoworkerTimePassGuid"] = pass_guid
                 try:
                     result = nexudus_create("checkins", body)
                 except Exception as e2:  # noqa: BLE001
                     self.log.warning("Skipping check-in #%d — still failed after granting a day pass: %s",
-                                      defn["index"], e2, skip=True)
+                                      defn["index"], e2,
+                                      skip=True, entity="checkins", reason="validation_rejected")
                     continue
 
             self.track_id({"entity": "checkins", **result, "CheckinIndex": track_key})
@@ -419,15 +456,25 @@ class ActivityGenerator(BaseGenerator):
     def _create_extra_services(self, biz, coworker_ids, extra_service_ids, nexudus_create, nexudus_run_command,
                                 nexudus_list):
         self.log.info("--- Extra Services (%d) ---", len(self.extra_service_defs))
+        # CHARGE_BOOKING (a run_command against `bookings`) and the plain
+        # coworkerextraservices create below are structurally different
+        # operations that happen to end up tracked under the same entity —
+        # a systemic condition on one shouldn't stop the other. Once
+        # CHARGE_BOOKING looks blocked, skip the rest of *that* sub-kind
+        # without further attempts, but keep the loop going for time/
+        # printing credits (plain creates, unaffected by whatever's
+        # blocking booking charges specifically).
+        charge_booking_blocked = False
 
         for defn in self.extra_service_defs:
             track_key = str(defn["index"])
-            if self.already_created("ExtraServiceIndex", track_key):
+            if self.already_created("ExtraServiceIndex", track_key, entity="coworkerextraservices"):
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping extra service #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="coworkerextraservices", reason="parent_skipped")
                 continue
 
             # A booking_charge is meant to represent an actual booking being
@@ -442,7 +489,18 @@ class ActivityGenerator(BaseGenerator):
             if defn["Kind"] == "booking_charge" and defn["BookingIndex"] is not None:
                 booking_id = self.booking_ids.get(defn["BookingIndex"])
                 if booking_id is None:
+                    self.log.warning("Skipping charge #%d — booking #%d was never created",
+                                      defn["index"], defn["BookingIndex"],
+                                      skip=True, entity="coworkerextraservices", reason="parent_skipped")
                     continue
+                if charge_booking_blocked:
+                    self.log.warning(
+                        "Skipping charge #%d — booking charging stopped earlier this "
+                        "run after repeated identical failures, likely an account-wide "
+                        "condition", defn["index"],
+                        skip=True, entity="coworkerextraservices", reason="systemic_rate_limit")
+                    continue
+
                 if self.dry_run:
                     self.log.info("WOULD RUN COMMAND bookings.CHARGE_BOOKING id=%s", booking_id)
                 else:
@@ -451,13 +509,25 @@ class ActivityGenerator(BaseGenerator):
                     # run for the booking" on a same-day booking whose start
                     # time had already arrived. One bad booking shouldn't
                     # take down the rest of the layer (time/printing credits
-                    # still run after this loop) — skip it and move on, same
-                    # as every other per-record skip in this file.
+                    # still run after this loop). classify_failure tells a
+                    # one-off from the same error repeating (systemic) — a
+                    # dedicated signature key so it doesn't get confused
+                    # with the unrelated plain-create path below.
                     try:
                         nexudus_run_command("bookings", "CHARGE_BOOKING", [booking_id])
                     except Exception as e:  # noqa: BLE001
+                        verdict = self.classify_failure("coworkerextraservices:charge_booking", e)
+                        if verdict == "systemic":
+                            self.log.warning(
+                                "Booking charges look blocked for the rest of this run — "
+                                "this error has repeated several times in a row, likely "
+                                "an account-wide condition: %s", e,
+                                skip=True, entity="coworkerextraservices", reason="systemic_rate_limit")
+                            charge_booking_blocked = True
+                            continue
                         self.log.warning("Skipping charge for booking #%d — command failed: %s",
-                                          defn["index"], e, skip=True)
+                                          defn["index"], e,
+                                          skip=True, entity="coworkerextraservices", reason="unknown_error")
                         continue
                     # CHARGE_BOOKING's response doesn't carry the new
                     # CoworkerExtraService's own Id (just a bare success
@@ -493,14 +563,29 @@ class ActivityGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("coworkerextraservices", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("coworkerextraservices", body)
-                self.track_id({
-                    "entity": "coworkerextraservices", **result,
-                    "ExtraServiceIndex": track_key, "Kind": defn["Kind"],
-                })
-                self.log.info("Created extra service #%d [%s] (id=%s)",
-                              defn["index"], defn["Kind"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkerextraservices:plain_create", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping time/printing credit creation — this error has "
+                        "repeated several times in a row, likely an account-wide "
+                        "condition: %s", e,
+                        skip=True, entity="coworkerextraservices", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping extra service #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="coworkerextraservices", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "coworkerextraservices", **result,
+                "ExtraServiceIndex": track_key, "Kind": defn["Kind"],
+            })
+            self.log.info("Created extra service #%d [%s] (id=%s)",
+                          defn["index"], defn["Kind"], result["Id"])
 
     # ------------------------------------------------------------------
     # CoworkerBookingCredit
@@ -511,7 +596,7 @@ class ActivityGenerator(BaseGenerator):
         for defn in self.booking_credit_defs:
             idx = defn["index"]
             track_key = str(idx)
-            if self.already_created("CreditIndex", track_key):
+            if self.already_created("CreditIndex", track_key, entity="coworkerbookingcredits"):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "coworkerbookingcredits" and r.get("CreditIndex") == track_key)
                 self.credit_ids[idx] = existing["Id"]
@@ -519,7 +604,8 @@ class ActivityGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping booking credit #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"], skip=True)
+                                  idx, defn["CoworkerIndex"],
+                                  skip=True, entity="coworkerbookingcredits", reason="parent_skipped")
                 continue
 
             body = {
@@ -542,9 +628,19 @@ class ActivityGenerator(BaseGenerator):
                         self.log.warning(
                             "Skipping booking credit #%d — ExpireDateDayOffset is before "
                             "ValidFromDayOffset in prebuild data (bucket=%s): %s",
-                            idx, defn["Bucket"], e, skip=True)
+                            idx, defn["Bucket"], e,
+                            skip=True, entity="coworkerbookingcredits", reason="validation_rejected")
                         continue
-                    raise
+                    verdict = self.classify_failure("coworkerbookingcredits", e)
+                    if verdict == "systemic":
+                        self.log.warning(
+                            "Stopping booking credit creation — this error has repeated "
+                            "several times in a row, likely an account-wide condition: %s", e,
+                            skip=True, entity="coworkerbookingcredits", reason="systemic_rate_limit")
+                        break
+                    self.log.warning("Skipping booking credit #%d — create failed: %s", idx, e,
+                                      skip=True, entity="coworkerbookingcredits", reason="unknown_error")
+                    continue
                 self.credit_ids[idx] = result["Id"]
                 self.track_id({
                     "entity": "coworkerbookingcredits", **result,
@@ -561,11 +657,14 @@ class ActivityGenerator(BaseGenerator):
 
         for defn in self.credit_use_history_defs:
             track_key = str(defn["index"])
-            if self.already_created("UseHistoryIndex", track_key):
+            if self.already_created("UseHistoryIndex", track_key, entity="coworkerbookingcreditusehistories"):
                 continue
 
             credit_id = self.credit_ids.get(defn["CreditIndex"])
             if credit_id is None:
+                self.log.warning("Skipping credit use #%d — credit #%d was never created",
+                                  defn["index"], defn["CreditIndex"],
+                                  skip=True, entity="coworkerbookingcreditusehistories", reason="parent_skipped")
                 continue
 
             body = {"CoworkerBookingCreditId": credit_id, "CreditUsed": defn["CreditUsed"]}
@@ -576,25 +675,27 @@ class ActivityGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("coworkerbookingcreditusehistories", body)
-            else:
-                try:
-                    result = nexudus_create("coworkerbookingcreditusehistories", body)
-                except Exception as e:  # noqa: BLE001
-                    # Generic API error, but confirmed live this happens when
-                    # cumulative CreditUsed across a credit's use-history
-                    # entries exceeds its TotalCredit — a prebuild data
-                    # over-allocation bug, not a client bug.
-                    self.log.warning(
-                        "Skipping credit use #%d on credit #%d — likely exceeds the "
-                        "credit's TotalCredit (prebuild over-allocation): %s",
-                        defn["index"], defn["CreditIndex"], e, skip=True)
-                    continue
-                self.track_id({
-                    "entity": "coworkerbookingcreditusehistories", **result,
-                    "UseHistoryIndex": track_key,
-                })
-                self.log.info("Created credit use #%d on credit #%d (id=%s)",
-                              defn["index"], defn["CreditIndex"], result["Id"])
+                continue
+
+            try:
+                result = nexudus_create("coworkerbookingcreditusehistories", body)
+            except Exception as e:  # noqa: BLE001
+                # Generic API error, but confirmed live this happens when
+                # cumulative CreditUsed across a credit's use-history
+                # entries exceeds its TotalCredit — a prebuild data
+                # over-allocation bug, not a client bug.
+                self.log.warning(
+                    "Skipping credit use #%d on credit #%d — likely exceeds the "
+                    "credit's TotalCredit (prebuild over-allocation): %s",
+                    defn["index"], defn["CreditIndex"], e,
+                    skip=True, entity="coworkerbookingcreditusehistories", reason="validation_rejected")
+                continue
+            self.track_id({
+                "entity": "coworkerbookingcreditusehistories", **result,
+                "UseHistoryIndex": track_key,
+            })
+            self.log.info("Created credit use #%d on credit #%d (id=%s)",
+                          defn["index"], defn["CreditIndex"], result["Id"])
 
     # ------------------------------------------------------------------
     # CoworkerTimePass (+ follow-up update to mark Used)
@@ -604,12 +705,13 @@ class ActivityGenerator(BaseGenerator):
 
         for defn in self.time_pass_defs:
             track_key = str(defn["index"])
-            if self.already_created("TimePassIndex", track_key):
+            if self.already_created("TimePassIndex", track_key, entity="coworkertimepasses"):
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping time pass #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="coworkertimepasses", reason="parent_skipped")
                 continue
 
             body = {
@@ -624,21 +726,43 @@ class ActivityGenerator(BaseGenerator):
                 self.log_would_create("coworkertimepasses", body)
                 if defn["Status"] == "used":
                     self.log.info("WOULD UPDATE coworkertimepasses DRY: Used=true")
-            else:
-                result = nexudus_create("coworkertimepasses", body)
-                self.track_id({
-                    "entity": "coworkertimepasses", **result,
-                    "TimePassIndex": track_key, "Status": defn["Status"],
-                })
-                self.log.info("Created time pass #%d [%s] (id=%s)",
-                              defn["index"], defn["Status"], result["Id"])
+                continue
 
-                if defn["Status"] == "used":
+            try:
+                result = nexudus_create("coworkertimepasses", body)
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkertimepasses", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping time pass creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkertimepasses", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping time pass #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="coworkertimepasses", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "coworkertimepasses", **result,
+                "TimePassIndex": track_key, "Status": defn["Status"],
+            })
+            self.log.info("Created time pass #%d [%s] (id=%s)",
+                          defn["index"], defn["Status"], result["Id"])
+
+            if defn["Status"] == "used":
+                # Not a skip=True/entity= failure — the pass itself was
+                # already created and counted above; this is a best-effort
+                # follow-up mutation on an existing record, not a planned
+                # record that failed to exist.
+                try:
                     nexudus_update("coworkertimepasses", result["Id"], {
                         "Used": True,
                         "UsedDate": self._at(defn["UsedDateDayOffset"]),
                     })
                     self.log.info("Marked time pass #%d as used", defn["index"])
+                except Exception as e:  # noqa: BLE001
+                    self.log.warning("Created time pass #%d but failed to mark it used: %s",
+                                      defn["index"], e)
 
     # ------------------------------------------------------------------
     # CoworkerProduct
@@ -648,12 +772,13 @@ class ActivityGenerator(BaseGenerator):
 
         for defn in self.coworker_product_defs:
             track_key = str(defn["index"])
-            if self.already_created("CoworkerProductIndex", track_key):
+            if self.already_created("CoworkerProductIndex", track_key, entity="coworkerproducts"):
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping coworker product #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="coworkerproducts", reason="parent_skipped")
                 continue
 
             body = {
@@ -669,13 +794,27 @@ class ActivityGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("coworkerproducts", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("coworkerproducts", body)
-                self.track_id({
-                    "entity": "coworkerproducts", **result,
-                    "CoworkerProductIndex": track_key,
-                })
-                self.log.info("Created coworker product #%d (id=%s)", defn["index"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkerproducts", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping coworker product creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkerproducts", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping coworker product #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="coworkerproducts", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "coworkerproducts", **result,
+                "CoworkerProductIndex": track_key,
+            })
+            self.log.info("Created coworker product #%d (id=%s)", defn["index"], result["Id"])
 
 
 if __name__ == "__main__":
