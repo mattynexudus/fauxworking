@@ -275,3 +275,52 @@ def nexudus_run_command(entity, command_key, ids, parameters=None):
     payload = {"Key": command_key, "Ids": ids, "Parameters": parameters or []}
     resp = _request("POST", f"{_url(entity)}/runcommand", headers=_headers(), json=payload)
     return _unwrap(entity, "run_command", resp)
+
+
+_RAISE_INVOICE_DEFAULTS = {
+    "Draft": False,
+    "IncludeAllPendingCharges": True,
+    "ForceProcessingTeamMembers": False,
+    "IncludeCharges": True,
+    "IncludeExtraServices": True,
+    "IncludePricePlanCharges": True,
+    "IncludeProducts": True,
+    "IncludeTickets": True,
+    "IncludeTimePasses": True,
+    "RecordGuids": None,
+    "DoNotApplyAvailableCredit": False,
+    "CustomFields": None,
+}
+
+
+def nexudus_raise_invoice(business_id, coworker_id, options=None):
+    """POST /api/billing/coworkerinvoices/{business_id}/create/{coworker_id}
+    — the real mechanism the admin UI uses to raise one coworker's invoice.
+
+    coworkers.COWORKER_BILL_RUN (a run_command — see nexudus_run_command)
+    was originally used for this per CLAUDE.md rule 12's documentation, but
+    confirmed live it always returns None and silently raises nothing —
+    no error, no invoice, regardless of how much is actually due. This
+    endpoint is a completely different, dedicated REST-style route (not
+    entity CRUD, not a runcommand) found by capturing the real admin UI's
+    network request — same technique as rule 27, just a wholly separate
+    endpoint this time rather than a command discovery gap. Confirmed live
+    twice: once on a coworker with just their own contract fee + a pending
+    product sale, and once on a team's paying member (Team.PayingMemberId
+    + TransferCreditsToPayingMember=True) — the latter correctly
+    consolidated the whole team's non-InvoiceThisCoworker charges onto the
+    payer's single invoice, matching real Nexudus team-billing config
+    rather than being some kind of scoping bug.
+
+    Unlike every other entity in this codebase, this call is inherently
+    one-coworker-at-a-time (the coworker id is part of the URL path, not a
+    batch parameter) — there is no equivalent of COWORKER_BILL_RUN's
+    ids-list batching here.
+
+    options (optional) overrides any of the default billing-option flags
+    below — captured verbatim from the admin UI's own request body.
+    """
+    body = {**_RAISE_INVOICE_DEFAULTS, **(options or {})}
+    url = f"{base_url()}/api/billing/coworkerinvoices/{business_id}/create/{coworker_id}"
+    resp = _request("POST", url, headers=_headers(), json=body)
+    return _unwrap("coworkerinvoices", "raise_invoice", resp)

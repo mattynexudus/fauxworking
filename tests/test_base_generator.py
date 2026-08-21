@@ -81,6 +81,26 @@ class TestBaseGeneratorCounting(unittest.TestCase):
         gen2 = _Probe()
         self.assertTrue(gen2.already_created("ProbeIndex", "1"))
 
+    def test_track_id_skips_same_entity_and_id_already_on_disk(self):
+        # Simulates two overlapping process runs: gen1 tracks a record,
+        # then gen2 (its own in-memory snapshot from before gen1's write)
+        # tries to track the *same* live Id under the same entity — the
+        # kind of duplicate a race between two processes writing the same
+        # tracking file used to produce.
+        gen1 = _Probe()
+        gen1.track_id({"entity": "probe", "Id": 42})
+        gen2 = _Probe()  # loads fresh, sees gen1's record already
+        gen2.track_id({"entity": "probe", "Id": 42})
+        on_disk = gen2._load_ids()
+        self.assertEqual(sum(1 for r in on_disk if r.get("Id") == 42), 1)
+        self.assertEqual(gen2.counts["created"], 0)
+
+    def test_track_id_allows_same_id_across_different_entities(self):
+        gen = _Probe()
+        gen.track_id({"entity": "probe", "Id": 1})
+        gen.track_id({"entity": "other", "Id": 1})
+        self.assertEqual(gen.counts["created"], 2)
+
 
 class TestEntityCounts(unittest.TestCase):
     """Per-entity target/created/skipped/failed tracking — the QA-facing

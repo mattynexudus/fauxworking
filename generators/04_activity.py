@@ -531,14 +531,42 @@ class ActivityGenerator(BaseGenerator):
                         continue
                     # CHARGE_BOOKING's response doesn't carry the new
                     # CoworkerExtraService's own Id (just a bare success
-                    # envelope) — look it up by BookingId to get a real,
-                    # deletable Id for tracking. Previously this tracked a
-                    # synthesized "charge-booking-{id}" string instead,
-                    # which was enough for already_created() to work but
-                    # not a real Nexudus Id — teardown.py could never
-                    # actually delete it (confirmed live: 404).
-                    charge = next(iter(nexudus_list(
-                        "coworkerextraservices", {"CoworkerExtraService_BookingId": booking_id})), None)
+                    # envelope) — look it up to get a real, deletable Id
+                    # for tracking. Previously this tracked a synthesized
+                    # "charge-booking-{id}" string instead, which was
+                    # enough for already_created() to work but not a real
+                    # Nexudus Id — teardown.py could never actually delete
+                    # it (confirmed live: 404).
+                    #
+                    # CoworkerExtraService_BookingId is NOT a valid filter
+                    # on this entity's list endpoint — confirmed live via
+                    # the API's own rejection: "The action cannot be
+                    # performed without the required filter Id,
+                    # from_coworkerextraservice_updatedon AND
+                    # to_coworkerextraservice_updatedon,
+                    # coworkerExtraService_BookingUniqueId or
+                    # CoworkerExtraService_Coworker." Filtering by BookingId
+                    # was never accepted; this call was unguarded (no
+                    # try/except), so every occurrence took down the rest
+                    # of this generator's run() via pipeline.py's per-layer
+                    # isolation rather than just this one record. Filter by
+                    # the coworker (already in scope, and one of the
+                    # confirmed-valid filters) and match the booking
+                    # client-side instead — a coworker has at most a
+                    # handful of extra services, so this is cheap. Wrapped
+                    # in try/except so a lookup failure only loses this one
+                    # record's clean Id (falling back to the pre-existing
+                    # synthetic-Id path below), never the whole layer.
+                    try:
+                        matches = nexudus_list(
+                            "coworkerextraservices",
+                            {"CoworkerExtraService_Coworker": coworker_ids[defn["CoworkerIndex"]]})
+                        charge = next((c for c in matches if c.get("BookingId") == booking_id), None)
+                    except Exception as e:  # noqa: BLE001
+                        self.log.warning(
+                            "Could not look up the real Id for charge #%d (booking %s) — "
+                            "tracking a synthetic Id instead: %s", defn["index"], booking_id, e)
+                        charge = None
                     self.track_id({
                         "entity": "coworkerextraservices",
                         **(charge if charge else {"Id": f"charge-booking-{booking_id}"}),

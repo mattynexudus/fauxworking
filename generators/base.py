@@ -110,11 +110,32 @@ class BaseGenerator:
         self._ids_file.write_text(json.dumps(self._created_ids, indent=2))
 
     def track_id(self, record: dict):
-        """Append a created record's key fields and persist."""
+        """Append a created record's key fields and persist.
+
+        Guards against tracking the same live record twice: a genuinely
+        new record always gets a fresh Id from the API, so a repeat
+        entity+Id here means something wrote to this tracking file more
+        than once for the same live record, not a real second creation —
+        confirmed to actually happen once, from two overlapping process
+        runs racing on the same file (each loaded its own now-stale
+        in-memory snapshot, so neither saw the other's writes; see
+        CLAUDE.md). Re-reads the file fresh right before checking, rather
+        than trusting only this instance's in-memory snapshot from
+        __init__, to narrow that race window as much as a plain
+        read-check-write can (not a full lock — good enough for this
+        project's call pattern of sequential API calls, not literal
+        multi-threading)."""
+        entity = record.get("entity")
+        record_id = record.get("Id")
+        if entity and record_id is not None:
+            self._created_ids = self._load_ids()
+            if any(r.get("entity") == entity and r.get("Id") == record_id for r in self._created_ids):
+                self.log.warning("track_id: %s %s already tracked elsewhere — skipping duplicate",
+                                  entity, record_id)
+                return
         self._created_ids.append(record)
         self._save_ids()
         self.counts["created"] += 1
-        entity = record.get("entity")
         if entity:
             self._entity_bucket(entity)["created"] += 1
 

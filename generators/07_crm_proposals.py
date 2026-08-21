@@ -91,14 +91,15 @@ class CrmProposalsGenerator(BaseGenerator):
     def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_run_command, prev_output):
         biz = prev_output["business_id"]
         admin_id = prev_output["admin_user_id"]
+        currency_id = prev_output["currency_id"]
         coworker_ids = prev_output["coworker_ids"]
         crm_board_column_ids = prev_output["crm_board_column_ids"]
         opportunity_type_ids = prev_output["opportunity_type_ids"]
         tariff_ids = prev_output["tariff_ids"]
         discount_code_ids = prev_output["discount_code_ids"]
 
-        self._create_opportunities(coworker_ids, crm_board_column_ids, opportunity_type_ids,
-                                    nexudus_create)
+        self._create_opportunities(biz, admin_id, currency_id, coworker_ids, crm_board_column_ids,
+                                    opportunity_type_ids, nexudus_create, nexudus_update)
         self._create_opportunity_history(crm_board_column_ids, nexudus_create)
         self._create_proposals(biz, admin_id, coworker_ids, tariff_ids, discount_code_ids,
                                 nexudus_create, nexudus_update, nexudus_run_command)
@@ -121,8 +122,8 @@ class CrmProposalsGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     # CrmOpportunity
     # ------------------------------------------------------------------
-    def _create_opportunities(self, coworker_ids, crm_board_column_ids, opportunity_type_ids,
-                               nexudus_create):
+    def _create_opportunities(self, biz, admin_id, currency_id, coworker_ids, crm_board_column_ids,
+                               opportunity_type_ids, nexudus_create, nexudus_update):
         self.log.info("--- CRM Opportunities (%d) ---", len(self.opportunity_defs))
         lead_column_id = crm_board_column_ids.get(STAGE_COLUMN_KEY["Lead"])
         opportunity_type_id_list = list(opportunity_type_ids.values())
@@ -143,30 +144,40 @@ class CrmProposalsGenerator(BaseGenerator):
                 continue
 
             stage = defn["Stage"]
-            # Previously created every opportunity at Lead then moved it
-            # via a second UPDATE call, based on a "confirmed live" comment
-            # claiming direct creation into any other column fails. That
-            # turned out to be wrong — disproven two ways: the user
-            # successfully created one directly on Negotiation through the
-            # admin UI (CreatedOn == UpdatedOn on the resulting record,
-            # meaning no follow-up move happened), and a direct live test
-            # here creating straight onto Negotiation, Won, and Lost all
-            # succeeded on the first try. The two-call version also had a
-            # real gap: the move UPDATE wasn't wrapped in the same
-            # try/except as the create, so a transient failure on *that*
-            # call (see rule 37) could still crash the rest of the layer,
-            # including every proposal after it — never actually verified
-            # as the cause of a specific report, but plausible and no
-            # longer possible now that it's one call. Single-step create
-            # at the real target column/status/won-lost-date instead.
+            # Every opportunity is created at Lead first, then moved via a
+            # follow-up UPDATE for anything not already Lead. An earlier
+            # version of this code created directly at the real target
+            # column/status in one call — a comment here claimed that was
+            # confirmed live to work (a direct admin-UI create on
+            # Negotiation, plus a direct test onto Negotiation/Won/Lost),
+            # but that testing was against a different, older account.
+            # Reproduced live on *this* account: direct creation onto
+            # Qualified, Proposal Sent, and even Won all fail with the
+            # generic "Ooops!" 500 — every stage except Lead — isolated by
+            # varying only the CrmBoardColumnId against an otherwise
+            # identical, already-proven-working body (bisected against
+            # both the coworker and the column independently to rule out
+            # anything else). Lead is genuinely the only column this
+            # account accepts a direct create into.
             body = {
-                "CrmBoardColumnId": crm_board_column_ids.get(STAGE_COLUMN_KEY[stage], lead_column_id),
+                # BusinessId/IssuedById/ResponsibleId/CurrencyId were all
+                # missing here originally and are why every opportunity
+                # create failed regardless of column — found by capturing
+                # the real admin UI's create payload and diffing it
+                # against this body (same technique as rule 27). IssuedById
+                # is the business id, not a user id (same convention as
+                # 03_contracts.py); ResponsibleId is the admin user.
+                "BusinessId": biz,
+                "IssuedById": biz,
+                "ResponsibleId": admin_id,
+                "CurrencyId": currency_id,
+                "CrmBoardColumnId": lead_column_id,
                 "CoworkerId": coworker_ids[defn["CoworkerIndex"]],
                 # Optional per the schema but effectively required on this
                 # account — create fails with a generic 500 without one.
                 "OpportunityTypeId": (opportunity_type_id_list[idx % len(opportunity_type_id_list)]
                                       if opportunity_type_id_list else None),
-                "Status": STAGE_STATUS.get(stage, 1),
+                "Status": 1,
                 "Value": defn["Value"],
                 "LeadSource": defn["LeadSource"],
                 # Confirmed live: Nexudus auto-normalizes Position to spaced
@@ -183,43 +194,76 @@ class CrmProposalsGenerator(BaseGenerator):
                 "Position": 1,
                 "DueDate": self._at(defn["DueDayOffset"]),
             }
-            if stage == "Won":
-                body["WonOn"] = self._at(defn["DueDayOffset"])
-            elif stage == "Lost":
-                body["LostOn"] = self._at(defn["DueDayOffset"])
 
             if self.dry_run:
                 self.log_would_create("crmopportunities", body)
+                if stage != "Lead":
+                    self.log.info("WOULD MOVE opportunity #%d to [%s]", idx, stage)
                 self.opportunity_ids[idx] = f"DRY-OPP-{idx}"
-            else:
+                continue
+
+            try:
+                result = nexudus_create("crmopportunities", body)
+            except Exception as e:  # noqa: BLE001
+                # Nexudus's generic 500 here has turned out to be bursty
+                # transient flakiness as often as a real rejection (see
+                # CLAUDE.md rule 37 — nexudus_client.py already retries it
+                # several times before this is ever reached).
+                # classify_failure additionally tells a one-off from the
+                # same error repeating (systemic — stop rather than take
+                # down opportunity history and proposals after it by
+                # hammering through every remaining opportunity the same
+                # way).
+                verdict = self.classify_failure("crmopportunities", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping opportunity creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="crmopportunities", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping opportunity #%d — create failed: %s", idx, e,
+                                  skip=True, entity="crmopportunities", reason="unknown_error")
+                continue
+
+            self.opportunity_ids[idx] = result["Id"]
+            actual_stage = "Lead"
+
+            if stage != "Lead":
+                move_body = {
+                    "CrmBoardColumnId": crm_board_column_ids.get(STAGE_COLUMN_KEY[stage], lead_column_id),
+                    "Status": STAGE_STATUS.get(stage, 1),
+                }
+                if stage == "Won":
+                    move_body["WonOn"] = self._at(defn["DueDayOffset"])
+                elif stage == "Lost":
+                    move_body["LostOn"] = self._at(defn["DueDayOffset"])
                 try:
-                    result = nexudus_create("crmopportunities", body)
+                    result = nexudus_update("crmopportunities", result["Id"], move_body)
+                    actual_stage = stage
                 except Exception as e:  # noqa: BLE001
-                    # Nexudus's generic 500 here has turned out to be
-                    # bursty transient flakiness as often as a real
-                    # rejection (see CLAUDE.md rule 37 — nexudus_client.py
-                    # already retries it several times before this is
-                    # ever reached). classify_failure additionally tells a
-                    # one-off from the same error repeating (systemic —
-                    # stop rather than take down opportunity history and
-                    # proposals after it by hammering through every
-                    # remaining opportunity the same way).
-                    verdict = self.classify_failure("crmopportunities", e)
+                    # The opportunity itself was created successfully — a
+                    # failed move leaves it sitting at Lead rather than
+                    # losing it entirely, so this is a distinct, separately
+                    # classified failure from the create above, and not
+                    # counted against crmopportunities' own created/failed
+                    # tally (the record does exist). Downstream logic that
+                    # reads Stage/Status (opportunity history, proposals
+                    # tied to a Won opportunity) will see it as Lead, same
+                    # as if it had been generated that way from the start.
+                    verdict = self.classify_failure("crmopportunities:move", e)
                     if verdict == "systemic":
                         self.log.warning(
-                            "Stopping opportunity creation — this error has repeated "
-                            "several times in a row, likely an account-wide condition: %s", e,
-                            skip=True, entity="crmopportunities", reason="systemic_rate_limit")
-                        break
-                    self.log.warning("Skipping opportunity #%d — create failed: %s", idx, e,
-                                      skip=True, entity="crmopportunities", reason="unknown_error")
-                    continue
-                self.opportunity_ids[idx] = result["Id"]
-                self.track_id({
-                    "entity": "crmopportunities", **result,
-                    "OpportunityIndex": track_key, "Stage": stage,
-                })
-                self.log.info("Created opportunity #%d [%s] (id=%s)", idx, stage, result["Id"])
+                            "Opportunity stage moves look blocked for the rest of this "
+                            "run — this error has repeated several times in a row: %s", e)
+                    else:
+                        self.log.warning("Opportunity #%d created but couldn't be moved to "
+                                          "[%s] — left at Lead: %s", idx, stage, e)
+
+            self.track_id({
+                "entity": "crmopportunities", **result,
+                "OpportunityIndex": track_key, "Stage": actual_stage,
+            })
+            self.log.info("Created opportunity #%d [%s] (id=%s)", idx, actual_stage, result["Id"])
 
     # ------------------------------------------------------------------
     # CrmOpportunityHistory
@@ -468,6 +512,7 @@ if __name__ == "__main__":
         mock_prev = {
             "business_id": "DRY-BIZ-1",
             "admin_user_id": "DRY-ADMIN-1",
+            "currency_id": "DRY-CUR-1",
             "coworker_ids": mock_coworker_ids,
             "crm_board_column_ids": mock_crm_board_column_ids,
             "opportunity_type_ids": mock_opportunity_type_ids,

@@ -121,6 +121,16 @@ class FinancialGenerator(BaseGenerator):
     CREDIT_NOTE_COUNT = 10
     REFUND_COUNT = 5
 
+    # Total coworkerinvoices this project aims to have tracked across all
+    # runs — repeated nexudus_raise_invoice calls for the same coworker
+    # each raise a genuinely new, distinct invoice rather than refusing
+    # once "caught up" (confirmed live: it advances the contract's billing
+    # period forward every time, into the future if needed), so reaching
+    # a larger total is just a matter of calling it enough times. Set high
+    # enough that a realistic-looking account has real invoice volume to
+    # report on, not just one per coworker.
+    INVOICE_TARGET = 220
+
     # How far into the past a raised invoice's dates can get shifted —
     # reuses the same WINDOW_MONTHS (24) history every other layer spreads
     # its data across, so invoice volume has the same spread as everything
@@ -136,13 +146,18 @@ class FinancialGenerator(BaseGenerator):
         "CreatedOn", "DueDate", "InvoiceFromDate", "InvoiceToDate", "PaidOn", "RefundedOn", "SentOn",
     ]
 
-    def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_run_command, prev_output):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.set_target("coworkerinvoices", self.INVOICE_TARGET)
+
+    def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_run_command,
+            nexudus_raise_invoice, prev_output):
         biz = prev_output["business_id"]
         contract_defs = prev_output["contract_defs"]
         coworker_ids = prev_output["coworker_ids"]
 
         billing_coworker_ids = self._billable_coworker_ids(contract_defs, coworker_ids)
-        self._raise_invoices(billing_coworker_ids, nexudus_run_command)
+        self._raise_invoices(biz, billing_coworker_ids, nexudus_raise_invoice)
         invoices = self._list_invoices(biz, coworker_ids, nexudus_list)
 
         to_pay, to_void, to_credit, refund_candidates, need_refund = self._select_invoices(invoices)
@@ -226,45 +241,88 @@ class FinancialGenerator(BaseGenerator):
         })
         return [coworker_ids[i] for i in active_indices if i in coworker_ids]
 
-    # One massive COWORKER_BILL_RUN call across every billable coworker at
-    # once is slow enough to be a real risk, not a hypothetical one —
-    # confirmed live: a 42-coworker batch took 28.8s (once actually
-    # exceeded the client's 30s timeout outright), right at the edge of
-    # producing exactly the generic, unhelpful failure this was meant to
-    # diagnose. Chunking keeps each call comfortably fast and means one bad
-    # or slow chunk doesn't block billing for every other coworker.
-    BILL_RUN_CHUNK_SIZE = 10
-
     # ------------------------------------------------------------------
     # Raise invoices
     # ------------------------------------------------------------------
-    def _raise_invoices(self, coworker_ids, nexudus_run_command):
-        self.log.info("--- Raising invoices for %d coworkers (COWORKER_BILL_RUN) ---", len(coworker_ids))
-        if not coworker_ids:
+    def _raise_invoices(self, biz, coworker_ids, nexudus_raise_invoice):
+        # coworkers.COWORKER_BILL_RUN (a run_command) was the original
+        # mechanism here per CLAUDE.md rule 12 — confirmed live it always
+        # returns None and silently raises nothing at all, regardless of
+        # how much is actually due, for every coworker tested. The real
+        # mechanism, found by capturing the admin UI's own network
+        # request (same technique as rule 27, a different endpoint this
+        # time rather than a command-discovery gap): POST /api/billing/
+        # coworkerinvoices/{business}/create/{coworker} — a dedicated
+        # REST-style route, not entity CRUD or a runcommand (see
+        # nexudus_client.py::nexudus_raise_invoice). Confirmed live twice:
+        # once for an individual coworker's own contract fee + a pending
+        # product sale, and once for a team's paying member, correctly
+        # consolidating the whole team's charges per Team.
+        # TransferCreditsToPayingMember (see CLAUDE.md rule 49).
+        #
+        # Unlike COWORKER_BILL_RUN, this endpoint is inherently one
+        # coworker at a time (the id is in the URL path, not a batch
+        # parameter) — no chunking to do here; nexudus_client.py's central
+        # write-pacing (config.WRITE_PACING_SECONDS) already spaces these
+        # calls out the same way it does every other write.
+        #
+        # A single call per coworker only ever produces one invoice each
+        # (~42 total for this account) — nowhere near a realistic invoice
+        # history. Confirmed live that calling this again for a coworker
+        # who's already been billed doesn't refuse or no-op: it raises a
+        # genuinely new invoice for the *next* billing period (advancing
+        # the contract's InvoicedPeriod forward each time, into the future
+        # if needed — see _backdate_invoices for why raised-in-the-future
+        # is fine, it backdates every discovered invoice across the full
+        # window regardless of when it was actually raised). So instead of
+        # one pass over coworker_ids, this keeps calling — round-robining
+        # through every billable coworker rather than piling everything
+        # onto the first few — until INVOICE_TARGET tracked invoices exist
+        # or a full pass produces nothing but failures.
+        #
+        # Idempotent like everything else here: if a prior run already
+        # reached the target, this is a no-op — re-running doesn't keep
+        # padding the count past what was asked for.
+        already_tracked = sum(1 for r in self.get_tracked_ids() if r.get("entity") == "coworkerinvoices")
+        shortfall = max(0, self.INVOICE_TARGET - already_tracked)
+        self.log.info("--- Raising invoices (%d already tracked, target %d, %d to go) ---",
+                      already_tracked, self.INVOICE_TARGET, shortfall)
+        if not coworker_ids or shortfall == 0:
             return
 
         if self.dry_run:
             preview = coworker_ids[:5] + (["..."] if len(coworker_ids) > 5 else [])
-            self.log.info("WOULD RUN COMMAND coworkers.COWORKER_BILL_RUN ids=%s", preview)
+            self.log.info("WOULD RAISE up to %d invoices, round-robining coworkers=%s", shortfall, preview)
             return
 
-        numeric_ids = [i for i in coworker_ids if isinstance(i, int)]
-        for start in range(0, len(numeric_ids), self.BILL_RUN_CHUNK_SIZE):
-            chunk = numeric_ids[start:start + self.BILL_RUN_CHUNK_SIZE]
+        raised = 0
+        attempts = 0
+        # Generous cap so persistent per-record failures can't loop
+        # forever, while still tolerating a reasonable number of them
+        # before giving up — classify_failure's systemic detection below
+        # already stops much earlier on a real account-wide condition.
+        max_attempts = shortfall * 3 + len(coworker_ids)
+        while raised < shortfall and attempts < max_attempts:
+            coworker_id = coworker_ids[attempts % len(coworker_ids)]
+            attempts += 1
             try:
-                result = nexudus_run_command("coworkers", "COWORKER_BILL_RUN", chunk)
+                result = nexudus_raise_invoice(biz, coworker_id)
             except Exception as e:  # noqa: BLE001
-                verdict = self.classify_failure("coworkerinvoices:bill_run", e)
+                verdict = self.classify_failure("coworkerinvoices:raise_invoice", e)
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping invoice raising — this error has repeated several "
                         "times in a row, likely an account-wide condition: %s", e,
                         skip=True, entity="coworkerinvoices", reason="systemic_rate_limit")
                     return
-                self.log.warning("COWORKER_BILL_RUN failed for chunk %s: %s", chunk, e,
+                self.log.warning("Failed to raise invoice for coworker %s: %s", coworker_id, e,
                                   skip=True, entity="coworkerinvoices", reason="unknown_error")
                 continue
-            self.log.info("Ran COWORKER_BILL_RUN for %d coworkers: %s", len(chunk), result)
+            raised += 1
+            self.log.info("Raised invoice %d/%d for coworker %s (id=%s, total=%s)",
+                          raised, shortfall, coworker_id, result.get("Id"), result.get("TotalAmount"))
+        self.log.info("Raised %d of %d targeted invoices (%d attempts, %d coworkers)",
+                      raised, shortfall, attempts, len(coworker_ids))
 
     # ------------------------------------------------------------------
     # Discover raised invoices
@@ -672,6 +730,9 @@ if __name__ == "__main__":
             nexudus_create=lambda entity, body: {"Id": f"DRY-{entity}-{body.get('CoworkerInvoiceId', body.get('Description', 'x'))}"},
             nexudus_update=lambda entity, id, body: {"Id": id},
             nexudus_run_command=lambda entity, key, ids, parameters=None: {"Status": "DRY-RUN", "Count": len(ids)},
+            nexudus_raise_invoice=lambda business_id, coworker_id, options=None: {
+                "Id": f"DRY-invoice-{coworker_id}", "TotalAmount": 0, "CoworkerId": coworker_id,
+            },
             prev_output=mock_prev,
         )
     else:

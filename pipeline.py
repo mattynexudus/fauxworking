@@ -71,6 +71,7 @@ CALLABLE_POOL = {
     "nexudus_update": client.nexudus_update,
     "nexudus_delete": client.nexudus_delete,
     "nexudus_run_command": client.nexudus_run_command,
+    "nexudus_raise_invoice": client.nexudus_raise_invoice,
 }
 
 # Generic dry-run stand-ins for the whole chain — used by run_up_to(dry_run=True)
@@ -96,6 +97,9 @@ DRY_RUN_POOL = {
     "nexudus_update": lambda entity, id, body: {"Id": id},
     "nexudus_delete": lambda entity, id: None,
     "nexudus_run_command": lambda entity, key, ids, parameters=None: {"Status": "DRY-RUN"},
+    "nexudus_raise_invoice": lambda business_id, coworker_id, options=None: {
+        "Id": f"DRY-invoice-{coworker_id}", "TotalAmount": 0, "CoworkerId": coworker_id,
+    },
 }
 
 MOCK_WHOAMI = {
