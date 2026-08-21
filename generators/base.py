@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import random
+from collections import Counter
 
 from config import (
     CREATED_IDS_DIR,
@@ -48,15 +49,26 @@ class _CountingLogger(logging.LoggerAdapter):
     actually correspond to "this record was not created" — the ones
     immediately followed by abandoning the record — leaving purely
     diagnostic/explanatory warnings uncounted.
+
+    entity=/reason= (optional, alongside skip=True) additionally attribute
+    the failure to a specific entity's per-entity tally and a short,
+    categorized reason — see BaseGenerator.entity_counts. Not required:
+    older call sites that only pass skip=True still work, they just aren't
+    attributed to a specific entity in the per-entity breakdown.
     """
 
-    def __init__(self, logger, counts):
+    def __init__(self, logger, counts, entity_bucket_fn):
         super().__init__(logger, {})
         self._counts = counts
+        self._entity_bucket_fn = entity_bucket_fn
 
-    def warning(self, msg, *args, skip=False, **kwargs):
+    def warning(self, msg, *args, skip=False, entity=None, reason=None, **kwargs):
         if skip:
             self._counts["failed"] += 1
+            if entity:
+                bucket = self._entity_bucket_fn(entity)
+                bucket["failed"] += 1
+                bucket["failure_reasons"][reason or "unknown_error"] += 1
         return self.logger.warning(msg, *args, **kwargs)
 
 
@@ -69,7 +81,16 @@ class BaseGenerator:
         self.rng = random.Random(seed)
         self.dry_run = dry_run or DRY_RUN
         self.counts = {"created": 0, "skipped": 0, "failed": 0}
-        self.log = _CountingLogger(logging.getLogger(self.__class__.__name__), self.counts)
+        # Per-entity breakdown of the same three counts, plus what this run
+        # actually planned to create (from the loaded plan data, via
+        # set_target — not a config.py default) and *why* anything failed.
+        # A single generator often creates several different entity types
+        # (e.g. ActivityGenerator: bookings, bookingvisitors, checkins, ...)
+        # — self.counts blends all of them into one aggregate, which isn't
+        # enough to tell a QA reader which entity fell short or why.
+        self.entity_counts: dict[str, dict] = {}
+        self._failure_streaks: dict[str, tuple] = {}  # entity -> (last error text, consecutive count)
+        self.log = _CountingLogger(logging.getLogger(self.__class__.__name__), self.counts, self._entity_bucket)
         self._ids_file = CREATED_IDS_DIR / f"{self.entity_name}.json"
         self._created_ids: list[dict] = self._load_ids()
         if self.dry_run:
@@ -93,24 +114,71 @@ class BaseGenerator:
         self._created_ids.append(record)
         self._save_ids()
         self.counts["created"] += 1
+        entity = record.get("entity")
+        if entity:
+            self._entity_bucket(entity)["created"] += 1
 
     def log_would_create(self, entity: str, body: dict):
         """In dry-run mode, log the record that would be created."""
         self.log.info("WOULD CREATE %s: %s", entity, json.dumps(body, indent=2))
         self.counts["created"] += 1
+        self._entity_bucket(entity)["created"] += 1
 
     def get_tracked_ids(self) -> list[dict]:
         return self._created_ids
 
     # ------------------------------------------------------------------
+    # Per-entity target/outcome tracking
+    # ------------------------------------------------------------------
+
+    def _entity_bucket(self, entity: str) -> dict:
+        return self.entity_counts.setdefault(entity, {
+            "target": 0, "created": 0, "skipped": 0, "failed": 0,
+            "failure_reasons": Counter(),
+        })
+
+    def set_target(self, entity: str, target: int):
+        """Register how many `entity` records this run's plan data actually
+        calls for — computed from the loaded data/*.json plan, not a
+        config.VOLUMES default, so it's always exactly what *this* run
+        intended (respecting whatever volumes were configured). Call once
+        per entity at __init__, before any creation happens."""
+        self._entity_bucket(entity)["target"] = target
+
+    def classify_failure(self, entity: str, error: Exception, repeat_threshold: int = 3) -> str:
+        """Classify a create/update/run_command failure for `entity` that
+        doesn't already have a specific, diagnosed handler at the call
+        site. Returns:
+        - "skip" — a one-off per-record problem; caller should skip this
+          one record and keep looping.
+        - "systemic" — this exact error text has now repeated
+          `repeat_threshold` times in a row for this entity, suggesting an
+          account-wide condition (e.g. an undocumented creation-rate
+          limit) rather than a bad record; caller should stop the loop
+          entirely instead of continuing to hit the same wall.
+        Call sites with a diagnosed, specific error text should keep
+        handling it directly — this is the fallback for everything else.
+        """
+        text = str(error)
+        prev_text, prev_count = self._failure_streaks.get(entity, (None, 0))
+        count = prev_count + 1 if text == prev_text else 1
+        self._failure_streaks[entity] = (text, count)
+        return "systemic" if count >= repeat_threshold else "skip"
+
+    # ------------------------------------------------------------------
     # Idempotency helpers
     # ------------------------------------------------------------------
 
-    def already_created(self, key_field: str, key_value: str) -> bool:
-        """Check if a record with the given key was already created."""
+    def already_created(self, key_field: str, key_value: str, entity: str = None) -> bool:
+        """Check if a record with the given key was already created.
+        entity is optional — pass it to attribute the skip to a specific
+        entity's per-entity tally (see entity_counts); omitted, the skip
+        still counts toward the generator-wide aggregate as before."""
         found = any(r.get(key_field) == key_value for r in self._created_ids)
         if found:
             self.counts["skipped"] += 1
+            if entity:
+                self._entity_bucket(entity)["skipped"] += 1
         return found
 
     # ------------------------------------------------------------------

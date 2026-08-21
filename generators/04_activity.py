@@ -67,6 +67,10 @@ class ActivityGenerator(BaseGenerator):
         self.time_pass_defs = self._load_data("time_passes.json")
         self.coworker_product_defs = self._load_data("coworker_products.json")
 
+        self.set_target("bookings", len(self.booking_defs))
+        self.set_target("bookingvisitors",
+                         sum(len(d["GuestVisitorIndices"]) for d in self.booking_defs))
+
     @staticmethod
     def _load_data(filename):
         path = DATA_DIR / filename
@@ -197,32 +201,56 @@ class ActivityGenerator(BaseGenerator):
             booking_id = self.booking_ids.get(defn["index"])
             for guest_idx, visitor_idx in enumerate(defn["GuestVisitorIndices"]):
                 track_key = f"{defn['index']}:{guest_idx}"
-                if self.already_created("GuestKey", track_key):
+                if self.already_created("GuestKey", track_key, entity="bookingvisitors"):
                     continue
 
                 if booking_id is None:
                     self.log.warning("Skipping booking guest #%s — booking #%d was never created "
                                       "(seat limit or resource conflict?)",
-                                      track_key, defn["index"], skip=True)
+                                      track_key, defn["index"],
+                                      skip=True, entity="bookingvisitors", reason="parent_skipped")
                     continue
 
                 if visitor_idx not in visitor_ids:
                     self.log.warning("Skipping booking guest #%s — visitor #%s was never created",
-                                      track_key, visitor_idx, skip=True)
+                                      track_key, visitor_idx,
+                                      skip=True, entity="bookingvisitors", reason="parent_skipped")
                     continue
 
                 body = {"BookingId": booking_id, "VisitorId": visitor_ids[visitor_idx]}
 
                 if self.dry_run:
                     self.log_would_create("bookingvisitors", body)
-                else:
+                    continue
+
+                # An account-wide creation-rate condition has been observed
+                # live on this entity specifically (401 "Access Denied",
+                # undocumented by Nexudus — see CLAUDE.md). classify_failure
+                # tells a one-off per-record problem (skip, keep going) apart
+                # from the same error repeating (systemic — stop instead of
+                # hammering the same wall for every remaining guest).
+                try:
                     result = nexudus_create("bookingvisitors", body)
-                    self.track_id({
-                        "entity": "bookingvisitors", **result, "GuestKey": track_key,
-                        "BookingIndex": defn["index"],
-                    })
-                    self.log.info("Linked visitor #%d to booking #%d (id=%s)",
-                                  visitor_idx, defn["index"], result["Id"])
+                except Exception as e:  # noqa: BLE001
+                    verdict = self.classify_failure("bookingvisitors", e)
+                    if verdict == "systemic":
+                        self.log.warning(
+                            "Stopping booking-guest creation — this error has repeated "
+                            "several times in a row, likely an account-wide condition "
+                            "rather than a one-off bad record: %s", e,
+                            skip=True, entity="bookingvisitors", reason="systemic_rate_limit")
+                        return
+                    self.log.warning("Skipping booking guest #%s — create failed: %s",
+                                      track_key, e,
+                                      skip=True, entity="bookingvisitors", reason="unknown_error")
+                    continue
+
+                self.track_id({
+                    "entity": "bookingvisitors", **result, "GuestKey": track_key,
+                    "BookingIndex": defn["index"],
+                })
+                self.log.info("Linked visitor #%d to booking #%d (id=%s)",
+                              visitor_idx, defn["index"], result["Id"])
 
     # ------------------------------------------------------------------
     # Cancel bookings — delete after all children exist; system creates
