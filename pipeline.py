@@ -47,6 +47,20 @@ LAYERS = [
     ("generators.07_crm_proposals", "CrmProposalsGenerator"),
 ]
 
+# Layers 0-3 (reference, structural, people, contracts) are a hard,
+# sequential dependency chain — everything after reads IDs from them
+# directly (coworker_ids, tariff_ids, contract_defs, ...), so a failure
+# there still halts the whole run, same as always. Layers 4a-7 (activity,
+# community, financial, CRM/proposals) were checked directly against each
+# of their own run() signatures — none of them reads a prev_output key
+# that only another one of these four adds — so one of them failing
+# outright doesn't leave the next one working from a genuinely broken
+# foundation; prev_output just never gains that layer's own new key(s),
+# which none of the others need. A failure there is caught, logged
+# clearly, and the run proceeds to the next layer instead of losing
+# everything after it over one unrelated failure.
+HARD_DEPENDENCY_LAYER_COUNT = 4
+
 # The full pool of live callables a generator's run() might ask for, by
 # parameter name. inspect.signature picks out only the ones each one
 # actually declares, so every generator's differing run() signature (some
@@ -99,6 +113,14 @@ MOCK_WHOAMI = {
 # a caller that cares (e.g. wizard.py, for its exit code) reads this right
 # after calling run_up_to().
 LAST_RUN_ENTITY_COUNTS = {}
+
+# Independent-tier layers (see HARD_DEPENDENCY_LAYER_COUNT) that failed
+# entirely and were skipped this run, as human-readable strings. Set at the
+# end of run_up_to(), same convention as LAST_RUN_ENTITY_COUNTS. A layer
+# that dies before creating anything leaves no trace in entity_counts (there's
+# nothing to compare a target against), so this is the only signal for that
+# case — entity_counts' own shortfall check alone isn't sufficient.
+LAST_RUN_LAYER_FAILURES = []
 
 
 def list_businesses():
@@ -175,14 +197,23 @@ def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
 
     Prints each layer's created/skipped/failed summary (see
     generators/base.py::BaseGenerator.summary_line) as it finishes, and the
-    cross-layer total when the whole call returns — via try/finally, so a
-    layer that raises still gets its partial counts reported before the
-    exception continues propagating (nothing here catches or hides errors).
+    cross-layer total when the whole call returns.
+
+    A layer at or past HARD_DEPENDENCY_LAYER_COUNT (activity, community,
+    financial, CRM/proposals) that raises is caught, logged clearly, and
+    recorded into LAST_RUN_LAYER_FAILURES — the run proceeds to the next
+    layer rather than losing everything after it (see
+    HARD_DEPENDENCY_LAYER_COUNT's comment for why that's safe). A layer
+    before it (reference, structural, people, contracts) that raises still
+    propagates out of this function and halts the run immediately, exactly
+    as before — via try/finally, so its partial counts are still reported
+    before the exception continues propagating.
     """
-    global LAST_RUN_ENTITY_COUNTS
+    global LAST_RUN_ENTITY_COUNTS, LAST_RUN_LAYER_FAILURES
     prev_output = None
     totals = {"created": 0, "skipped": 0, "failed": 0}
     reconciliation = {}
+    layer_failures = []
     pool = DRY_RUN_POOL if dry_run else CALLABLE_POOL
 
     try:
@@ -206,6 +237,16 @@ def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
 
             try:
                 prev_output = gen.run(**kwargs)
+            except Exception as e:
+                if i < HARD_DEPENDENCY_LAYER_COUNT:
+                    raise
+                print(f"\n!!! Layer {i} ({class_name}) failed entirely and was skipped — "
+                      f"nothing in a later layer reads its output, so the run continues: {e}")
+                layer_failures.append(f"Layer {i} ({class_name}): {e}")
+                # prev_output stays whatever the last successful layer
+                # returned — this failed layer never reassigns it, so the
+                # next layer gets the same input it would have gotten
+                # anyway (see HARD_DEPENDENCY_LAYER_COUNT).
             finally:
                 print(gen.summary_line())
                 for key in totals:
@@ -222,7 +263,12 @@ def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
                     report_lib.write_entity_csvs(config.OUTPUT_DIR)
     finally:
         print(f"\nTotal — Created: {totals['created']}  Skipped: {totals['skipped']}  Failed: {totals['failed']}")
+        if layer_failures:
+            print(f"Layer failures ({len(layer_failures)}) — see above for full errors:")
+            for lf in layer_failures:
+                print(f"  - {lf}")
         LAST_RUN_ENTITY_COUNTS = reconciliation
+        LAST_RUN_LAYER_FAILURES = layer_failures
         if not dry_run:
             # This run's target-vs-actual, then the cumulative "what's
             # actually in the account now" — a dry run has no real records
@@ -231,11 +277,13 @@ def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
             print("\n".join(report_lib.run_reconciliation_lines(reconciliation)))
             print("\n=== What's in the account now (cumulative, all runs) ===")
             print("\n".join(report_lib.report_lines()))
-            report_lib.write_report(report_lib.REPORT_PATH, reconciliation_entity_counts=reconciliation)
+            report_lib.write_report(report_lib.REPORT_PATH, reconciliation_entity_counts=reconciliation,
+                                     layer_failures=layer_failures)
             if write_csvs:
                 config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
                 report_lib.write_report(config.OUTPUT_DIR / "run-report.txt",
-                                         reconciliation_entity_counts=reconciliation)
+                                         reconciliation_entity_counts=reconciliation,
+                                         layer_failures=layer_failures)
                 print(f"\n(saved to {report_lib.REPORT_PATH} and {config.OUTPUT_DIR})")
             else:
                 print(f"\n(saved to {report_lib.REPORT_PATH})")

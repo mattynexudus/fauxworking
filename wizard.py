@@ -244,10 +244,12 @@ def run_live(layer_index, args, export_csvs):
     actual error; it's always shown in full before asking whether to retry.
 
     Returns an exit code: 0 if the run completed with every entity's target
-    fully accounted for, 1 if it was cancelled, gave up after a failure, or
-    completed but fell short somewhere (see report_lib.has_shortfall) — so
-    a CI/QA harness driving this non-interactively can tell "fully
-    succeeded" apart from "needs a look" without parsing report text.
+    fully accounted for, 1 if it was cancelled, gave up after a failure,
+    completed but fell short somewhere (see report_lib.has_shortfall), or
+    an entire independent-tier layer failed outright (see
+    pipeline.LAST_RUN_LAYER_FAILURES) — so a CI/QA harness driving this
+    non-interactively can tell "fully succeeded" apart from "needs a look"
+    without parsing report text.
     """
     business_id = collect_business_id(args)
 
@@ -260,6 +262,10 @@ def run_live(layer_index, args, export_csvs):
         try:
             pipeline.run_up_to(layer_index, dry_run=False, business_id=business_id, write_csvs=export_csvs)
             print("\nDone.")
+            if pipeline.LAST_RUN_LAYER_FAILURES:
+                print(f"Note: {len(pipeline.LAST_RUN_LAYER_FAILURES)} layer(s) failed entirely this "
+                      f"run and were skipped — see above (or last-run-report.txt) for details.")
+                return 1
             if report_lib.has_shortfall(pipeline.LAST_RUN_ENTITY_COUNTS):
                 print("Note: this run fell short of its target for one or more entities — "
                       "see the reconciliation above (or last-run-report.txt) for details.")

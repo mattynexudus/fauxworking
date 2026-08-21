@@ -221,7 +221,7 @@ def write_entity_csvs(output_dir):
             writer.writerows(rows)
 
 
-def write_report(path, reconciliation_entity_counts=None):
+def write_report(path, reconciliation_entity_counts=None, layer_failures=None):
     """Write the report to a file with a timestamp header, for later
     reference — the point being a QA person can open this without re-running
     anything or scrolling back through a terminal.
@@ -230,9 +230,21 @@ def write_report(path, reconciliation_entity_counts=None):
     of the existing cumulative "what's in the account now" table — see
     run_reconciliation_lines. Omitted by callers with nothing run-specific
     to report (e.g. scripts/verify.sh, which only ever wants the cumulative
-    view)."""
+    view).
+
+    layer_failures (optional) — an entire independent-tier layer (see
+    pipeline.py::HARD_DEPENDENCY_LAYER_COUNT) that failed outright this run.
+    Surfaced in its own section, ahead of everything else, so a caught
+    layer-level failure is never silently swept away by a report that
+    otherwise looks clean (a layer that dies before creating anything
+    leaves no trace in the reconciliation table below — there's nothing to
+    compare a target against)."""
     from datetime import datetime, timezone
     lines = [f"Report generated {datetime.now(timezone.utc).isoformat()}", ""]
+    if layer_failures:
+        lines.append(f"=== Layers that failed entirely this run ({len(layer_failures)}) ===")
+        lines += [f"  - {lf}" for lf in layer_failures]
+        lines.append("")
     if reconciliation_entity_counts is not None:
         lines.append("=== This run: target vs. actual ===")
         lines += run_reconciliation_lines(reconciliation_entity_counts)
