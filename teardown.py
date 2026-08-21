@@ -33,6 +33,31 @@ CoworkerProduct swept into one of them — could never be cleanly deleted).
 Records that fail to delete (or belong to a no-delete entity) are kept in
 the tracking file for a future retry; only confirmed deletions are cleared.
 
+A run against a genuinely complete seed doesn't need any of this, but this
+account is generated in stages (see pipeline.py's layer tiers) and a prior
+run can easily be partial — a foundational failure, an independent-tier
+layer failure, a manual interrupt, the ~50/day coworker limit (CLAUDE.md
+rule 30), or just a stray malformed record. So each entity's whole batch
+(see _delete_entity_batch) is isolated in its own try/except in the main
+loop, one level below pipeline.py's own per-layer isolation — a failure
+there is logged distinctly from an ordinary per-record failure and this
+script moves on to the next entity rather than aborting the entire run.
+Records pooled from data/created-ids/*.json that are missing their
+"entity" tag (or aren't even a record dict — the same "stray file"
+scenario one step further) are skipped with a warning rather than used as
+a dict key, which used to be able to crash the whole run outright before a
+single record was touched (see CLAUDE.md rule 48). Per-entity outcomes
+(deleted/failed/skipped, plus failure reasons) are collected into
+entity_outcomes and rendered by teardown_summary_lines() alongside the
+existing aggregate Seen/Deleted/Skipped/Failed line, and persisting
+whatever was actually deleted always runs — via a try/finally around the
+main loop — even if some entity's batch aborted.
+
+If last-run-report.txt shows signs the last generation run didn't fully
+complete, a one-line heads-up prints before teardown starts — purely
+informational, it can't change what gets deleted (still strictly by
+tracked ID, per rule 6/7).
+
 After a live teardown finishes, it also offers to delete data/*.json — the
 pre-generated test data plan files prebuild.py writes and the generators
 read from (coworkers.json, bookings.json, ...). Teardown clearing the live
@@ -65,6 +90,7 @@ Usage:
 import argparse
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -301,11 +327,144 @@ def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command, nexudus_
         _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
 
 
+def _entity_bucket(entity_outcomes, entity):
+    return entity_outcomes.setdefault(entity, {
+        "seen": 0, "deleted": 0, "skipped_no_support": 0, "skipped_no_id": 0,
+        "failed": 0, "failure_reasons": Counter(), "entity_aborted": None,
+    })
+
+
+def _delete_entity_batch(entity, items, dry_run, nexudus_delete, nexudus_run_command,
+                          nexudus_list, bucket, deleted_keys):
+    """One entity's whole batch: the coworkerinvoices credit-note-first
+    sort, the NO_DELETE_SUPPORT skip, and the per-record delete loop.
+    bucket and deleted_keys are mutated in place rather than returned, so
+    whatever this function accomplishes before a failure (currently:
+    nothing here is known to raise past the per-record try below, but see
+    run_teardown's per-entity wrap) is preserved even if it doesn't return
+    normally."""
+    if entity == "coworkerinvoices":
+        # A credit note (COWORKER_INVOICE_CANCEL's output, see rule 12) is
+        # itself a separate CoworkerInvoice linked back to the one it
+        # credited via OriginalInvoiceGuid/OriginalInvoiceId — a genuine
+        # child-before-parent dependency within this one entity type,
+        # confirmed by the user. Sort credit notes (tracked with an
+        # OriginalInvoiceId) to the front of this batch so they're deleted
+        # before the invoice they reference.
+        items = sorted(items, key=lambda item: item[2].get("OriginalInvoiceId") is None)
+
+    if entity in NO_DELETE_SUPPORT:
+        print(f"--- {entity} ({len(items)}) --- SKIPPED (no delete support in API)")
+        bucket["skipped_no_support"] += len(items)
+        return
+
+    print(f"--- {entity} ({len(items)}) ---")
+    for path, i, record in items:
+        record_id = record.get("Id")
+        if record_id is None or (isinstance(record_id, str) and record_id.startswith("DRY-")):
+            bucket["skipped_no_id"] += 1
+            continue
+
+        if dry_run:
+            print(f"  WOULD DELETE {entity} {record_id}")
+            continue
+
+        try:
+            _delete_one(entity, record_id, nexudus_delete, nexudus_run_command, nexudus_list)
+            deleted_keys.add((path, i))
+            bucket["deleted"] += 1
+        except Exception as e:  # noqa: BLE001 — log and continue with this entity's remaining records
+            # A 404 means the record is already gone — some other path
+            # (a cascade delete, a manual cleanup, an earlier partial
+            # teardown) already got it. That's the end state teardown
+            # wants anyway, so treat it as deleted rather than a
+            # failure — otherwise a stale tracked ID sits in the file
+            # forever, re-reported as "failed" on every future run.
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            if status == 404:
+                print(f"  {entity} {record_id} already gone (404) — treating as deleted")
+                deleted_keys.add((path, i))
+                bucket["deleted"] += 1
+            else:
+                print(f"  FAILED to delete {entity} {record_id}: {e}")
+                bucket["failed"] += 1
+                bucket["failure_reasons"][f"http_{status}" if status else type(e).__name__] += 1
+
+
+_INCOMPLETE_RUN_MARKERS = (
+    "Layers that failed entirely this run",
+    "<-- short",
+)
+
+
+def _last_generation_run_incomplete():
+    """True if last-run-report.txt (report_lib.py::write_report's output)
+    shows signs the most recent generation run didn't fully complete —
+    checked via report_lib.py's own literal marker strings rather than
+    re-deriving its data, since teardown runs as a separate process with
+    no access to pipeline.py's in-memory LAST_RUN_* globals. Purely
+    informational: teardown only ever deletes by tracked ID (see module
+    docstring), so this can't change what it does, only what it prints
+    before starting.
+
+    Deliberately does NOT check report_lines()'s "<-- below target" flag —
+    that's the cumulative, lifetime view (report_lib.py::report_lines) and
+    can be true for reasons that have nothing to do with the last run's
+    completeness (a volume config bumped up since, a multi-day seeding
+    plan not finished by design, ...). Only run_reconciliation_lines()'s
+    "<-- short" (this run specifically fell short of its own target) and
+    an outright layer failure are genuinely run-specific signals."""
+    from report_lib import REPORT_PATH
+    if not REPORT_PATH.exists():
+        return False
+    try:
+        text = REPORT_PATH.read_text()
+    except OSError:
+        return False
+    return any(marker in text for marker in _INCOMPLETE_RUN_MARKERS)
+
+
+def teardown_summary_lines(entity_outcomes):
+    """Per-entity Seen/Deleted/NoSupport/Failed breakdown, plus failure
+    reasons and entity-level abort notices — mirrors report_lib.py's
+    run_reconciliation_lines()'s shape and its "only show a detail line
+    for entities that actually have something to report" convention."""
+    if not entity_outcomes:
+        return []
+
+    lines = [f"{'Entity':<32} {'Seen':>6} {'Deleted':>8} {'NoSupport':>10} {'Failed':>8}", "-" * 68]
+    aborted = []
+    for entity in sorted(entity_outcomes):
+        b = entity_outcomes[entity]
+        lines.append(f"{entity:<32} {b['seen']:>6} {b['deleted']:>8} "
+                      f"{b['skipped_no_support']:>10} {b['failed']:>8}")
+        if b["failure_reasons"]:
+            reasons = ", ".join(f"{r}={n}" for r, n in b["failure_reasons"].most_common())
+            lines.append(f"    reasons: {reasons}")
+        if b["entity_aborted"]:
+            lines.append(f"    BATCH ABORTED: {b['entity_aborted']}")
+            aborted.append(entity)
+
+    if aborted:
+        lines.append("")
+        lines.append(f"Entities whose batch aborted partway through ({len(aborted)}): "
+                      + ", ".join(aborted))
+    return lines
+
+
 def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list=None):
     files = load_tracked_records()
+    empty_summary = {"seen": 0, "deleted": 0, "skipped_no_support": 0, "failed": 0,
+                      "malformed": 0, "entity_outcomes": {}}
     if not files:
         print("No tracked records found in data/created-ids/ — nothing to tear down.")
-        return
+        return empty_summary
+
+    if _last_generation_run_incomplete():
+        print("Heads up: the last generation run (see last-run-report.txt) shows signs it "
+              "didn't fully complete — some records you expect may be missing. This doesn't "
+              "change what teardown does (it only ever deletes by tracked ID), just flagging "
+              "it before starting.\n")
 
     # Pool every record across files, remembering which file+index it came from
     # so we can rewrite each file afterward with only the survivors.
@@ -314,81 +473,96 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
         for i, r in enumerate(records):
             pooled.append((path, i, r))
 
+    # A record missing its "entity" tag (or, one step further, a stray
+    # file whose JSON isn't even a list of record dicts) isn't a real
+    # entity — the same "stray file in data/created-ids/" scenario
+    # report_lib.py::_grouped_records() already guards against on the
+    # reporting side, with its own malformed_count. Skipping these here
+    # matters more than just symmetry: an unguarded None key used to flow
+    # straight into `sorted(set(by_entity) - set(ENTITY_DELETE_ORDER))`
+    # below, which raises TypeError the instant another, genuinely-
+    # unlisted entity name was *also* present that run — crashing the
+    # entire teardown before a single record was touched.
     by_entity = {}
+    malformed_count = 0
     for item in pooled:
-        entity = item[2].get("entity")
+        record = item[2]
+        entity = record.get("entity") if isinstance(record, dict) else None
+        if entity is None:
+            malformed_count += 1
+            continue
         by_entity.setdefault(entity, []).append(item)
 
+    if malformed_count:
+        print(f"WARNING: {malformed_count} tracked record(s) are missing an 'entity' tag — "
+              f"skipped (left in tracking, not deleted). Check data/created-ids/ for a stray "
+              f"file that doesn't belong there.\n")
+
     total_seen = len(pooled)
-    total_deleted = 0
-    total_skipped_no_support = 0
-    total_failed = 0
     deleted_keys = set()  # (path, index) confirmed gone
+    entity_outcomes = {}
 
     ordered_entities = ENTITY_DELETE_ORDER + sorted(set(by_entity) - set(ENTITY_DELETE_ORDER))
 
-    for entity in ordered_entities:
-        items = by_entity.get(entity)
-        if not items:
-            continue
-
-        if entity == "coworkerinvoices":
-            # A credit note (COWORKER_INVOICE_CANCEL's output, see rule
-            # 12) is itself a separate CoworkerInvoice linked back to the
-            # one it credited via OriginalInvoiceGuid/OriginalInvoiceId —
-            # a genuine child-before-parent dependency within this one
-            # entity type, confirmed by the user. Sort credit notes
-            # (tracked with an OriginalInvoiceId) to the front of this
-            # batch so they're deleted before the invoice they reference.
-            items = sorted(items, key=lambda item: item[2].get("OriginalInvoiceId") is None)
-
-        if entity in NO_DELETE_SUPPORT:
-            print(f"--- {entity} ({len(items)}) --- SKIPPED (no delete support in API)")
-            total_skipped_no_support += len(items)
-            continue
-
-        print(f"--- {entity} ({len(items)}) ---")
-        for path, i, record in items:
-            record_id = record.get("Id")
-            if record_id is None or (isinstance(record_id, str) and record_id.startswith("DRY-")):
+    try:
+        for entity in ordered_entities:
+            items = by_entity.get(entity)
+            if not items:
                 continue
 
-            if dry_run:
-                print(f"  WOULD DELETE {entity} {record_id}")
-                continue
+            bucket = _entity_bucket(entity_outcomes, entity)
+            bucket["seen"] = len(items)
 
             try:
-                _delete_one(entity, record_id, nexudus_delete, nexudus_run_command, nexudus_list)
-                deleted_keys.add((path, i))
-                total_deleted += 1
-            except Exception as e:  # noqa: BLE001 — log and continue tearing down the rest
-                # A 404 means the record is already gone — some other path
-                # (a cascade delete, a manual cleanup, an earlier partial
-                # teardown) already got it. That's the end state teardown
-                # wants anyway, so treat it as deleted rather than a
-                # failure — otherwise a stale tracked ID sits in the file
-                # forever, re-reported as "failed" on every future run.
-                status = getattr(getattr(e, "response", None), "status_code", None)
-                if status == 404:
-                    print(f"  {entity} {record_id} already gone (404) — treating as deleted")
-                    deleted_keys.add((path, i))
-                    total_deleted += 1
+                _delete_entity_batch(entity, items, dry_run, nexudus_delete, nexudus_run_command,
+                                      nexudus_list, bucket, deleted_keys)
+            except Exception as e:  # noqa: BLE001 — this entity's whole batch aborted partway
+                # through (something outside _delete_entity_batch's own
+                # per-record try/except) — log distinctly from a
+                # per-record failure and move to the next entity,
+                # mirroring pipeline.py's per-layer isolation one level
+                # down, at entity-type granularity instead of layer.
+                attempted = bucket["deleted"] + bucket["failed"]
+                if attempted:
+                    print(f"\n!!! {entity} batch aborted after {attempted} of {bucket['seen']} "
+                          f"records were already processed (preserved) — the rest stay tracked "
+                          f"for a future retry: {e}")
                 else:
-                    print(f"  FAILED to delete {entity} {record_id}: {e}")
-                    total_failed += 1
+                    print(f"\n!!! {entity} batch aborted before any of its {bucket['seen']} "
+                          f"records were attempted — all stay tracked for a future retry: {e}")
+                bucket["entity_aborted"] = str(e)
+    finally:
+        # However far the loop above got — even if something in its own
+        # setup broke rather than inside one entity's processing — nothing
+        # already deleted this run should ever go unpersisted, and the run
+        # should always report what it accomplished rather than a bare
+        # stack trace with no summary at all.
+        total_deleted = sum(b["deleted"] for b in entity_outcomes.values())
+        total_skipped_no_support = sum(b["skipped_no_support"] for b in entity_outcomes.values())
+        total_failed = sum(b["failed"] for b in entity_outcomes.values())
 
-    print()
-    print(f"Seen: {total_seen}  Deleted: {total_deleted}  "
-          f"Skipped (unsupported): {total_skipped_no_support}  Failed: {total_failed}")
+        print()
+        print(f"Seen: {total_seen}  Deleted: {total_deleted}  "
+              f"Skipped (unsupported): {total_skipped_no_support}  Failed: {total_failed}"
+              + (f"  Malformed (no entity tag): {malformed_count}" if malformed_count else ""))
 
-    if dry_run or not deleted_keys:
-        return
+        summary_lines = teardown_summary_lines(entity_outcomes)
+        if summary_lines:
+            print()
+            print("\n".join(summary_lines))
 
-    # Rewrite each file, keeping only records that weren't confirmed deleted.
-    for path, records in files.items():
-        survivors = [r for i, r in enumerate(records) if (path, i) not in deleted_keys]
-        path.write_text(json.dumps(survivors, indent=2) + "\n")
-    print("Updated data/created-ids/*.json to remove deleted records.")
+        if not dry_run and deleted_keys:
+            # Rewrite each file, keeping only records that weren't confirmed deleted.
+            for path, records in files.items():
+                survivors = [r for i, r in enumerate(records) if (path, i) not in deleted_keys]
+                path.write_text(json.dumps(survivors, indent=2) + "\n")
+            print("\nUpdated data/created-ids/*.json to remove deleted records.")
+
+    return {
+        "seen": total_seen, "deleted": total_deleted,
+        "skipped_no_support": total_skipped_no_support, "failed": total_failed,
+        "malformed": malformed_count, "entity_outcomes": entity_outcomes,
+    }
 
 
 def maybe_clear_generated_data():
@@ -510,9 +684,18 @@ if __name__ == "__main__":
         import nexudus_client as client
         from pipeline import _select_business, list_businesses
 
-        run_teardown(nexudus_delete=client.nexudus_delete, dry_run=False,
-                     nexudus_run_command=client.nexudus_run_command,
-                     nexudus_list=client.nexudus_list)
+        try:
+            run_teardown(nexudus_delete=client.nexudus_delete, dry_run=False,
+                         nexudus_run_command=client.nexudus_run_command,
+                         nexudus_list=client.nexudus_list)
+        except Exception as e:  # noqa: BLE001 — every anticipated failure mode is already
+            # handled inside run_teardown itself (per-record, per-entity);
+            # this is the last-resort net for something genuinely
+            # unforeseen, so the optional offers below still get a chance
+            # to run instead of the whole process dying here.
+            print(f"\n\nTeardown hit an unexpected error and stopped early: {e}\n"
+                  f"Some tracked records may not have been deleted — re-run teardown.py "
+                  f"to pick up where it left off.")
 
         try:
             maybe_clear_generated_data()
