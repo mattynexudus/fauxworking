@@ -43,6 +43,8 @@ class PeopleGenerator(BaseGenerator):
         self.visitor_ids = {}    # index -> id
         self.coworker_defs = self._load_data("coworkers.json")
         self.visitor_defs = self._load_data("visitors.json")
+        self.set_target("coworkers", len(self.coworker_defs))
+        self.set_target("visitors", len(self.visitor_defs))
 
     @staticmethod
     def _load_data(filename):
@@ -91,7 +93,7 @@ class PeopleGenerator(BaseGenerator):
 
             if email in existing_by_email:
                 self.log.info("Coworker '%s' already exists (id=%s)", email, existing_by_email[email])
-                self.count_skip()
+                self.count_skip(entity="coworkers")
                 self.coworker_ids[idx] = existing_by_email[email]
                 continue
 
@@ -152,9 +154,20 @@ class PeopleGenerator(BaseGenerator):
                             "Coworker creation stopped at #%d — account appears to "
                             "have hit a coworker/seat limit (%d created this run). "
                             "Later layers will skip records tied to missing coworkers.",
-                            idx, len(self.coworker_ids), skip=True)
+                            idx, len(self.coworker_ids),
+                            skip=True, entity="coworkers", reason="seat_limit")
                         break
-                    raise
+                    verdict = self.classify_failure("coworkers", e)
+                    if verdict == "systemic":
+                        self.log.warning(
+                            "Coworker creation stopped at #%d — this error has repeated "
+                            "several times in a row, likely an account-wide condition "
+                            "rather than a one-off bad record: %s", idx, e,
+                            skip=True, entity="coworkers", reason="systemic_rate_limit")
+                        break
+                    self.log.warning("Skipping coworker #%d — create failed: %s", idx, e,
+                                      skip=True, entity="coworkers", reason="unknown_error")
+                    continue
                 self.coworker_ids[idx] = result["Id"]
                 self.track_id({
                     "entity": "coworkers", **result,
@@ -176,7 +189,7 @@ class PeopleGenerator(BaseGenerator):
 
             if email in existing_by_email:
                 self.log.info("Visitor '%s' already exists (id=%s)", email, existing_by_email[email])
-                self.count_skip()
+                self.count_skip(entity="visitors")
                 self.visitor_ids[idx] = existing_by_email[email]
                 continue
 
@@ -200,15 +213,29 @@ class PeopleGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("visitors", body)
                 self.visitor_ids[idx] = f"DRY-VIS-{idx}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("visitors", body)
-                self.visitor_ids[idx] = result["Id"]
-                self.track_id({
-                    "entity": "visitors", **result,
-                    "Email": email, "Index": idx,
-                })
-                self.log.info("Created visitor #%d '%s' (id=%s)",
-                              idx, defn["FullName"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("visitors", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping visitor creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="visitors", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping visitor #%d — create failed: %s", idx, e,
+                                  skip=True, entity="visitors", reason="unknown_error")
+                continue
+
+            self.visitor_ids[idx] = result["Id"]
+            self.track_id({
+                "entity": "visitors", **result,
+                "Email": email, "Index": idx,
+            })
+            self.log.info("Created visitor #%d '%s' (id=%s)",
+                          idx, defn["FullName"], result["Id"])
 
     def _set_team_paying_members(self, team_ids, nexudus_list, nexudus_update):
         """Merged-billing teams need CreateSingleInvoiceForTeam + PayingMemberId,
@@ -228,11 +255,15 @@ class PeopleGenerator(BaseGenerator):
 
             member = next((d for d in self.coworker_defs if d.get("Team") == team_name), None)
             if member is None:
-                self.log.warning("No coworker assigned to team '%s' — skipping paying member setup", team_name, skip=True)
+                self.log.warning("No coworker assigned to team '%s' — skipping paying member setup", team_name,
+                                  skip=True, entity="teams", reason="parent_skipped")
                 continue
 
             coworker_id = self.coworker_ids.get(member["index"])
             if not coworker_id:
+                self.log.warning("Skipping paying member setup for '%s' — coworker #%s was never created",
+                                  team_name, member["index"],
+                                  skip=True, entity="teams", reason="parent_skipped")
                 continue
 
             fields = {"PayingMemberId": coworker_id, "CreateSingleInvoiceForTeam": True, **extra_fields}
@@ -242,7 +273,12 @@ class PeopleGenerator(BaseGenerator):
                               team_name, coworker_id, fields)
                 continue
 
-            nexudus_update("teams", team_id, fields)
+            try:
+                nexudus_update("teams", team_id, fields)
+            except Exception as e:  # noqa: BLE001
+                self.log.warning("Failed to set paying member for '%s': %s", team_name, e,
+                                  skip=True, entity="teams", reason="unknown_error")
+                continue
             self.log.info("Set paying member for '%s' (team id=%s, coworker id=%s)",
                           team_name, team_id, coworker_id)
 

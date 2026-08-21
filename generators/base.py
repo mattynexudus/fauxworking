@@ -185,15 +185,19 @@ class BaseGenerator:
     # Run summary
     # ------------------------------------------------------------------
 
-    def count_skip(self, n: int = 1):
+    def count_skip(self, n: int = 1, entity: str = None):
         """For skip paths that don't go through already_created() — e.g. a
         live-API name/email lookup finding an existing record."""
         self.counts["skipped"] += n
+        if entity:
+            self._entity_bucket(entity)["skipped"] += n
 
-    def count_create(self, n: int = 1):
+    def count_create(self, n: int = 1, entity: str = None):
         """For creation paths that don't go through track_id() — e.g.
         daily_update.py, which doesn't track IDs (see its own docstring)."""
         self.counts["created"] += n
+        if entity:
+            self._entity_bucket(entity)["created"] += n
 
     def summary_line(self) -> str:
         c, s, f = self.counts["created"], self.counts["skipped"], self.counts["failed"]

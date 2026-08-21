@@ -151,6 +151,17 @@ class TestEntityCounts(unittest.TestCase):
         self.assertEqual(gen.counts["failed"], 1)
         self.assertEqual(gen.entity_counts, {})
 
+    def test_count_skip_with_entity_increments_entity_bucket(self):
+        gen = _Probe()
+        gen.count_skip(entity="widgets")
+        gen.count_skip(2, entity="widgets")
+        self.assertEqual(gen.entity_counts["widgets"]["skipped"], 3)
+
+    def test_count_create_with_entity_increments_entity_bucket(self):
+        gen = _Probe()
+        gen.count_create(entity="widgets")
+        self.assertEqual(gen.entity_counts["widgets"]["created"], 1)
+
 
 class TestClassifyFailure(unittest.TestCase):
     """The systemic-vs-one-off resilience classifier (Workstream 1b)."""
