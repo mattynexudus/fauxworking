@@ -254,7 +254,15 @@ class FinancialGenerator(BaseGenerator):
             try:
                 result = nexudus_run_command("coworkers", "COWORKER_BILL_RUN", chunk)
             except Exception as e:  # noqa: BLE001
-                self.log.warning("COWORKER_BILL_RUN failed for chunk %s: %s", chunk, e, skip=True)
+                verdict = self.classify_failure("coworkerinvoices:bill_run", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping invoice raising — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkerinvoices", reason="systemic_rate_limit")
+                    return
+                self.log.warning("COWORKER_BILL_RUN failed for chunk %s: %s", chunk, e,
+                                  skip=True, entity="coworkerinvoices", reason="unknown_error")
                 continue
             self.log.info("Ran COWORKER_BILL_RUN for %d coworkers: %s", len(chunk), result)
 
@@ -295,7 +303,7 @@ class FinancialGenerator(BaseGenerator):
             if inv.get("CoworkerId") not in our_coworker_ids:
                 continue
             track_key = str(inv["Id"])
-            if not self.already_created("DiscoveredInvoiceId", track_key):
+            if not self.already_created("DiscoveredInvoiceId", track_key, entity="coworkerinvoices"):
                 self.track_id({
                     "entity": "coworkerinvoices", **inv, "DiscoveredInvoiceId": track_key,
                 })
@@ -310,7 +318,7 @@ class FinancialGenerator(BaseGenerator):
 
         for inv in invoices:
             track_key = str(inv.get("Id"))
-            if self.already_created("PaidInvoiceId", track_key):
+            if self.already_created("PaidInvoiceId", track_key, entity="coworkerledgerentries"):
                 continue
 
             body = {
@@ -327,12 +335,26 @@ class FinancialGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("coworkerledgerentries", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("coworkerledgerentries", body)
-                self.track_id({
-                    "entity": "coworkerledgerentries", **result, "PaidInvoiceId": track_key,
-                })
-                self.log.info("Paid invoice %s (id=%s)", inv.get("Id"), result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkerledgerentries:pay", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping invoice payment — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkerledgerentries", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping payment of invoice %s — create failed: %s", inv.get("Id"), e,
+                                  skip=True, entity="coworkerledgerentries", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "coworkerledgerentries", **result, "PaidInvoiceId": track_key,
+            })
+            self.log.info("Paid invoice %s (id=%s)", inv.get("Id"), result["Id"])
 
     # ------------------------------------------------------------------
     # Void / credit note — via the real admin actions, not a field flip
@@ -361,12 +383,26 @@ class FinancialGenerator(BaseGenerator):
         self.log.info("--- Voiding %d invoices ---", len(to_void))
         for inv in to_void:
             track_key = str(inv.get("Id"))
-            if self.already_created("VoidedInvoiceId", track_key):
+            if self.already_created("VoidedInvoiceId", track_key, entity="coworkerinvoices"):
                 continue
             if self.dry_run:
                 self.log.info("WOULD RUN COMMAND coworkerinvoices.VOID_INVOICE id=%s", inv.get("Id"))
                 continue
-            nexudus_run_command("coworkerinvoices", "VOID_INVOICE", [inv["Id"]])
+
+            try:
+                nexudus_run_command("coworkerinvoices", "VOID_INVOICE", [inv["Id"]])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkerinvoices:void", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping invoice voiding — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkerinvoices", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping void of invoice %s — command failed: %s", inv.get("Id"), e,
+                                  skip=True, entity="coworkerinvoices", reason="unknown_error")
+                continue
+
             self.track_id({
                 "entity": "coworkerinvoices", **inv, "VoidedInvoiceId": track_key,
             })
@@ -375,16 +411,30 @@ class FinancialGenerator(BaseGenerator):
         self.log.info("--- Issuing credit notes for %d invoices ---", len(to_credit))
         for inv in to_credit:
             track_key = str(inv.get("Id"))
-            if self.already_created("CreditedInvoiceId", track_key):
+            if self.already_created("CreditedInvoiceId", track_key, entity="coworkerinvoices"):
                 continue
             if self.dry_run:
                 self.log.info("WOULD RUN COMMAND coworkerinvoices.COWORKER_INVOICE_CANCEL id=%s", inv.get("Id"))
                 continue
-            result = nexudus_run_command("coworkerinvoices", "COWORKER_INVOICE_CANCEL", [inv["Id"]], parameters=[
-                {"Name": f"Amount{inv['Id']}", "Type": "", "Value": str(inv.get("TotalAmount", 0))},
-                {"Name": "Preview", "Type": "", "Value": "false"},
-                {"Name": "DoNotApplyCreditAutomatically", "Type": "", "Value": "false"},
-            ])
+
+            try:
+                result = nexudus_run_command("coworkerinvoices", "COWORKER_INVOICE_CANCEL", [inv["Id"]], parameters=[
+                    {"Name": f"Amount{inv['Id']}", "Type": "", "Value": str(inv.get("TotalAmount", 0))},
+                    {"Name": "Preview", "Type": "", "Value": "false"},
+                    {"Name": "DoNotApplyCreditAutomatically", "Type": "", "Value": "false"},
+                ])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkerinvoices:credit_note", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping credit note issuance — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkerinvoices", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping credit note for invoice %s — command failed: %s", inv.get("Id"), e,
+                                  skip=True, entity="coworkerinvoices", reason="unknown_error")
+                continue
+
             credit_note_id = result[0]["Id"] if result else None
             self.track_id({
                 "entity": "coworkerinvoices",
@@ -428,7 +478,7 @@ class FinancialGenerator(BaseGenerator):
             if refunded >= need_refund:
                 break
             track_key = str(inv.get("Id"))
-            if self.already_created("RefundedInvoiceId", track_key):
+            if self.already_created("RefundedInvoiceId", track_key, entity="coworkerinvoices"):
                 continue
             if self.dry_run:
                 self.log.info("WOULD RUN COMMAND coworkerinvoices.COWORKER_INVOICE_REFUND id=%s", inv.get("Id"))
@@ -441,8 +491,14 @@ class FinancialGenerator(BaseGenerator):
                     {"Name": "ePaymentProvider0", "Type": "", "Value": "994"},
                 ])
             except Exception as e:  # noqa: BLE001
+                # Deliberately no classify_failure/systemic handling here —
+                # a Deposit-line rejection (see module docstring) is an
+                # expected, common, per-invoice precondition failure, not a
+                # signal of an account-wide condition, and this loop is
+                # already designed to fall through to the next candidate
+                # rather than stop.
                 self.log.warning("Skipping refund of invoice %s — command failed: %s",
-                                  inv["Id"], e, skip=True)
+                                  inv["Id"], e, skip=True, entity="coworkerinvoices", reason="validation_rejected")
                 continue
             self.track_id({
                 "entity": "coworkerinvoices", **inv, "RefundedInvoiceId": track_key,
@@ -485,7 +541,7 @@ class FinancialGenerator(BaseGenerator):
         for inv in invoices:
             inv_id = inv.get("Id")
             track_key = str(inv_id)
-            if self.already_created("BackdatedInvoiceId", track_key):
+            if self.already_created("BackdatedInvoiceId", track_key, entity="coworkerinvoices"):
                 continue
 
             current = fresh_by_id.get(inv_id)
@@ -512,7 +568,15 @@ class FinancialGenerator(BaseGenerator):
             try:
                 nexudus_update("coworkerinvoices", inv_id, body)
             except Exception as e:  # noqa: BLE001
-                self.log.warning("Failed to backdate invoice %s: %s", inv_id, e, skip=True)
+                verdict = self.classify_failure("coworkerinvoices:backdate", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping invoice backdating — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkerinvoices", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Failed to backdate invoice %s: %s", inv_id, e,
+                                  skip=True, entity="coworkerinvoices", reason="unknown_error")
                 continue
 
             self.track_id({
@@ -529,14 +593,15 @@ class FinancialGenerator(BaseGenerator):
 
         for i, (desc, code, debit, credit) in enumerate(LEDGER_SUPPLEMENTS, start=1):
             track_key = str(i)
-            if self.already_created("SupplementIndex", track_key):
+            if self.already_created("SupplementIndex", track_key, entity="coworkerledgerentries"):
                 continue
 
             cw_index = ((i - 1) % 60) + 1
             coworker_id = coworker_ids.get(cw_index)
             if coworker_id is None:
                 self.log.warning("Skipping ledger supplement #%d — coworker #%d was never created "
-                                  "(seat limit?)", i, cw_index, skip=True)
+                                  "(seat limit?)", i, cw_index,
+                                  skip=True, entity="coworkerledgerentries", reason="parent_skipped")
                 continue
 
             body = {
@@ -551,12 +616,26 @@ class FinancialGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("coworkerledgerentries", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("coworkerledgerentries", body)
-                self.track_id({
-                    "entity": "coworkerledgerentries", **result, "SupplementIndex": track_key,
-                })
-                self.log.info("Created ledger supplement #%d (id=%s)", i, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkerledgerentries:supplement", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping ledger supplement creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkerledgerentries", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping ledger supplement #%d — create failed: %s", i, e,
+                                  skip=True, entity="coworkerledgerentries", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "coworkerledgerentries", **result, "SupplementIndex": track_key,
+            })
+            self.log.info("Created ledger supplement #%d (id=%s)", i, result["Id"])
 
 
 if __name__ == "__main__":
