@@ -348,6 +348,28 @@ class StructuralGenerator(BaseGenerator):
         self.event_category_ids = {}
         self.opportunity_type_ids = {}
 
+        self.set_target("teams", len(TEAMS))
+        self.set_target("tariffs", len(TARIFFS))
+        self.set_target("products", len(PRODUCTS))
+        self.set_target("extraservices", len(EXTRA_SERVICES))
+        self.set_target("timepasses", len(TIME_PASSES))
+        self.set_target("resources", len(RESOURCES))
+        self.set_target("floorplans", len(FLOOR_PLANS))
+        self.set_target("floorplandesks", len(FLOOR_PLAN_DESKS))
+        self.set_target("inventoryassets", len(INVENTORY_ASSETS))
+        self.set_target("discountcodes", len(DISCOUNT_CODES))
+        self.set_target("crmboards", len(CRM_BOARDS))
+        self.set_target("crmboardcolumns", sum(len(cols) for cols in CRM_BOARD_COLUMNS.values()))
+        self.set_target("helpdeskdepartments", len(HELP_DESK_DEPARTMENTS))
+        self.set_target("communitygroups", len(COMMUNITY_GROUPS))
+        self.set_target("calendareventcategories", len(CALENDAR_EVENT_CATEGORIES))
+        self.set_target("opportunitytypes", len(OPPORTUNITY_TYPES))
+        self.set_target("tarifftimepasses", sum(1 for b in TARIFF_BENEFITS.values() if b.get("day_passes")))
+        self.set_target("tariffextraservices", sum(
+            bool(b.get("time_credit_minutes")) + bool(b.get("printing_pages"))
+            for b in TARIFF_BENEFITS.values()
+        ))
+
     def run(self, nexudus_list, nexudus_create, layer0_output):
         """
         Execute Layer 1 creation.
@@ -456,7 +478,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn[name_field]
             if name in existing_by_name:
                 self.log.info("'%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity=entity)
                 id_map[name] = existing_by_name[name]
                 continue
 
@@ -467,11 +489,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create(entity, body)
                 id_map[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create(entity, body)
-                id_map[name] = result["Id"]
-                self.track_id({"entity": entity, **result, "Name": name})
-                self.log.info("Created '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure(entity, e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping '%s' creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", entity, e,
+                        skip=True, entity=entity, reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping '%s' — create failed: %s", name, e,
+                                  skip=True, entity=entity, reason="unknown_error")
+                continue
+
+            id_map[name] = result["Id"]
+            self.track_id({"entity": entity, **result, "Name": name})
+            self.log.info("Created '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
     # Tariffs
@@ -485,7 +521,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Tariff '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="tariffs")
                 self.tariff_ids[name] = existing_by_name[name]
                 continue
 
@@ -517,11 +553,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("tariffs", body)
                 self.tariff_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("tariffs", body)
-                self.tariff_ids[name] = result["Id"]
-                self.track_id({"entity": "tariffs", **result, "Name": name})
-                self.log.info("Created tariff '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("tariffs", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping tariff creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="tariffs", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping tariff '%s' — create failed: %s", name, e,
+                                  skip=True, entity="tariffs", reason="unknown_error")
+                continue
+
+            self.tariff_ids[name] = result["Id"]
+            self.track_id({"entity": "tariffs", **result, "Name": name})
+            self.log.info("Created tariff '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
     # Products
@@ -535,7 +585,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Product '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="products")
                 self.product_ids[name] = existing_by_name[name]
                 continue
 
@@ -564,11 +614,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("products", body)
                 self.product_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("products", body)
-                self.product_ids[name] = result["Id"]
-                self.track_id({"entity": "products", **result, "Name": name})
-                self.log.info("Created product '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("products", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping product creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="products", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping product '%s' — create failed: %s", name, e,
+                                  skip=True, entity="products", reason="unknown_error")
+                continue
+
+            self.product_ids[name] = result["Id"]
+            self.track_id({"entity": "products", **result, "Name": name})
+            self.log.info("Created product '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
     # ExtraServices
@@ -583,7 +647,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("ExtraService '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="extraservices")
                 self.extra_service_ids[name] = existing_by_name[name]
                 continue
 
@@ -626,11 +690,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("extraservices", body)
                 self.extra_service_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("extraservices", body)
-                self.extra_service_ids[name] = result["Id"]
-                self.track_id({"entity": "extraservices", **result, "Name": name})
-                self.log.info("Created extra service '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("extraservices", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping extra service creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="extraservices", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping extra service '%s' — create failed: %s", name, e,
+                                  skip=True, entity="extraservices", reason="unknown_error")
+                continue
+
+            self.extra_service_ids[name] = result["Id"]
+            self.track_id({"entity": "extraservices", **result, "Name": name})
+            self.log.info("Created extra service '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
     # TimePasses
@@ -644,7 +722,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("TimePass '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="timepasses")
                 self.time_pass_ids[name] = existing_by_name[name]
                 continue
 
@@ -653,11 +731,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("timepasses", body)
                 self.time_pass_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("timepasses", body)
-                self.time_pass_ids[name] = result["Id"]
-                self.track_id({"entity": "timepasses", **result, "Name": name})
-                self.log.info("Created time pass '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("timepasses", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping time pass creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="timepasses", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping time pass '%s' — create failed: %s", name, e,
+                                  skip=True, entity="timepasses", reason="unknown_error")
+                continue
+
+            self.time_pass_ids[name] = result["Id"]
+            self.track_id({"entity": "timepasses", **result, "Name": name})
+            self.log.info("Created time pass '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
     # Tariff benefits — TariffTimePass (day passes) + TariffExtraService
@@ -694,7 +786,7 @@ class StructuralGenerator(BaseGenerator):
         existing = nexudus_list("tarifftimepasses", {"TariffTimePass_Tariff": tariff_id})
         if any(r.get("TimePassId") == time_pass_id for r in existing):
             self.log.info("'%s' already has the Day Pass benefit", tariff_name)
-            self.count_skip()
+            self.count_skip(entity="tarifftimepasses")
             return
 
         body = {
@@ -703,18 +795,24 @@ class StructuralGenerator(BaseGenerator):
         }
         if self.dry_run:
             self.log_would_create("tarifftimepasses", body)
-        else:
+            return
+
+        try:
             result = nexudus_create("tarifftimepasses", body)
-            self.track_id({"entity": "tarifftimepasses", **result, "Tariff": tariff_name})
-            self.log.info("Added Day Pass benefit (%dx) to '%s' (id=%s)",
-                          passes_included, tariff_name, result["Id"])
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Skipping Day Pass benefit for '%s' — create failed: %s", tariff_name, e,
+                              skip=True, entity="tarifftimepasses", reason="unknown_error")
+            return
+        self.track_id({"entity": "tarifftimepasses", **result, "Tariff": tariff_name})
+        self.log.info("Added Day Pass benefit (%dx) to '%s' (id=%s)",
+                      passes_included, tariff_name, result["Id"])
 
     def _create_tariff_extra_service(self, tariff_id, tariff_name, extra_service_id, label,
                                       uses_included, renewal, nexudus_list, nexudus_create):
         existing = nexudus_list("tariffextraservices", {"TariffExtraService_Tariff": tariff_id})
         if any(r.get("ExtraServiceId") == extra_service_id for r in existing):
             self.log.info("'%s' already has the %s benefit", tariff_name, label)
-            self.count_skip()
+            self.count_skip(entity="tariffextraservices")
             return
 
         body = {
@@ -723,11 +821,17 @@ class StructuralGenerator(BaseGenerator):
         }
         if self.dry_run:
             self.log_would_create("tariffextraservices", body)
-        else:
+            return
+
+        try:
             result = nexudus_create("tariffextraservices", body)
-            self.track_id({"entity": "tariffextraservices", **result, "Tariff": tariff_name})
-            self.log.info("Added %s benefit (%d) to '%s' (id=%s)",
-                          label, uses_included, tariff_name, result["Id"])
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Skipping %s benefit for '%s' — create failed: %s", label, tariff_name, e,
+                              skip=True, entity="tariffextraservices", reason="unknown_error")
+            return
+        self.track_id({"entity": "tariffextraservices", **result, "Tariff": tariff_name})
+        self.log.info("Added %s benefit (%d) to '%s' (id=%s)",
+                      label, uses_included, tariff_name, result["Id"])
 
     # ------------------------------------------------------------------
     # Resources
@@ -741,7 +845,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Resource '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="resources")
                 self.resource_ids[name] = existing_by_name[name]
                 continue
 
@@ -765,11 +869,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("resources", body)
                 self.resource_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("resources", body)
-                self.resource_ids[name] = result["Id"]
-                self.track_id({"entity": "resources", **result, "Name": name})
-                self.log.info("Created resource '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("resources", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping resource creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="resources", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping resource '%s' — create failed: %s", name, e,
+                                  skip=True, entity="resources", reason="unknown_error")
+                continue
+
+            self.resource_ids[name] = result["Id"]
+            self.track_id({"entity": "resources", **result, "Name": name})
+            self.log.info("Created resource '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
     # FloorPlans
@@ -783,7 +901,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("FloorPlan '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="floorplans")
                 self.floor_plan_ids[name] = existing_by_name[name]
                 continue
 
@@ -800,11 +918,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("floorplans", body)
                 self.floor_plan_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("floorplans", body)
-                self.floor_plan_ids[name] = result["Id"]
-                self.track_id({"entity": "floorplans", **result, "Name": name})
-                self.log.info("Created floor plan '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("floorplans", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping floor plan creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="floorplans", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping floor plan '%s' — create failed: %s", name, e,
+                                  skip=True, entity="floorplans", reason="unknown_error")
+                continue
+
+            self.floor_plan_ids[name] = result["Id"]
+            self.track_id({"entity": "floorplans", **result, "Name": name})
+            self.log.info("Created floor plan '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
     # FloorPlanDesks
@@ -814,7 +946,7 @@ class StructuralGenerator(BaseGenerator):
 
         for idx, defn in enumerate(FLOOR_PLAN_DESKS):
             name = defn["Name"]
-            if self.already_created("Name", name):
+            if self.already_created("Name", name, entity="floorplandesks"):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "floorplandesks" and r.get("Name") == name)
                 self.floor_plan_desk_ids[name] = existing["Id"]
@@ -846,11 +978,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("floorplandesks", body)
                 self.floor_plan_desk_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("floorplandesks", body)
-                self.floor_plan_desk_ids[name] = result["Id"]
-                self.track_id({"entity": "floorplandesks", **result, "Name": name})
-                self.log.info("Created desk '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("floorplandesks", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping desk creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="floorplandesks", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping desk '%s' — create failed: %s", name, e,
+                                  skip=True, entity="floorplandesks", reason="unknown_error")
+                continue
+
+            self.floor_plan_desk_ids[name] = result["Id"]
+            self.track_id({"entity": "floorplandesks", **result, "Name": name})
+            self.log.info("Created desk '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
     # InventoryAssets
@@ -870,7 +1016,7 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Asset '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="inventoryassets")
                 self.inventory_asset_ids[name] = existing_by_name[name]
                 continue
 
@@ -890,11 +1036,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("inventoryassets", body)
                 self.inventory_asset_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("inventoryassets", body)
-                self.inventory_asset_ids[name] = result["Id"]
-                self.track_id({"entity": "inventoryassets", **result, "Name": name})
-                self.log.info("Created asset '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("inventoryassets", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping inventory asset creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="inventoryassets", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping asset '%s' — create failed: %s", name, e,
+                                  skip=True, entity="inventoryassets", reason="unknown_error")
+                continue
+
+            self.inventory_asset_ids[name] = result["Id"]
+            self.track_id({"entity": "inventoryassets", **result, "Name": name})
+            self.log.info("Created asset '%s' (id=%s)", name, result["Id"])
 
     # ------------------------------------------------------------------
     # DiscountCodes
@@ -908,7 +1068,7 @@ class StructuralGenerator(BaseGenerator):
             code = defn["Code"]
             if code in existing_by_code:
                 self.log.info("Discount '%s' already exists (id=%s)", code, existing_by_code[code])
-                self.count_skip()
+                self.count_skip(entity="discountcodes")
                 self.discount_code_ids[code] = existing_by_code[code]
                 continue
 
@@ -925,11 +1085,25 @@ class StructuralGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("discountcodes", body)
                 self.discount_code_ids[code] = f"DRY-{code}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("discountcodes", body)
-                self.discount_code_ids[code] = result["Id"]
-                self.track_id({"entity": "discountcodes", **result, "Code": code})
-                self.log.info("Created discount '%s' (id=%s)", code, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("discountcodes", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping discount code creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="discountcodes", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping discount '%s' — create failed: %s", code, e,
+                                  skip=True, entity="discountcodes", reason="unknown_error")
+                continue
+
+            self.discount_code_ids[code] = result["Id"]
+            self.track_id({"entity": "discountcodes", **result, "Code": code})
+            self.log.info("Created discount '%s' (id=%s)", code, result["Id"])
 
     # ------------------------------------------------------------------
     # CRM Boards + Columns
@@ -943,16 +1117,32 @@ class StructuralGenerator(BaseGenerator):
             name = defn["Name"]
             if name in existing_by_name:
                 self.log.info("Board '%s' already exists (id=%s)", name, existing_by_name[name])
-                self.count_skip()
+                self.count_skip(entity="crmboards")
                 self.crm_board_ids[name] = existing_by_name[name]
-            elif self.dry_run:
+                continue
+
+            if self.dry_run:
                 self.log_would_create("crmboards", {**defn, "BusinessId": biz})
                 self.crm_board_ids[name] = f"DRY-{name}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("crmboards", {**defn, "BusinessId": biz})
-                self.crm_board_ids[name] = result["Id"]
-                self.track_id({"entity": "crmboards", **result, "Name": name})
-                self.log.info("Created board '%s' (id=%s)", name, result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("crmboards", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping CRM board creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="crmboards", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping board '%s' — create failed: %s", name, e,
+                                  skip=True, entity="crmboards", reason="unknown_error")
+                continue
+
+            self.crm_board_ids[name] = result["Id"]
+            self.track_id({"entity": "crmboards", **result, "Name": name})
+            self.log.info("Created board '%s' (id=%s)", name, result["Id"])
 
         # Columns
         self.log.info("--- CRM Board Columns ---")
@@ -977,7 +1167,7 @@ class StructuralGenerator(BaseGenerator):
                     self.crm_board_column_ids[full_key] = existing_cols_by_name[col_name]
                     self.log.info("Column '%s' already exists (id=%s)",
                                   full_key, existing_cols_by_name[col_name])
-                    self.count_skip()
+                    self.count_skip(entity="crmboardcolumns")
                     continue
 
                 body = {
@@ -991,12 +1181,27 @@ class StructuralGenerator(BaseGenerator):
                 if self.dry_run:
                     self.log_would_create("crmboardcolumns", body)
                     self.crm_board_column_ids[full_key] = f"DRY-{full_key}"
-                else:
+                    continue
+
+                try:
                     result = nexudus_create("crmboardcolumns", body)
-                    self.crm_board_column_ids[full_key] = result["Id"]
-                    self.track_id({"entity": "crmboardcolumns", **result,
-                                   "Board": board_short_name, "Name": col_name})
-                    self.log.info("Created column '%s' (id=%s)", full_key, result["Id"])
+                except Exception as e:  # noqa: BLE001
+                    verdict = self.classify_failure("crmboardcolumns", e)
+                    if verdict == "systemic":
+                        self.log.warning(
+                            "Stopping CRM board column creation — this error has "
+                            "repeated several times in a row, likely an account-wide "
+                            "condition: %s", e,
+                            skip=True, entity="crmboardcolumns", reason="systemic_rate_limit")
+                        break
+                    self.log.warning("Skipping column '%s' — create failed: %s", full_key, e,
+                                      skip=True, entity="crmboardcolumns", reason="unknown_error")
+                    continue
+
+                self.crm_board_column_ids[full_key] = result["Id"]
+                self.track_id({"entity": "crmboardcolumns", **result,
+                               "Board": board_short_name, "Name": col_name})
+                self.log.info("Created column '%s' (id=%s)", full_key, result["Id"])
 
 
 if __name__ == "__main__":
