@@ -76,6 +76,11 @@ class CrmProposalsGenerator(BaseGenerator):
         self.proposal_defs = self._load_data("proposals.json")
         self.data_file_defs = self._load_data("coworker_data_files.json")
 
+        self.set_target("crmopportunities", len(self.opportunity_defs))
+        self.set_target("crmopportunityhistories", len(self.opportunity_history_defs))
+        self.set_target("proposals", len(self.proposal_defs))
+        self.set_target("coworkerdatafiles", len(self.data_file_defs))
+
     @staticmethod
     def _load_data(filename):
         path = DATA_DIR / filename
@@ -125,7 +130,7 @@ class CrmProposalsGenerator(BaseGenerator):
         for defn in self.opportunity_defs:
             idx = defn["index"]
             track_key = str(idx)
-            if self.already_created("OpportunityIndex", track_key):
+            if self.already_created("OpportunityIndex", track_key, entity="crmopportunities"):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "crmopportunities" and r.get("OpportunityIndex") == track_key)
                 self.opportunity_ids[idx] = existing["Id"]
@@ -133,7 +138,8 @@ class CrmProposalsGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping opportunity #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"], skip=True)
+                                  idx, defn["CoworkerIndex"],
+                                  skip=True, entity="crmopportunities", reason="parent_skipped")
                 continue
 
             stage = defn["Stage"]
@@ -193,10 +199,20 @@ class CrmProposalsGenerator(BaseGenerator):
                     # bursty transient flakiness as often as a real
                     # rejection (see CLAUDE.md rule 37 — nexudus_client.py
                     # already retries it several times before this is
-                    # ever reached). Skip this one record rather than take
-                    # down opportunity history and proposals with it.
-                    self.log.warning("Skipping opportunity #%d — create failed: %s",
-                                      idx, e, skip=True)
+                    # ever reached). classify_failure additionally tells a
+                    # one-off from the same error repeating (systemic —
+                    # stop rather than take down opportunity history and
+                    # proposals after it by hammering through every
+                    # remaining opportunity the same way).
+                    verdict = self.classify_failure("crmopportunities", e)
+                    if verdict == "systemic":
+                        self.log.warning(
+                            "Stopping opportunity creation — this error has repeated "
+                            "several times in a row, likely an account-wide condition: %s", e,
+                            skip=True, entity="crmopportunities", reason="systemic_rate_limit")
+                        break
+                    self.log.warning("Skipping opportunity #%d — create failed: %s", idx, e,
+                                      skip=True, entity="crmopportunities", reason="unknown_error")
                     continue
                 self.opportunity_ids[idx] = result["Id"]
                 self.track_id({
@@ -213,11 +229,14 @@ class CrmProposalsGenerator(BaseGenerator):
 
         for defn in self.opportunity_history_defs:
             track_key = str(defn["index"])
-            if self.already_created("HistoryIndex", track_key):
+            if self.already_created("HistoryIndex", track_key, entity="crmopportunityhistories"):
                 continue
 
             opp_id = self.opportunity_ids.get(defn["OpportunityIndex"])
             if opp_id is None:
+                self.log.warning("Skipping history #%d — opportunity #%d was never created",
+                                  defn["index"], defn["OpportunityIndex"],
+                                  skip=True, entity="crmopportunityhistories", reason="parent_skipped")
                 continue
 
             body = {
@@ -230,14 +249,29 @@ class CrmProposalsGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("crmopportunityhistories", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("crmopportunityhistories", body)
-                self.track_id({
-                    "entity": "crmopportunityhistories", **result, "HistoryIndex": track_key,
-                })
-                self.log.info("Created history #%d (%s -> %s) on opportunity #%d (id=%s)",
-                              defn["index"], defn["OldStage"], defn["NewStage"],
-                              defn["OpportunityIndex"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("crmopportunityhistories", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping opportunity history creation — this error has "
+                        "repeated several times in a row, likely an account-wide "
+                        "condition: %s", e,
+                        skip=True, entity="crmopportunityhistories", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping history #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="crmopportunityhistories", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "crmopportunityhistories", **result, "HistoryIndex": track_key,
+            })
+            self.log.info("Created history #%d (%s -> %s) on opportunity #%d (id=%s)",
+                          defn["index"], defn["OldStage"], defn["NewStage"],
+                          defn["OpportunityIndex"], result["Id"])
 
     # ------------------------------------------------------------------
     # Proposal — create at Draft, then update to target status
@@ -249,7 +283,7 @@ class CrmProposalsGenerator(BaseGenerator):
         for defn in self.proposal_defs:
             idx = defn["index"]
             track_key = str(idx)
-            if self.already_created("ProposalIndex", track_key):
+            if self.already_created("ProposalIndex", track_key, entity="proposals"):
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "proposals" and r.get("ProposalIndex") == track_key)
                 self.proposal_ids[idx] = existing["Id"]
@@ -258,7 +292,8 @@ class CrmProposalsGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping proposal #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"], skip=True)
+                                  idx, defn["CoworkerIndex"],
+                                  skip=True, entity="proposals", reason="parent_skipped")
                 continue
 
             body = {
@@ -286,26 +321,50 @@ class CrmProposalsGenerator(BaseGenerator):
                 self.proposal_guids[idx] = f"DRY-PROP-GUID-{idx}"
                 if defn["ProposalStatus"] != 1:
                     self.log.info("WOULD UPDATE proposals DRY: ProposalStatus=%d", defn["ProposalStatus"])
-            else:
-                result = nexudus_create("proposals", body)
-                self.proposal_ids[idx] = result["Id"]
-                self.proposal_guids[idx] = result.get("UniqueId")
-                self.track_id({
-                    "entity": "proposals", **result, "ProposalIndex": track_key,
-                    "TargetStatus": defn["ProposalStatus"], "UniqueId": result.get("UniqueId"),
-                })
-                self.log.info("Created proposal #%d '%s' (id=%s)", idx, defn["Reference"], result["Id"])
+                continue
 
-                # Draft -> Sent -> Accepted must go through PROPOSAL_SEND /
-                # PROPOSAL_ACCEPT commands, not a direct ProposalStatus
-                # update. A direct update to Accepted always fails
-                # ("Accepted proposals cannot be changed", even on a brand
-                # new Draft) — confirmed live by capturing the real admin
-                # UI's network request, which hits .../proposals/commands,
-                # not a plain field update. nexudus_list_commands claiming
-                # "proposals does not support commands" was simply wrong.
-                # PROPOSAL_SEND also properly populates the readonly SentOn
-                # field, which a direct status update never did either.
+            try:
+                result = nexudus_create("proposals", body)
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("proposals", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping proposal creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="proposals", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping proposal #%d — create failed: %s", idx, e,
+                                  skip=True, entity="proposals", reason="unknown_error")
+                continue
+
+            self.proposal_ids[idx] = result["Id"]
+            self.proposal_guids[idx] = result.get("UniqueId")
+            self.track_id({
+                "entity": "proposals", **result, "ProposalIndex": track_key,
+                "TargetStatus": defn["ProposalStatus"], "UniqueId": result.get("UniqueId"),
+            })
+            self.log.info("Created proposal #%d '%s' (id=%s)", idx, defn["Reference"], result["Id"])
+
+            # Draft -> Sent -> Accepted must go through PROPOSAL_SEND /
+            # PROPOSAL_ACCEPT commands, not a direct ProposalStatus
+            # update. A direct update to Accepted always fails
+            # ("Accepted proposals cannot be changed", even on a brand
+            # new Draft) — confirmed live by capturing the real admin
+            # UI's network request, which hits .../proposals/commands,
+            # not a plain field update. nexudus_list_commands claiming
+            # "proposals does not support commands" was simply wrong.
+            # PROPOSAL_SEND also properly populates the readonly SentOn
+            # field, which a direct status update never did either.
+            #
+            # Not skip=True/entity= on failure here — the proposal itself
+            # was already created and counted above; a failed status
+            # transition leaves it correctly existing at Draft rather than
+            # its intended status, not "missing." classify_failure is
+            # still used for systemic detection (stop the loop rather than
+            # hammer through every remaining proposal's transition the
+            # same way), with dedicated signature keys per transition type
+            # so send/accept/reject failures aren't conflated.
+            try:
                 if defn["ProposalStatus"] == 2:
                     nexudus_run_command("proposals", "PROPOSAL_SEND", [result["Id"]])
                     self.log.info("Sent proposal #%d", idx)
@@ -316,6 +375,16 @@ class CrmProposalsGenerator(BaseGenerator):
                 elif defn["ProposalStatus"] == 4:
                     nexudus_update("proposals", result["Id"], {"ProposalStatus": defn["ProposalStatus"]})
                     self.log.info("Updated proposal #%d to status=%d", idx, defn["ProposalStatus"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure(f"proposals:status_{defn['ProposalStatus']}", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Proposal status transitions to status=%d look blocked — this "
+                        "error has repeated several times in a row, likely an "
+                        "account-wide condition: %s", defn["ProposalStatus"], e)
+                else:
+                    self.log.warning("Created proposal #%d but failed to reach status=%d: %s",
+                                      idx, defn["ProposalStatus"], e)
 
     # ------------------------------------------------------------------
     # CoworkerDataFile
@@ -325,12 +394,13 @@ class CrmProposalsGenerator(BaseGenerator):
 
         for defn in self.data_file_defs:
             track_key = str(defn["index"])
-            if self.already_created("DataFileIndex", track_key):
+            if self.already_created("DataFileIndex", track_key, entity="coworkerdatafiles"):
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping data file #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="coworkerdatafiles", reason="parent_skipped")
                 continue
 
             proposal_guid = self.proposal_guids.get(defn["ProposalIndex"])
@@ -352,12 +422,26 @@ class CrmProposalsGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("coworkerdatafiles", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("coworkerdatafiles", body)
-                self.track_id({
-                    "entity": "coworkerdatafiles", **result, "DataFileIndex": track_key,
-                })
-                self.log.info("Created data file #%d (id=%s)", defn["index"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkerdatafiles", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping data file creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkerdatafiles", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping data file #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="coworkerdatafiles", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "coworkerdatafiles", **result, "DataFileIndex": track_key,
+            })
+            self.log.info("Created data file #%d (id=%s)", defn["index"], result["Id"])
 
 
 if __name__ == "__main__":
