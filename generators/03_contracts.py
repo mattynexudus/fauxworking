@@ -57,6 +57,13 @@ class ContractsGenerator(BaseGenerator):
         for defn in self.contract_schedule_defs:
             self.schedules_by_contract.setdefault(defn["ContractIndex"], []).append(defn)
 
+        self.set_target("coworkercontracts", len(self.contract_defs))
+        self.set_target("contractproducts", len(self.contract_product_defs))
+        self.set_target("contractpausedperiods", len(self.contract_paused_period_defs))
+        self.set_target("contractdeposits", len(self.contract_deposit_defs))
+        self.set_target("coworkerinventoryassets", len(self.inventory_assignment_defs))
+        self.set_target("floorplandesks", len(self.desk_assignment_defs))
+
     @staticmethod
     def _load_data(filename):
         path = DATA_DIR / filename
@@ -110,7 +117,7 @@ class ContractsGenerator(BaseGenerator):
             idx = defn["index"]
             track_key = str(idx)
 
-            if self.already_created("ContractIndex", track_key):
+            if self.already_created("ContractIndex", track_key, entity="coworkercontracts"):
                 existing = next(r for r in self.get_tracked_ids() if r.get("ContractIndex") == track_key)
                 self.contract_ids[idx] = existing["Id"]
                 self.log.info("Contract #%d already tracked (id=%s)", idx, existing["Id"])
@@ -118,7 +125,8 @@ class ContractsGenerator(BaseGenerator):
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping contract #%d — coworker #%d was never created (seat limit?)",
-                                  idx, defn["CoworkerIndex"], skip=True)
+                                  idx, defn["CoworkerIndex"],
+                                  skip=True, entity="coworkercontracts", reason="parent_skipped")
                 continue
 
             start_date = self._from_day_offset(defn["StartDayOffset"])
@@ -161,15 +169,29 @@ class ContractsGenerator(BaseGenerator):
             if self.dry_run:
                 self.log_would_create("coworkercontracts", body)
                 self.contract_ids[idx] = f"DRY-CONTRACT-{idx}"
-            else:
+                continue
+
+            try:
                 result = nexudus_create("coworkercontracts", body)
-                self.contract_ids[idx] = result["Id"]
-                self.track_id({
-                    "entity": "coworkercontracts", **result,
-                    "ContractIndex": track_key, "Scenario": defn["Scenario"],
-                })
-                self.log.info("Created contract #%d [%s/%s] (id=%s)",
-                              idx, defn["Scenario"], defn["TariffName"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkercontracts", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping contract creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="coworkercontracts", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping contract #%d — create failed: %s", idx, e,
+                                  skip=True, entity="coworkercontracts", reason="unknown_error")
+                continue
+
+            self.contract_ids[idx] = result["Id"]
+            self.track_id({
+                "entity": "coworkercontracts", **result,
+                "ContractIndex": track_key, "Scenario": defn["Scenario"],
+            })
+            self.log.info("Created contract #%d [%s/%s] (id=%s)",
+                          idx, defn["Scenario"], defn["TariffName"], result["Id"])
 
     # ------------------------------------------------------------------
     # ContractProduct
@@ -179,14 +201,15 @@ class ContractsGenerator(BaseGenerator):
 
         for defn in self.contract_product_defs:
             track_key = str(defn["index"])
-            if self.already_created("ContractProductIndex", track_key):
+            if self.already_created("ContractProductIndex", track_key, entity="contractproducts"):
                 self.log.info("ContractProduct #%d already tracked", defn["index"])
                 continue
 
             contract_id = self.contract_ids.get(defn["ContractIndex"])
             if contract_id is None:
                 self.log.warning("Skipping ContractProduct #%d — contract #%d not created",
-                                  defn["index"], defn["ContractIndex"], skip=True)
+                                  defn["index"], defn["ContractIndex"],
+                                  skip=True, entity="contractproducts", reason="parent_skipped")
                 continue
 
             body = {
@@ -197,14 +220,28 @@ class ContractsGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("contractproducts", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("contractproducts", body)
-                self.track_id({
-                    "entity": "contractproducts", **result,
-                    "ContractProductIndex": track_key,
-                })
-                self.log.info("Created contract product #%d on contract #%d (id=%s)",
-                              defn["index"], defn["ContractIndex"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("contractproducts", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping contract product creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="contractproducts", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping contract product #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="contractproducts", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "contractproducts", **result,
+                "ContractProductIndex": track_key,
+            })
+            self.log.info("Created contract product #%d on contract #%d (id=%s)",
+                          defn["index"], defn["ContractIndex"], result["Id"])
 
     # ------------------------------------------------------------------
     # ContractPausedPeriod
@@ -214,14 +251,15 @@ class ContractsGenerator(BaseGenerator):
 
         for defn in self.contract_paused_period_defs:
             track_key = str(defn["index"])
-            if self.already_created("PausedPeriodIndex", track_key):
+            if self.already_created("PausedPeriodIndex", track_key, entity="contractpausedperiods"):
                 self.log.info("ContractPausedPeriod #%d already tracked", defn["index"])
                 continue
 
             contract_id = self.contract_ids.get(defn["ContractIndex"])
             if contract_id is None:
                 self.log.warning("Skipping paused period #%d — contract #%d not created",
-                                  defn["index"], defn["ContractIndex"], skip=True)
+                                  defn["index"], defn["ContractIndex"],
+                                  skip=True, entity="contractpausedperiods", reason="parent_skipped")
                 continue
 
             pause_from = self._first_of_month(defn["PauseFromMonthOffset"])
@@ -234,14 +272,28 @@ class ContractsGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("contractpausedperiods", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("contractpausedperiods", body)
-                self.track_id({
-                    "entity": "contractpausedperiods", **result,
-                    "PausedPeriodIndex": track_key,
-                })
-                self.log.info("Created paused period #%d [%s] on contract #%d (id=%s)",
-                              defn["index"], defn["Bucket"], defn["ContractIndex"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("contractpausedperiods", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping paused period creation — this error has repeated "
+                        "several times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="contractpausedperiods", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping paused period #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="contractpausedperiods", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "contractpausedperiods", **result,
+                "PausedPeriodIndex": track_key,
+            })
+            self.log.info("Created paused period #%d [%s] on contract #%d (id=%s)",
+                          defn["index"], defn["Bucket"], defn["ContractIndex"], result["Id"])
 
     # ------------------------------------------------------------------
     # ContractDeposit
@@ -251,14 +303,15 @@ class ContractsGenerator(BaseGenerator):
 
         for defn in self.contract_deposit_defs:
             track_key = str(defn["index"])
-            if self.already_created("DepositIndex", track_key):
+            if self.already_created("DepositIndex", track_key, entity="contractdeposits"):
                 self.log.info("ContractDeposit #%d already tracked", defn["index"])
                 continue
 
             contract_id = self.contract_ids.get(defn["ContractIndex"])
             if contract_id is None:
                 self.log.warning("Skipping deposit #%d — contract #%d not created",
-                                  defn["index"], defn["ContractIndex"], skip=True)
+                                  defn["index"], defn["ContractIndex"],
+                                  skip=True, entity="contractdeposits", reason="parent_skipped")
                 continue
 
             body = {
@@ -270,14 +323,28 @@ class ContractsGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("contractdeposits", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("contractdeposits", body)
-                self.track_id({
-                    "entity": "contractdeposits", **result,
-                    "DepositIndex": track_key,
-                })
-                self.log.info("Created deposit #%d on contract #%d (id=%s)",
-                              defn["index"], defn["ContractIndex"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("contractdeposits", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping deposit creation — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="contractdeposits", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping deposit #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="contractdeposits", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "contractdeposits", **result,
+                "DepositIndex": track_key,
+            })
+            self.log.info("Created deposit #%d on contract #%d (id=%s)",
+                          defn["index"], defn["ContractIndex"], result["Id"])
 
     # ------------------------------------------------------------------
     # CoworkerInventoryAsset
@@ -287,13 +354,14 @@ class ContractsGenerator(BaseGenerator):
 
         for defn in self.inventory_assignment_defs:
             track_key = str(defn["index"])
-            if self.already_created("InventoryAssignmentIndex", track_key):
+            if self.already_created("InventoryAssignmentIndex", track_key, entity="coworkerinventoryassets"):
                 self.log.info("Inventory assignment #%d already tracked", defn["index"])
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping inventory assignment #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="coworkerinventoryassets", reason="parent_skipped")
                 continue
 
             body = {
@@ -307,14 +375,29 @@ class ContractsGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log_would_create("coworkerinventoryassets", body)
-            else:
+                continue
+
+            try:
                 result = nexudus_create("coworkerinventoryassets", body)
-                self.track_id({
-                    "entity": "coworkerinventoryassets", **result,
-                    "InventoryAssignmentIndex": track_key,
-                })
-                self.log.info("Assigned '%s' to coworker #%d (id=%s)",
-                              defn["AssetName"], defn["CoworkerIndex"], result["Id"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("coworkerinventoryassets", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping inventory assignment creation — this error has "
+                        "repeated several times in a row, likely an account-wide "
+                        "condition: %s", e,
+                        skip=True, entity="coworkerinventoryassets", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping inventory assignment #%d — create failed: %s", defn["index"], e,
+                                  skip=True, entity="coworkerinventoryassets", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "coworkerinventoryassets", **result,
+                "InventoryAssignmentIndex": track_key,
+            })
+            self.log.info("Assigned '%s' to coworker #%d (id=%s)",
+                          defn["AssetName"], defn["CoworkerIndex"], result["Id"])
 
     # ------------------------------------------------------------------
     # FloorPlanDesk.CoworkerId occupancy
@@ -324,13 +407,14 @@ class ContractsGenerator(BaseGenerator):
 
         for defn in self.desk_assignment_defs:
             track_key = str(defn["index"])
-            if self.already_created("DeskAssignmentIndex", track_key):
+            if self.already_created("DeskAssignmentIndex", track_key, entity="floorplandesks"):
                 self.log.info("Desk assignment #%d already tracked", defn["index"])
                 continue
 
             if defn["CoworkerIndex"] not in coworker_ids:
                 self.log.warning("Skipping desk assignment #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"], skip=True)
+                                  defn["index"], defn["CoworkerIndex"],
+                                  skip=True, entity="floorplandesks", reason="parent_skipped")
                 continue
 
             desk_id = floor_plan_desk_ids[defn["DeskName"]]
@@ -339,14 +423,28 @@ class ContractsGenerator(BaseGenerator):
 
             if self.dry_run:
                 self.log.info("WOULD UPDATE floorplandesks %s: %s", desk_id, json.dumps(body))
-            else:
+                continue
+
+            try:
                 result = nexudus_update("floorplandesks", desk_id, body)
-                self.track_id({
-                    "entity": "floorplandesks", **result,
-                    "DeskAssignmentIndex": track_key,
-                })
-                self.log.info("Assigned desk '%s' to coworker #%d",
-                              defn["DeskName"], defn["CoworkerIndex"])
+            except Exception as e:  # noqa: BLE001
+                verdict = self.classify_failure("floorplandesks", e)
+                if verdict == "systemic":
+                    self.log.warning(
+                        "Stopping desk assignment — this error has repeated several "
+                        "times in a row, likely an account-wide condition: %s", e,
+                        skip=True, entity="floorplandesks", reason="systemic_rate_limit")
+                    break
+                self.log.warning("Skipping desk assignment #%d — update failed: %s", defn["index"], e,
+                                  skip=True, entity="floorplandesks", reason="unknown_error")
+                continue
+
+            self.track_id({
+                "entity": "floorplandesks", **result,
+                "DeskAssignmentIndex": track_key,
+            })
+            self.log.info("Assigned desk '%s' to coworker #%d",
+                          defn["DeskName"], defn["CoworkerIndex"])
 
 
 if __name__ == "__main__":
