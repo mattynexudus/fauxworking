@@ -709,7 +709,18 @@ def generate_bookings(rng, coworkers, visitors, total=None):
     cancel_count = min(len(one_offs), round(n_one_off * 40 / 230))
     cancel_labels = [label for label, n in rescale_plan(CANCEL_CATEGORY_PLAN, cancel_count) for _ in range(n)]
     rng.shuffle(cancel_labels)
-    for b, label in zip(one_offs[:cancel_count], cancel_labels):
+    # A same-day (StartDayOffset == 0) booking is in an ambiguous state —
+    # its start time may or may not have already arrived by the time
+    # CANCEL_BOOKING actually runs. Confirmed live this can get rejected
+    # ("this command cannot be run for the booking"), while a definitively
+    # past or future booking is unambiguous. Prefer those; only fall back
+    # to a same-day one if there aren't enough others (StartDayOffset only
+    # lands on exactly 0 for a small fraction of bookings, so this
+    # shouldn't bite at normal volumes). Doesn't reorder `one_offs` itself
+    # — that order still drives final booking indices below.
+    cancel_pool = ([b for b in one_offs if b["StartDayOffset"] != 0] +
+                    [b for b in one_offs if b["StartDayOffset"] == 0])
+    for b, label in zip(cancel_pool[:cancel_count], cancel_labels):
         b["ToCancel"] = True
         b["CancellationCategory"] = label
 
@@ -804,6 +815,13 @@ def generate_extra_services(rng, coworkers, bookings):
 
     charge_pool = [b for b in bookings if not b["ToCancel"]]
     rng.shuffle(charge_pool)
+    # Same reasoning as the cancel-candidate pool in generate_bookings():
+    # prefer definitively past/future bookings over a same-day one for
+    # CHARGE_BOOKING candidates too, given the same "this command cannot
+    # be run for the booking" rejection is plausible on the same kind of
+    # ambiguous-state booking.
+    charge_pool = ([b for b in charge_pool if b["StartDayOffset"] != 0] +
+                    [b for b in charge_pool if b["StartDayOffset"] == 0])
     for b in charge_pool[:47]:
         rate_base = b["RateName"][len(TEST_NAME_PREFIX):]
         add({

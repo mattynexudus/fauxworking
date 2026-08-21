@@ -152,6 +152,20 @@ TEST_NAME_PREFIX = ""
 RANDOM_SEED = 42
 
 # ---------------------------------------------------------------------------
+# Live-write pacing
+# ---------------------------------------------------------------------------
+# A small delay between writes (create/update/delete/run_command — not
+# list/get) to Nexudus, applied centrally in nexudus_client.py::_request().
+# Not a proven fix for anything specific — Nexudus's documented throttle
+# mechanism is 429 (already retried transparently), and the account-wide
+# creation-rate condition seen live as a 401 "Access Denied" (on Coworker
+# and BookingVisitor creation) has no official documentation under any
+# name. This is a low-cost hedge against undiscovered rate sensitivity in
+# the highest-volume tight loops (bookings, bookingvisitors, checkins),
+# not a confirmed cause-and-effect fix. 0 disables it entirely.
+WRITE_PACING_SECONDS = 0.1
+
+# ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 from pathlib import Path

@@ -43,6 +43,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent))
+from config import WRITE_PACING_SECONDS
 from nexudus_auth import get_access_token, base_url
 
 # apiPath -> module. Sourced from the Nexudus entity catalog (not guessed) —
@@ -132,12 +133,21 @@ def _headers():
     return {"Authorization": f"Bearer {get_access_token()}"}
 
 
+_WRITE_METHODS = {"POST", "PUT", "DELETE"}
+
+
 def _request(method, url, **kwargs):
     """requests.request, but retries on:
     - 429, for the server's suggested wait (parsed from its "Wait N
       seconds" message), plus a small buffer.
     - a 500 with Nexudus's generic transient-error text, up to
-      MAX_TRANSIENT_ERROR_RETRIES times (see _is_transient_server_error)."""
+      MAX_TRANSIENT_ERROR_RETRIES times (see _is_transient_server_error).
+
+    Also paces writes (see config.WRITE_PACING_SECONDS) — once per call,
+    not per retry attempt, since retries already have their own backoff."""
+    if method in _WRITE_METHODS and WRITE_PACING_SECONDS:
+        time.sleep(WRITE_PACING_SECONDS)
+
     transient_attempts = 0
     for attempt in range(MAX_RATE_LIMIT_RETRIES):
         resp = requests.request(method, url, timeout=DEFAULT_TIMEOUT, **kwargs)
