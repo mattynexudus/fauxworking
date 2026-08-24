@@ -1,0 +1,402 @@
+[
+  {
+    "index": 1,
+    "CoworkerIndex": 38,
+    "Name": "Insurance Letter",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -75,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -72
+  },
+  {
+    "index": 2,
+    "CoworkerIndex": 6,
+    "Name": "Bank Statement",
+    "DeliveryType": 1,
+    "HandlingPreference": 8,
+    "ArrivalDayOffset": -92,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -87
+  },
+  {
+    "index": 3,
+    "CoworkerIndex": 38,
+    "Name": "Postcard",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -179,
+    "Outcome": "forwarded",
+    "OutcomeDayOffset": -170
+  },
+  {
+    "index": 4,
+    "CoworkerIndex": 30,
+    "Name": "Tax Document",
+    "DeliveryType": 1,
+    "HandlingPreference": 7,
+    "ArrivalDayOffset": -133,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -129
+  },
+  {
+    "index": 5,
+    "CoworkerIndex": 9,
+    "Name": "Bank Statement",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -17,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -12
+  },
+  {
+    "index": 6,
+    "CoworkerIndex": 38,
+    "Name": "Tax Document",
+    "DeliveryType": 1,
+    "HandlingPreference": 9,
+    "ArrivalDayOffset": -4,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 7,
+    "CoworkerIndex": 16,
+    "Name": "Postcard",
+    "DeliveryType": 1,
+    "HandlingPreference": 2,
+    "ArrivalDayOffset": -74,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -66
+  },
+  {
+    "index": 8,
+    "CoworkerIndex": 28,
+    "Name": "Postcard",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -167,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -165
+  },
+  {
+    "index": 9,
+    "CoworkerIndex": 13,
+    "Name": "Bank Statement",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -132,
+    "Outcome": "forwarded",
+    "OutcomeDayOffset": -123
+  },
+  {
+    "index": 10,
+    "CoworkerIndex": 33,
+    "Name": "Bank Statement",
+    "DeliveryType": 1,
+    "HandlingPreference": 9,
+    "ArrivalDayOffset": -96,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -95
+  },
+  {
+    "index": 11,
+    "CoworkerIndex": 47,
+    "Name": "Postcard",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -26,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 12,
+    "CoworkerIndex": 6,
+    "Name": "Tax Document",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -63,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -59
+  },
+  {
+    "index": 13,
+    "CoworkerIndex": 6,
+    "Name": "Tax Document",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -150,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 14,
+    "CoworkerIndex": 5,
+    "Name": "Tax Document",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -24,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -20
+  },
+  {
+    "index": 15,
+    "CoworkerIndex": 31,
+    "Name": "Postcard",
+    "DeliveryType": 1,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -111,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -108
+  },
+  {
+    "index": 16,
+    "CoworkerIndex": 34,
+    "Name": "Equipment Delivery",
+    "DeliveryType": 2,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -162,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -155
+  },
+  {
+    "index": 17,
+    "CoworkerIndex": 9,
+    "Name": "Equipment Delivery",
+    "DeliveryType": 2,
+    "HandlingPreference": 7,
+    "ArrivalDayOffset": -78,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 18,
+    "CoworkerIndex": 4,
+    "Name": "Gift Package",
+    "DeliveryType": 2,
+    "HandlingPreference": 2,
+    "ArrivalDayOffset": -117,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -108
+  },
+  {
+    "index": 19,
+    "CoworkerIndex": 1,
+    "Name": "Office Supplies Box",
+    "DeliveryType": 2,
+    "HandlingPreference": 2,
+    "ArrivalDayOffset": -167,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -160
+  },
+  {
+    "index": 20,
+    "CoworkerIndex": 43,
+    "Name": "Office Supplies Box",
+    "DeliveryType": 2,
+    "HandlingPreference": 8,
+    "ArrivalDayOffset": -149,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 21,
+    "CoworkerIndex": 47,
+    "Name": "Amazon Parcel",
+    "DeliveryType": 2,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -63,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -57
+  },
+  {
+    "index": 22,
+    "CoworkerIndex": 12,
+    "Name": "Office Supplies Box",
+    "DeliveryType": 2,
+    "HandlingPreference": 7,
+    "ArrivalDayOffset": -68,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -67
+  },
+  {
+    "index": 23,
+    "CoworkerIndex": 3,
+    "Name": "Amazon Parcel",
+    "DeliveryType": 2,
+    "HandlingPreference": 9,
+    "ArrivalDayOffset": -104,
+    "Outcome": "returned",
+    "OutcomeDayOffset": -101
+  },
+  {
+    "index": 24,
+    "CoworkerIndex": 4,
+    "Name": "Office Supplies Box",
+    "DeliveryType": 2,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -50,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 25,
+    "CoworkerIndex": 28,
+    "Name": "Equipment Delivery",
+    "DeliveryType": 2,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -129,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -123
+  },
+  {
+    "index": 26,
+    "CoworkerIndex": 2,
+    "Name": "Equipment Delivery",
+    "DeliveryType": 2,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -179,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -176
+  },
+  {
+    "index": 27,
+    "CoworkerIndex": 19,
+    "Name": "Amazon Parcel",
+    "DeliveryType": 2,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -44,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 28,
+    "CoworkerIndex": 2,
+    "Name": "Refund Check",
+    "DeliveryType": 3,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -40,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -33
+  },
+  {
+    "index": 29,
+    "CoworkerIndex": 3,
+    "Name": "Client Payment Check",
+    "DeliveryType": 3,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -123,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -117
+  },
+  {
+    "index": 30,
+    "CoworkerIndex": 17,
+    "Name": "Refund Check",
+    "DeliveryType": 3,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -20,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -10
+  },
+  {
+    "index": 31,
+    "CoworkerIndex": 28,
+    "Name": "Marketing Flyer",
+    "DeliveryType": 4,
+    "HandlingPreference": 2,
+    "ArrivalDayOffset": -103,
+    "Outcome": "recycled",
+    "OutcomeDayOffset": -99
+  },
+  {
+    "index": 32,
+    "CoworkerIndex": 10,
+    "Name": "Marketing Flyer",
+    "DeliveryType": 4,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -133,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 33,
+    "CoworkerIndex": 9,
+    "Name": "Trade Show Brochure",
+    "DeliveryType": 4,
+    "HandlingPreference": 8,
+    "ArrivalDayOffset": -35,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -34
+  },
+  {
+    "index": 34,
+    "CoworkerIndex": 21,
+    "Name": "Marketing Flyer",
+    "DeliveryType": 4,
+    "HandlingPreference": 2,
+    "ArrivalDayOffset": -9,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -1
+  },
+  {
+    "index": 35,
+    "CoworkerIndex": 12,
+    "Name": "Marketing Flyer",
+    "DeliveryType": 4,
+    "HandlingPreference": 7,
+    "ArrivalDayOffset": -34,
+    "Outcome": "recycled",
+    "OutcomeDayOffset": -33
+  },
+  {
+    "index": 36,
+    "CoworkerIndex": 43,
+    "Name": "Sample Package",
+    "DeliveryType": 5,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -25,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -23
+  },
+  {
+    "index": 37,
+    "CoworkerIndex": 49,
+    "Name": "Sample Package",
+    "DeliveryType": 5,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -30,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 38,
+    "CoworkerIndex": 35,
+    "Name": "Unlabeled Box",
+    "DeliveryType": 5,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -66,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -62
+  },
+  {
+    "index": 39,
+    "CoworkerIndex": 37,
+    "Name": "Sample Package",
+    "DeliveryType": 5,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -58,
+    "Outcome": "pending",
+    "OutcomeDayOffset": null
+  },
+  {
+    "index": 40,
+    "CoworkerIndex": 15,
+    "Name": "Sample Package",
+    "DeliveryType": 5,
+    "HandlingPreference": 1,
+    "ArrivalDayOffset": -50,
+    "Outcome": "collected",
+    "OutcomeDayOffset": -44
+  }
+]

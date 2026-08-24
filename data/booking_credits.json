@@ -1,0 +1,202 @@
+[
+  {
+    "index": 1,
+    "CoworkerIndex": 31,
+    "TotalCredit": 168.2,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 255,
+    "ValidFromDayOffset": 138
+  },
+  {
+    "index": 2,
+    "CoworkerIndex": 19,
+    "TotalCredit": 76.23,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 348,
+    "ValidFromDayOffset": 159
+  },
+  {
+    "index": 3,
+    "CoworkerIndex": 34,
+    "TotalCredit": 126.87,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 340,
+    "ValidFromDayOffset": 305
+  },
+  {
+    "index": 4,
+    "CoworkerIndex": 14,
+    "TotalCredit": 187.01,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 275,
+    "ValidFromDayOffset": 185
+  },
+  {
+    "index": 5,
+    "CoworkerIndex": 7,
+    "TotalCredit": 102.83,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 128,
+    "ValidFromDayOffset": 62
+  },
+  {
+    "index": 6,
+    "CoworkerIndex": 29,
+    "TotalCredit": 137.68,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 172,
+    "ValidFromDayOffset": 112
+  },
+  {
+    "index": 7,
+    "CoworkerIndex": 13,
+    "TotalCredit": 132.44,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 290,
+    "ValidFromDayOffset": 112
+  },
+  {
+    "index": 8,
+    "CoworkerIndex": 1,
+    "TotalCredit": 196.53,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 73,
+    "ValidFromDayOffset": 0
+  },
+  {
+    "index": 9,
+    "CoworkerIndex": 25,
+    "TotalCredit": 104.87,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 176,
+    "ValidFromDayOffset": 0
+  },
+  {
+    "index": 10,
+    "CoworkerIndex": 26,
+    "TotalCredit": 26.46,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 88,
+    "ValidFromDayOffset": -51
+  },
+  {
+    "index": 11,
+    "CoworkerIndex": 12,
+    "TotalCredit": 168.31,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 221,
+    "ValidFromDayOffset": 53
+  },
+  {
+    "index": 12,
+    "CoworkerIndex": 38,
+    "TotalCredit": 30.01,
+    "Bucket": "active",
+    "ExpireDateDayOffset": 289,
+    "ValidFromDayOffset": 118
+  },
+  {
+    "index": 13,
+    "CoworkerIndex": 47,
+    "TotalCredit": 165.79,
+    "Bucket": "expired",
+    "ExpireDateDayOffset": -81,
+    "ValidFromDayOffset": -225
+  },
+  {
+    "index": 14,
+    "CoworkerIndex": 6,
+    "TotalCredit": 78.13,
+    "Bucket": "expired",
+    "ExpireDateDayOffset": -158,
+    "ValidFromDayOffset": -254
+  },
+  {
+    "index": 15,
+    "CoworkerIndex": 24,
+    "TotalCredit": 132.88,
+    "Bucket": "expired",
+    "ExpireDateDayOffset": -28,
+    "ValidFromDayOffset": -171
+  },
+  {
+    "index": 16,
+    "CoworkerIndex": 37,
+    "TotalCredit": 109.35,
+    "Bucket": "expired",
+    "ExpireDateDayOffset": -117,
+    "ValidFromDayOffset": -227
+  },
+  {
+    "index": 17,
+    "CoworkerIndex": 48,
+    "TotalCredit": 126.8,
+    "Bucket": "expired",
+    "ExpireDateDayOffset": -61,
+    "ValidFromDayOffset": -110
+  },
+  {
+    "index": 18,
+    "CoworkerIndex": 35,
+    "TotalCredit": 117.34,
+    "Bucket": "expired",
+    "ExpireDateDayOffset": -149,
+    "ValidFromDayOffset": -189
+  },
+  {
+    "index": 19,
+    "CoworkerIndex": 30,
+    "TotalCredit": 154.81,
+    "Bucket": "expired",
+    "ExpireDateDayOffset": -125,
+    "ValidFromDayOffset": -273
+  },
+  {
+    "index": 20,
+    "CoworkerIndex": 18,
+    "TotalCredit": 31.94,
+    "Bucket": "expired",
+    "ExpireDateDayOffset": -141,
+    "ValidFromDayOffset": -320
+  },
+  {
+    "index": 21,
+    "CoworkerIndex": 17,
+    "TotalCredit": 77.67,
+    "Bucket": "near_expiry",
+    "ExpireDateDayOffset": 3,
+    "ValidFromDayOffset": -181
+  },
+  {
+    "index": 22,
+    "CoworkerIndex": 5,
+    "TotalCredit": 120.41,
+    "Bucket": "near_expiry",
+    "ExpireDateDayOffset": 2,
+    "ValidFromDayOffset": -105
+  },
+  {
+    "index": 23,
+    "CoworkerIndex": 10,
+    "TotalCredit": 111.79,
+    "Bucket": "near_expiry",
+    "ExpireDateDayOffset": 12,
+    "ValidFromDayOffset": -173
+  },
+  {
+    "index": 24,
+    "CoworkerIndex": 42,
+    "TotalCredit": 148.2,
+    "Bucket": "near_expiry",
+    "ExpireDateDayOffset": 25,
+    "ValidFromDayOffset": -104
+  },
+  {
+    "index": 25,
+    "CoworkerIndex": 45,
+    "TotalCredit": 92.9,
+    "Bucket": "near_expiry",
+    "ExpireDateDayOffset": 6,
+    "ValidFromDayOffset": -164
+  }
+]

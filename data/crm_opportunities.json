@@ -1,0 +1,302 @@
+[
+  {
+    "index": 1,
+    "CoworkerIndex": 35,
+    "Stage": "Lead",
+    "Value": 748.17,
+    "LeadSource": 11,
+    "Position": 1,
+    "DueDayOffset": 23,
+    "CreatedDayOffset": -118
+  },
+  {
+    "index": 2,
+    "CoworkerIndex": 38,
+    "Stage": "Lead",
+    "Value": 937.01,
+    "LeadSource": 11,
+    "Position": 2,
+    "DueDayOffset": 16,
+    "CreatedDayOffset": -116
+  },
+  {
+    "index": 3,
+    "CoworkerIndex": 32,
+    "Stage": "Lead",
+    "Value": 820.19,
+    "LeadSource": 11,
+    "Position": 3,
+    "DueDayOffset": 5,
+    "CreatedDayOffset": -30
+  },
+  {
+    "index": 4,
+    "CoworkerIndex": 18,
+    "Stage": "Lead",
+    "Value": 692.65,
+    "LeadSource": 11,
+    "Position": 4,
+    "DueDayOffset": 8,
+    "CreatedDayOffset": -40
+  },
+  {
+    "index": 5,
+    "CoworkerIndex": 49,
+    "Stage": "Lead",
+    "Value": 708.13,
+    "LeadSource": 2,
+    "Position": 5,
+    "DueDayOffset": 44,
+    "CreatedDayOffset": -111
+  },
+  {
+    "index": 6,
+    "CoworkerIndex": 22,
+    "Stage": "Lead",
+    "Value": 856.21,
+    "LeadSource": 5,
+    "Position": 6,
+    "DueDayOffset": 27,
+    "CreatedDayOffset": -33
+  },
+  {
+    "index": 7,
+    "CoworkerIndex": 15,
+    "Stage": "Qualified",
+    "Value": 1367.2,
+    "LeadSource": 5,
+    "Position": 7,
+    "DueDayOffset": 45,
+    "CreatedDayOffset": -78
+  },
+  {
+    "index": 8,
+    "CoworkerIndex": 9,
+    "Stage": "Qualified",
+    "Value": 1212.17,
+    "LeadSource": 2,
+    "Position": 8,
+    "DueDayOffset": 7,
+    "CreatedDayOffset": -45
+  },
+  {
+    "index": 9,
+    "CoworkerIndex": 2,
+    "Stage": "Qualified",
+    "Value": 1397.59,
+    "LeadSource": 2,
+    "Position": 9,
+    "DueDayOffset": 43,
+    "CreatedDayOffset": -65
+  },
+  {
+    "index": 10,
+    "CoworkerIndex": 26,
+    "Stage": "Qualified",
+    "Value": 1048.23,
+    "LeadSource": 19,
+    "Position": 10,
+    "DueDayOffset": 43,
+    "CreatedDayOffset": -21
+  },
+  {
+    "index": 11,
+    "CoworkerIndex": 29,
+    "Stage": "Qualified",
+    "Value": 1035.81,
+    "LeadSource": 11,
+    "Position": 11,
+    "DueDayOffset": 23,
+    "CreatedDayOffset": -30
+  },
+  {
+    "index": 12,
+    "CoworkerIndex": 39,
+    "Stage": "Proposal Sent",
+    "Value": 1283.3,
+    "LeadSource": 2,
+    "Position": 12,
+    "DueDayOffset": 6,
+    "CreatedDayOffset": -48
+  },
+  {
+    "index": 13,
+    "CoworkerIndex": 6,
+    "Stage": "Proposal Sent",
+    "Value": 1444.36,
+    "LeadSource": 19,
+    "Position": 13,
+    "DueDayOffset": 54,
+    "CreatedDayOffset": -32
+  },
+  {
+    "index": 14,
+    "CoworkerIndex": 8,
+    "Stage": "Proposal Sent",
+    "Value": 1415.51,
+    "LeadSource": 2,
+    "Position": 14,
+    "DueDayOffset": 42,
+    "CreatedDayOffset": -32
+  },
+  {
+    "index": 15,
+    "CoworkerIndex": 26,
+    "Stage": "Proposal Sent",
+    "Value": 1429.47,
+    "LeadSource": 2,
+    "Position": 15,
+    "DueDayOffset": 35,
+    "CreatedDayOffset": -119
+  },
+  {
+    "index": 16,
+    "CoworkerIndex": 1,
+    "Stage": "Negotiation",
+    "Value": 1916.97,
+    "LeadSource": 2,
+    "Position": 16,
+    "DueDayOffset": 57,
+    "CreatedDayOffset": -55
+  },
+  {
+    "index": 17,
+    "CoworkerIndex": 49,
+    "Stage": "Negotiation",
+    "Value": 1626.41,
+    "LeadSource": 2,
+    "Position": 17,
+    "DueDayOffset": 12,
+    "CreatedDayOffset": -117
+  },
+  {
+    "index": 18,
+    "CoworkerIndex": 15,
+    "Stage": "Negotiation",
+    "Value": 2069.1,
+    "LeadSource": 19,
+    "Position": 18,
+    "DueDayOffset": 7,
+    "CreatedDayOffset": -48
+  },
+  {
+    "index": 19,
+    "CoworkerIndex": 35,
+    "Stage": "Negotiation",
+    "Value": 2224.19,
+    "LeadSource": 5,
+    "Position": 19,
+    "DueDayOffset": 5,
+    "CreatedDayOffset": -33
+  },
+  {
+    "index": 20,
+    "CoworkerIndex": 10,
+    "Stage": "Won",
+    "Value": 1472.46,
+    "LeadSource": 1,
+    "Position": 20,
+    "DueDayOffset": -22,
+    "CreatedDayOffset": -84
+  },
+  {
+    "index": 21,
+    "CoworkerIndex": 4,
+    "Stage": "Won",
+    "Value": 1516.49,
+    "LeadSource": 2,
+    "Position": 21,
+    "DueDayOffset": -21,
+    "CreatedDayOffset": -41
+  },
+  {
+    "index": 22,
+    "CoworkerIndex": 14,
+    "Stage": "Won",
+    "Value": 1709.04,
+    "LeadSource": 2,
+    "Position": 22,
+    "DueDayOffset": -16,
+    "CreatedDayOffset": -87
+  },
+  {
+    "index": 23,
+    "CoworkerIndex": 32,
+    "Stage": "Won",
+    "Value": 1501.02,
+    "LeadSource": 1,
+    "Position": 23,
+    "DueDayOffset": -1,
+    "CreatedDayOffset": -17
+  },
+  {
+    "index": 24,
+    "CoworkerIndex": 42,
+    "Stage": "Won",
+    "Value": 1455.61,
+    "LeadSource": 19,
+    "Position": 24,
+    "DueDayOffset": -21,
+    "CreatedDayOffset": -53
+  },
+  {
+    "index": 25,
+    "CoworkerIndex": 28,
+    "Stage": "Lost",
+    "Value": 839.78,
+    "LeadSource": 2,
+    "Position": 25,
+    "DueDayOffset": -6,
+    "CreatedDayOffset": -117
+  },
+  {
+    "index": 26,
+    "CoworkerIndex": 22,
+    "Stage": "Lost",
+    "Value": 950.63,
+    "LeadSource": 5,
+    "Position": 26,
+    "DueDayOffset": -23,
+    "CreatedDayOffset": -73
+  },
+  {
+    "index": 27,
+    "CoworkerIndex": 5,
+    "Stage": "Lost",
+    "Value": 1005.65,
+    "LeadSource": 5,
+    "Position": 27,
+    "DueDayOffset": -12,
+    "CreatedDayOffset": -86
+  },
+  {
+    "index": 28,
+    "CoworkerIndex": 20,
+    "Stage": "Lost",
+    "Value": 800.98,
+    "LeadSource": 11,
+    "Position": 28,
+    "DueDayOffset": -19,
+    "CreatedDayOffset": -89
+  },
+  {
+    "index": 29,
+    "CoworkerIndex": 10,
+    "Stage": "Lost",
+    "Value": 890.76,
+    "LeadSource": 5,
+    "Position": 29,
+    "DueDayOffset": -26,
+    "CreatedDayOffset": -109
+  },
+  {
+    "index": 30,
+    "CoworkerIndex": 23,
+    "Stage": "Lost",
+    "Value": 1090.78,
+    "LeadSource": 2,
+    "Position": 30,
+    "DueDayOffset": -5,
+    "CreatedDayOffset": -105
+  }
+]

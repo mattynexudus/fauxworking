@@ -1,0 +1,102 @@
+Report generated 2026-08-24T17:33:10.518330+00:00
+
+=== This run: target vs. actual ===
+Entity                             Target  Created  Existed   Failed
+--------------------------------------------------------------------
+blogposts                              10       10        0        0
+bookings                              240      122        0        4  <-- short
+    reasons: unknown_error=2, validation_rejected=1, systemic_rate_limit=1
+bookingvisitors                        94       47        0       47  <-- short
+    reasons: parent_skipped=44, unknown_error=3
+calendareventcategories                 4        0        4        0
+calendarevents                         20       20        0        0
+cancelledbookings                      40       31        0        9  <-- short
+    reasons: validation_rejected=9
+checkins                              300      300        0        0
+communitygroups                         3        3        0        0
+communitymessages                      36       36        0        0
+communitythreads                       15       15        0        0
+contractdeposits                       10       10        0        0
+contractpausedperiods                  12       12        0        0
+contractproducts                       30       30        0        0
+coworkerbookingcredits                 25       25        0        0
+coworkerbookingcreditusehistories       50       45        0        5  <-- short
+    reasons: validation_rejected=5
+coworkercontracts                      76       76        0        0
+coworkerdatafiles                      10       10        0        0
+coworkerdeliveries                     40       40        0        0
+coworkerextraservices                  80       51        0       29  <-- short
+    reasons: parent_skipped=29
+coworkerinventoryassets                12        0        0        3  <-- short
+    reasons: unknown_error=2, systemic_rate_limit=1
+coworkerinvoices                      220      478        0        5
+    reasons: unknown_error=5
+coworkerledgerentries                   0      458        0        0
+coworkerproducts                       20       20        0        0
+coworkers                              50        0       50        0
+coworkertasks                          20       20        0        0
+coworkertimepasses                     40       91        0        0
+crmboardcolumns                        10        0       10        0
+crmboards                               2        0        2        0
+crmopportunities                       30        0        0        3  <-- short
+    reasons: unknown_error=2, systemic_rate_limit=1
+crmopportunityhistories                87        0        0       87  <-- short
+    reasons: parent_skipped=87
+discountcodes                           6        0        6        0
+eventattendees                         60       60        0        0
+eventproducts                          20       20        0        0
+extraservices                           7        0        7        0
+financialaccounts                       8        0        8        0
+floorplandesks                         68       68        0        0
+floorplans                              3        0        3        0
+helpdeskdepartments                     3        0        3        0
+helpdeskmessages                       25       25        0        0
+inventoryassets                        15        0       15        0
+opportunitytypes                        4        0        4        0
+products                               12        0       12        0
+proposals                              15       15        0        0
+resources                              20        0       20        0
+resourcetypes                           5        0        5        0
+tariffextraservices                    14        0       14        0
+tariffs                                 8        0        8        0
+tarifftimepasses                        6        0        6        0
+taxrates                                3        0        3        0
+teams                                   5        0        5        0
+timepasses                              4        0        4        0
+visitors                               60        0       60        0
+
+Some entities fell short of this run's target — see reasons above.
+
+=== What's in the account now (cumulative, all runs) ===
+Entity                            Created   Target
+--------------------------------------------------
+blogposts                              10       10
+bookings                              122      240  <-- below target
+bookingvisitors                        47        -
+calendarevents                         20       20
+cancelledbookings                      31        -
+checkins                              300      300
+communitygroups                         3        3
+communitymessages                      36       40  <-- below target
+communitythreads                       15       15
+contractdeposits                       10       10
+contractpausedperiods                  12       12
+contractproducts                       30       30
+coworkerbookingcredits                 25       25
+coworkerbookingcreditusehistories       45        -
+coworkercontracts                      76       90  <-- below target
+coworkerdatafiles                      10       10
+coworkerdeliveries                     40       40
+coworkerextraservices                  51       80  <-- below target
+coworkerinvoices                      478        -
+coworkerledgerentries                 458        -
+coworkerproducts                       20       20
+coworkertasks                          20       20
+coworkertimepasses                     91       40
+eventattendees                         60       60
+eventproducts                          20        -
+floorplandesks                         68       40
+helpdeskmessages                       25       25
+proposals                              15       15
+
+Total tracked records: 2138

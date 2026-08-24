@@ -1,0 +1,302 @@
+[
+  {
+    "index": 1,
+    "CreditIndex": 7,
+    "CreditUsed": 22.69,
+    "BookingIndex": null
+  },
+  {
+    "index": 2,
+    "CreditIndex": 15,
+    "CreditUsed": 19.39,
+    "BookingIndex": null
+  },
+  {
+    "index": 3,
+    "CreditIndex": 5,
+    "CreditUsed": 38.58,
+    "BookingIndex": null
+  },
+  {
+    "index": 4,
+    "CreditIndex": 13,
+    "CreditUsed": 7.77,
+    "BookingIndex": 143
+  },
+  {
+    "index": 5,
+    "CreditIndex": 4,
+    "CreditUsed": 11.31,
+    "BookingIndex": null
+  },
+  {
+    "index": 6,
+    "CreditIndex": 20,
+    "CreditUsed": 5.98,
+    "BookingIndex": null
+  },
+  {
+    "index": 7,
+    "CreditIndex": 3,
+    "CreditUsed": 24.15,
+    "BookingIndex": null
+  },
+  {
+    "index": 8,
+    "CreditIndex": 4,
+    "CreditUsed": 10.41,
+    "BookingIndex": null
+  },
+  {
+    "index": 9,
+    "CreditIndex": 18,
+    "CreditUsed": 23.3,
+    "BookingIndex": 208
+  },
+  {
+    "index": 10,
+    "CreditIndex": 4,
+    "CreditUsed": 22.88,
+    "BookingIndex": 7
+  },
+  {
+    "index": 11,
+    "CreditIndex": 16,
+    "CreditUsed": 5.25,
+    "BookingIndex": 224
+  },
+  {
+    "index": 12,
+    "CreditIndex": 20,
+    "CreditUsed": 6.28,
+    "BookingIndex": 157
+  },
+  {
+    "index": 13,
+    "CreditIndex": 19,
+    "CreditUsed": 9.62,
+    "BookingIndex": 78
+  },
+  {
+    "index": 14,
+    "CreditIndex": 19,
+    "CreditUsed": 24.42,
+    "BookingIndex": 196
+  },
+  {
+    "index": 15,
+    "CreditIndex": 8,
+    "CreditUsed": 12.84,
+    "BookingIndex": null
+  },
+  {
+    "index": 16,
+    "CreditIndex": 17,
+    "CreditUsed": 28.2,
+    "BookingIndex": null
+  },
+  {
+    "index": 17,
+    "CreditIndex": 10,
+    "CreditUsed": 26.26,
+    "BookingIndex": 52
+  },
+  {
+    "index": 18,
+    "CreditIndex": 8,
+    "CreditUsed": 29.98,
+    "BookingIndex": 166
+  },
+  {
+    "index": 19,
+    "CreditIndex": 12,
+    "CreditUsed": 21.11,
+    "BookingIndex": null
+  },
+  {
+    "index": 20,
+    "CreditIndex": 18,
+    "CreditUsed": 32.4,
+    "BookingIndex": null
+  },
+  {
+    "index": 21,
+    "CreditIndex": 7,
+    "CreditUsed": 16.84,
+    "BookingIndex": null
+  },
+  {
+    "index": 22,
+    "CreditIndex": 1,
+    "CreditUsed": 33.01,
+    "BookingIndex": 230
+  },
+  {
+    "index": 23,
+    "CreditIndex": 4,
+    "CreditUsed": 31.81,
+    "BookingIndex": null
+  },
+  {
+    "index": 24,
+    "CreditIndex": 7,
+    "CreditUsed": 8.51,
+    "BookingIndex": 202
+  },
+  {
+    "index": 25,
+    "CreditIndex": 2,
+    "CreditUsed": 28.85,
+    "BookingIndex": null
+  },
+  {
+    "index": 26,
+    "CreditIndex": 16,
+    "CreditUsed": 28.66,
+    "BookingIndex": 73
+  },
+  {
+    "index": 27,
+    "CreditIndex": 3,
+    "CreditUsed": 23.37,
+    "BookingIndex": null
+  },
+  {
+    "index": 28,
+    "CreditIndex": 8,
+    "CreditUsed": 23.08,
+    "BookingIndex": null
+  },
+  {
+    "index": 29,
+    "CreditIndex": 9,
+    "CreditUsed": 14.22,
+    "BookingIndex": 171
+  },
+  {
+    "index": 30,
+    "CreditIndex": 19,
+    "CreditUsed": 12.32,
+    "BookingIndex": null
+  },
+  {
+    "index": 31,
+    "CreditIndex": 11,
+    "CreditUsed": 7.24,
+    "BookingIndex": null
+  },
+  {
+    "index": 32,
+    "CreditIndex": 2,
+    "CreditUsed": 27.8,
+    "BookingIndex": null
+  },
+  {
+    "index": 33,
+    "CreditIndex": 5,
+    "CreditUsed": 37.77,
+    "BookingIndex": null
+  },
+  {
+    "index": 34,
+    "CreditIndex": 12,
+    "CreditUsed": 8.9,
+    "BookingIndex": 178
+  },
+  {
+    "index": 35,
+    "CreditIndex": 17,
+    "CreditUsed": 8.98,
+    "BookingIndex": null
+  },
+  {
+    "index": 36,
+    "CreditIndex": 15,
+    "CreditUsed": 33.67,
+    "BookingIndex": null
+  },
+  {
+    "index": 37,
+    "CreditIndex": 3,
+    "CreditUsed": 31.03,
+    "BookingIndex": null
+  },
+  {
+    "index": 38,
+    "CreditIndex": 17,
+    "CreditUsed": 35.74,
+    "BookingIndex": 155
+  },
+  {
+    "index": 39,
+    "CreditIndex": 20,
+    "CreditUsed": 6.87,
+    "BookingIndex": null
+  },
+  {
+    "index": 40,
+    "CreditIndex": 8,
+    "CreditUsed": 27.36,
+    "BookingIndex": 240
+  },
+  {
+    "index": 41,
+    "CreditIndex": 9,
+    "CreditUsed": 17.5,
+    "BookingIndex": null
+  },
+  {
+    "index": 42,
+    "CreditIndex": 9,
+    "CreditUsed": 19.42,
+    "BookingIndex": 116
+  },
+  {
+    "index": 43,
+    "CreditIndex": 1,
+    "CreditUsed": 37.02,
+    "BookingIndex": null
+  },
+  {
+    "index": 44,
+    "CreditIndex": 16,
+    "CreditUsed": 30.4,
+    "BookingIndex": 117
+  },
+  {
+    "index": 45,
+    "CreditIndex": 1,
+    "CreditUsed": 7.32,
+    "BookingIndex": 75
+  },
+  {
+    "index": 46,
+    "CreditIndex": 13,
+    "CreditUsed": 21.79,
+    "BookingIndex": null
+  },
+  {
+    "index": 47,
+    "CreditIndex": 19,
+    "CreditUsed": 28.17,
+    "BookingIndex": null
+  },
+  {
+    "index": 48,
+    "CreditIndex": 14,
+    "CreditUsed": 25.38,
+    "BookingIndex": 156
+  },
+  {
+    "index": 49,
+    "CreditIndex": 6,
+    "CreditUsed": 26.05,
+    "BookingIndex": null
+  },
+  {
+    "index": 50,
+    "CreditIndex": 5,
+    "CreditUsed": 26.48,
+    "BookingIndex": 171
+  }
+]
