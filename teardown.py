@@ -77,9 +77,25 @@ real, pre-existing data with seeded test data at the same business (see
 CLAUDE.md rule 46) — resetting to 0 makes the next real invoice/booking
 reuse a number a real historical record already has.
 
+Two modes, chosen via --mode (or an interactive prompt if omitted):
+  - "tracked" (default): the behavior described above — strictly by
+    data/created-ids/*.json.
+  - "clean": ignores tracking entirely and lists every entity in
+    ENTITY_DELETE_ORDER live, deleting everything found. For when the
+    tracking file is stale, missing, or you just want the account wiped
+    regardless of what this project remembers creating — see
+    _live_discover_all(). Confirmed live against this project's own
+    account: a full "clean" run cleared ~2,100 of ~3,000 live records
+    (structural/reference layers, contracts, coworkers 100%); the
+    remainder falls into two documented, deterministic API limits (see
+    PRICE_PLAN_LOCKED_USE_COMMAND and CLAUDE.md rule 32's stuck-guest
+    bug), not this script's own failures.
+
 Usage:
-    python teardown.py              # Live mode — deletes for real
-    python teardown.py --dry-run    # Log what would be deleted
+    python teardown.py                       # Live mode — deletes for real
+    python teardown.py --mode clean           # Live mode, ignoring tracking
+    python teardown.py --dry-run              # Log what would be deleted
+    python teardown.py --dry-run --mode clean # Preview a full live wipe
     python teardown.py --business-id 12345   # pick which business's
                                                # counters to offer resetting,
                                                # for logins with access to
@@ -216,6 +232,20 @@ COMMAND_DELETE = {
     ],
 }
 
+# coworkerinvoicehistories' list endpoint 500s unconditionally — confirmed
+# live, even filtered per-coworker ("Ooops! There was a problem..."). No
+# working way to enumerate it standalone; it's a child of coworkerinvoices
+# and COWORKER_INVOICE_DELETE (a genuine delete, not void — rule 12) takes
+# its history rows with it. Only relevant to --mode clean's live discovery
+# — tracked mode never needs to list this entity, it already has real Ids.
+NO_LIST_SUPPORT = {"coworkerinvoicehistories"}
+
+# coworkerextraservices' list endpoint rejects an unfiltered call outright
+# (400: requires Id / an updatedon range / BookingUniqueId / Coworker) —
+# confirmed live. Listed per-coworker instead. Same scope as NO_LIST_SUPPORT
+# above: only matters for --mode clean.
+PER_COWORKER_LIST_FILTER = {"coworkerextraservices": "CoworkerExtraService_Coworker"}
+
 
 def load_tracked_records():
     """Return {file_path: [record, ...]} for every data/created-ids/*.json file."""
@@ -232,7 +262,73 @@ def load_tracked_records():
     return files
 
 
+def _live_discover_all(nexudus_list):
+    """--mode clean's replacement for load_tracked_records() + the
+    by_entity-grouping block in run_teardown(): instead of trusting
+    data/created-ids/*.json, lists every entity in ENTITY_DELETE_ORDER
+    live and builds (by_entity, pooled) directly from what's actually on
+    the account right now. Confirmed live against this project's account
+    (2026-08-25): every entity here returned real records except the two
+    handled specially (NO_LIST_SUPPORT skipped entirely,
+    PER_COWORKER_LIST_FILTER used for coworkerextraservices).
+
+    Records get a synthetic "entity" tag the same way a tracked record
+    already has one, so the rest of the pipeline (grouping, per-record
+    delete loop, summary) doesn't need to know which mode produced them.
+    There's no backing file, so each pooled item's "path" is None —
+    run_teardown's survivor-persistence step is skipped for this mode
+    (see its own docstring)."""
+    by_entity = {}
+    pooled = []
+    coworker_ids = None
+    for entity in ENTITY_DELETE_ORDER:
+        if entity in NO_LIST_SUPPORT:
+            continue
+        filter_key = PER_COWORKER_LIST_FILTER.get(entity)
+        if filter_key is None:
+            records = nexudus_list(entity, {})
+        else:
+            if coworker_ids is None:
+                coworker_ids = [c["Id"] for c in nexudus_list("coworkers", {})]
+            records, seen_ids = [], set()
+            for cid in coworker_ids:
+                for rec in nexudus_list(entity, {filter_key: cid}):
+                    if rec.get("Id") not in seen_ids:
+                        seen_ids.add(rec.get("Id"))
+                        records.append(rec)
+        for rec in records:
+            record = {"entity": entity, **rec}
+            item = (None, len(pooled), record)
+            pooled.append(item)
+            by_entity.setdefault(entity, []).append(item)
+    return by_entity, pooled
+
+
 _ALREADY_CHARGED_TEXT = "already been charged to this customer"
+
+# A CoworkerTimePass/CoworkerExtraService granted automatically by a
+# contract's price plan (rather than sold as a standalone item) rejects
+# DELETE outright — confirmed live, found via the entity's own /commands
+# endpoint since discovery (rule 27) didn't surface it either way. The
+# API's own error text offers "mark it as used" as the only alternative,
+# not a stepping stone back to deletion — there is no known way to
+# actually delete these. USE_TIME_PASS/USE_EXTRA_SERVICE are run as the
+# best-available terminal action and tracked as their own outcome
+# (marked_used in _entity_bucket), never reported as "deleted".
+_PRICE_PLAN_LOCKED_TEXT = "is from a price plan and it cannot be deleted"
+PRICE_PLAN_LOCKED_USE_COMMAND = {
+    "coworkertimepasses": ("USE_TIME_PASS", None),
+    "coworkerextraservices": ("USE_EXTRA_SERVICE", [
+        {"Name": "How many minutes/uses would like to use of this extra service?", "Value": 1},
+    ]),
+}
+
+# A CoworkerExtraService created via CHARGE_BOOKING (rule 12) rejects a
+# direct DELETE with this message — confirmed live. UNCHARGE_BOOKING
+# ("Revert Charges") is the entity's own documented inverse of
+# CHARGE_BOOKING, found via bookings' /commands endpoint, and is what the
+# error text itself is pointing at.
+_REVERT_CHARGE_TEXT = "Revert the charges of that booking instead"
 
 
 def _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command):
@@ -305,26 +401,29 @@ def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command, nexudus_
         _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
         return
     except Exception as e:  # noqa: BLE001
-        if nexudus_list is None:
-            raise
         if entity == "bookings" and _ALREADY_CHARGED_TEXT in str(e):
             # A booking that's already been charged (CHARGE_BOOKING
             # created a linked CoworkerExtraService) rejects DELETE even
-            # after cancelling — confirmed live. Some pre-existing
-            # charges tracked under a fake, non-deletable Id before the
-            # rule 41 fix are still sitting on their bookings under a
-            # real Id that was never tracked, so the standalone
-            # coworkerextraservices step earlier in ENTITY_DELETE_ORDER
-            # never actually touched them.
-            targets = [("coworkerextraservices", "CoworkerExtraService_BookingId", None)]
-        elif entity == "coworkers":
-            targets = _COWORKER_CLEANUP_TARGETS
-        else:
-            raise
+            # after cancelling — confirmed live. UNCHARGE_BOOKING ("Revert
+            # Charges") is the documented inverse of CHARGE_BOOKING and is
+            # what the API itself points to when you try to delete the
+            # charge directly instead (see _REVERT_CHARGE_TEXT) — more
+            # reliable than the previous approach of hunting down and
+            # directly deleting the linked CoworkerExtraService, which can
+            # hit that same rejection.
+            if nexudus_run_command is None:
+                raise
+            nexudus_run_command("bookings", "UNCHARGE_BOOKING", [record_id])
+            _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
+            return
 
-        if not _cleanup_related(record_id, nexudus_delete, nexudus_run_command, nexudus_list, targets):
-            raise
-        _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
+        if entity == "coworkers" and nexudus_list is not None:
+            if _cleanup_related(record_id, nexudus_delete, nexudus_run_command,
+                                 nexudus_list, _COWORKER_CLEANUP_TARGETS):
+                _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
+                return
+
+        raise
 
 
 def _discover_untracked_coworker_invoices(files, by_entity, pooled, nexudus_list):
@@ -371,7 +470,7 @@ def _discover_untracked_coworker_invoices(files, by_entity, pooled, nexudus_list
 def _entity_bucket(entity_outcomes, entity):
     return entity_outcomes.setdefault(entity, {
         "seen": 0, "deleted": 0, "skipped_no_support": 0, "skipped_no_id": 0,
-        "failed": 0, "failure_reasons": Counter(), "entity_aborted": None,
+        "marked_used": 0, "failed": 0, "failure_reasons": Counter(), "entity_aborted": None,
     })
 
 
@@ -426,6 +525,38 @@ def _delete_entity_batch(entity, items, dry_run, nexudus_delete, nexudus_run_com
                 print(f"  {entity} {record_id} already gone (404) — treating as deleted")
                 deleted_keys.add((path, i))
                 bucket["deleted"] += 1
+            elif entity in PRICE_PLAN_LOCKED_USE_COMMAND and _PRICE_PLAN_LOCKED_TEXT in str(e):
+                # No delete path exists for this record at all (see
+                # PRICE_PLAN_LOCKED_USE_COMMAND) — mark it used instead,
+                # the best available terminal action, and stop tracking
+                # it (nothing left to retry on a future run).
+                command, parameters = PRICE_PLAN_LOCKED_USE_COMMAND[entity]
+                try:
+                    nexudus_run_command(entity, command, [record_id], parameters=parameters)
+                    print(f"  {entity} {record_id}: price-plan-locked — marked used instead of deleted")
+                    deleted_keys.add((path, i))
+                    bucket["marked_used"] += 1
+                except Exception as e2:  # noqa: BLE001
+                    print(f"  FAILED to mark {entity} {record_id} as used: {e2}")
+                    bucket["failed"] += 1
+                    bucket["failure_reasons"]["price_plan_locked_mark_used_failed"] += 1
+            elif entity == "coworkerextraservices" and _REVERT_CHARGE_TEXT in str(e) \
+                    and record.get("BookingId") is not None:
+                # Same underlying rejection as _ALREADY_CHARGED_TEXT on
+                # bookings (see _delete_one), just hit from this side —
+                # revert the booking's charge via UNCHARGE_BOOKING, then
+                # retry this delete once.
+                try:
+                    nexudus_run_command("bookings", "UNCHARGE_BOOKING", [record["BookingId"]])
+                    nexudus_delete(entity, record_id)
+                    deleted_keys.add((path, i))
+                    bucket["deleted"] += 1
+                    print(f"  {entity} {record_id}: reverted booking {record['BookingId']}'s "
+                          f"charge, then deleted")
+                except Exception as e2:  # noqa: BLE001
+                    print(f"  FAILED to delete {entity} {record_id} even after UNCHARGE_BOOKING: {e2}")
+                    bucket["failed"] += 1
+                    bucket["failure_reasons"]["revert_charge_failed"] += 1
             else:
                 print(f"  FAILED to delete {entity} {record_id}: {e}")
                 bucket["failed"] += 1
@@ -473,11 +604,12 @@ def teardown_summary_lines(entity_outcomes):
     if not entity_outcomes:
         return []
 
-    lines = [f"{'Entity':<32} {'Seen':>6} {'Deleted':>8} {'NoSupport':>10} {'Failed':>8}", "-" * 68]
+    lines = [f"{'Entity':<32} {'Seen':>6} {'Deleted':>8} {'MarkedUsed':>10} "
+              f"{'NoSupport':>10} {'Failed':>8}", "-" * 78]
     aborted = []
     for entity in sorted(entity_outcomes):
         b = entity_outcomes[entity]
-        lines.append(f"{entity:<32} {b['seen']:>6} {b['deleted']:>8} "
+        lines.append(f"{entity:<32} {b['seen']:>6} {b['deleted']:>8} {b.get('marked_used', 0):>10} "
                       f"{b['skipped_no_support']:>10} {b['failed']:>8}")
         if b["failure_reasons"]:
             reasons = ", ".join(f"{r}={n}" for r, n in b["failure_reasons"].most_common())
@@ -493,54 +625,68 @@ def teardown_summary_lines(entity_outcomes):
     return lines
 
 
-def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list=None):
-    files = load_tracked_records()
-    empty_summary = {"seen": 0, "deleted": 0, "skipped_no_support": 0, "failed": 0,
-                      "malformed": 0, "entity_outcomes": {}}
-    if not files:
-        print("No tracked records found in data/created-ids/ — nothing to tear down.")
-        return empty_summary
+def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list=None, mode="tracked"):
+    empty_summary = {"seen": 0, "deleted": 0, "marked_used": 0, "skipped_no_support": 0,
+                      "failed": 0, "malformed": 0, "entity_outcomes": {}}
 
-    if _last_generation_run_incomplete():
-        print("Heads up: the last generation run (see last-run-report.txt) shows signs it "
-              "didn't fully complete — some records you expect may be missing. This doesn't "
-              "change what teardown does (it only ever deletes by tracked ID), just flagging "
-              "it before starting.\n")
-
-    # Pool every record across files, remembering which file+index it came from
-    # so we can rewrite each file afterward with only the survivors.
-    pooled = []  # (file_path, index_in_file, record)
-    for path, records in files.items():
-        for i, r in enumerate(records):
-            pooled.append((path, i, r))
-
-    # A record missing its "entity" tag (or, one step further, a stray
-    # file whose JSON isn't even a list of record dicts) isn't a real
-    # entity — the same "stray file in data/created-ids/" scenario
-    # report_lib.py::_grouped_records() already guards against on the
-    # reporting side, with its own malformed_count. Skipping these here
-    # matters more than just symmetry: an unguarded None key used to flow
-    # straight into `sorted(set(by_entity) - set(ENTITY_DELETE_ORDER))`
-    # below, which raises TypeError the instant another, genuinely-
-    # unlisted entity name was *also* present that run — crashing the
-    # entire teardown before a single record was touched.
-    by_entity = {}
+    files = {}
     malformed_count = 0
-    for item in pooled:
-        record = item[2]
-        entity = record.get("entity") if isinstance(record, dict) else None
-        if entity is None:
-            malformed_count += 1
-            continue
-        by_entity.setdefault(entity, []).append(item)
 
-    if malformed_count:
-        print(f"WARNING: {malformed_count} tracked record(s) are missing an 'entity' tag — "
-              f"skipped (left in tracking, not deleted). Check data/created-ids/ for a stray "
-              f"file that doesn't belong there.\n")
+    if mode == "clean":
+        # Ignore data/created-ids/*.json entirely — list every entity live
+        # and delete whatever's there, regardless of what this project
+        # remembers creating. See _live_discover_all()'s docstring.
+        if nexudus_list is None:
+            raise ValueError("mode='clean' requires nexudus_list to discover live records")
+        by_entity, pooled = _live_discover_all(nexudus_list)
+        if not pooled:
+            print("No live records found on this account — nothing to tear down.")
+            return empty_summary
+    else:
+        files = load_tracked_records()
+        if not files:
+            print("No tracked records found in data/created-ids/ — nothing to tear down.")
+            return empty_summary
 
-    if not dry_run and nexudus_list is not None:
-        _discover_untracked_coworker_invoices(files, by_entity, pooled, nexudus_list)
+        if _last_generation_run_incomplete():
+            print("Heads up: the last generation run (see last-run-report.txt) shows signs it "
+                  "didn't fully complete — some records you expect may be missing. This doesn't "
+                  "change what teardown does (it only ever deletes by tracked ID), just flagging "
+                  "it before starting.\n")
+
+        # Pool every record across files, remembering which file+index it came from
+        # so we can rewrite each file afterward with only the survivors.
+        pooled = []  # (file_path, index_in_file, record)
+        for path, records in files.items():
+            for i, r in enumerate(records):
+                pooled.append((path, i, r))
+
+        # A record missing its "entity" tag (or, one step further, a stray
+        # file whose JSON isn't even a list of record dicts) isn't a real
+        # entity — the same "stray file in data/created-ids/" scenario
+        # report_lib.py::_grouped_records() already guards against on the
+        # reporting side, with its own malformed_count. Skipping these here
+        # matters more than just symmetry: an unguarded None key used to flow
+        # straight into `sorted(set(by_entity) - set(ENTITY_DELETE_ORDER))`
+        # below, which raises TypeError the instant another, genuinely-
+        # unlisted entity name was *also* present that run — crashing the
+        # entire teardown before a single record was touched.
+        by_entity = {}
+        for item in pooled:
+            record = item[2]
+            entity = record.get("entity") if isinstance(record, dict) else None
+            if entity is None:
+                malformed_count += 1
+                continue
+            by_entity.setdefault(entity, []).append(item)
+
+        if malformed_count:
+            print(f"WARNING: {malformed_count} tracked record(s) are missing an 'entity' tag — "
+                  f"skipped (left in tracking, not deleted). Check data/created-ids/ for a stray "
+                  f"file that doesn't belong there.\n")
+
+        if not dry_run and nexudus_list is not None:
+            _discover_untracked_coworker_invoices(files, by_entity, pooled, nexudus_list)
 
     total_seen = len(pooled)
     deleted_keys = set()  # (path, index) confirmed gone
@@ -582,11 +728,12 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
         # should always report what it accomplished rather than a bare
         # stack trace with no summary at all.
         total_deleted = sum(b["deleted"] for b in entity_outcomes.values())
+        total_marked_used = sum(b.get("marked_used", 0) for b in entity_outcomes.values())
         total_skipped_no_support = sum(b["skipped_no_support"] for b in entity_outcomes.values())
         total_failed = sum(b["failed"] for b in entity_outcomes.values())
 
         print()
-        print(f"Seen: {total_seen}  Deleted: {total_deleted}  "
+        print(f"Seen: {total_seen}  Deleted: {total_deleted}  Marked used: {total_marked_used}  "
               f"Skipped (unsupported): {total_skipped_no_support}  Failed: {total_failed}"
               + (f"  Malformed (no entity tag): {malformed_count}" if malformed_count else ""))
 
@@ -595,7 +742,10 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
             print()
             print("\n".join(summary_lines))
 
-        if not dry_run and deleted_keys:
+        # files is empty in mode="clean" (no tracking file backs a live-
+        # discovered record — see _live_discover_all), so there's nothing
+        # to persist; the account itself is the only state that changed.
+        if not dry_run and deleted_keys and files:
             # Rewrite each file, keeping only records that weren't confirmed deleted.
             for path, records in files.items():
                 survivors = [r for i, r in enumerate(records) if (path, i) not in deleted_keys]
@@ -603,7 +753,7 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
             print("\nUpdated data/created-ids/*.json to remove deleted records.")
 
     return {
-        "seen": total_seen, "deleted": total_deleted,
+        "seen": total_seen, "deleted": total_deleted, "marked_used": total_marked_used,
         "skipped_no_support": total_skipped_no_support, "failed": total_failed,
         "malformed": malformed_count, "entity_outcomes": entity_outcomes,
     }
@@ -714,24 +864,74 @@ def _prompt_business_id(businesses):
         return businesses[choice - 1]
 
 
+def _prompt_mode():
+    """Interactive prompt for --mode when it's omitted — same numbered-list
+    pattern as _prompt_business_id. Defaults to "tracked" (the safer,
+    narrower option) on EOFError, matching this script's other optional
+    prompts' non-interactive fallback."""
+    print("\nHow should teardown decide what to delete?\n")
+    print("  1. Tracked only — strictly data/created-ids/*.json (default, safer)")
+    print("  2. Clean account — ignore tracking, delete every live record found")
+    while True:
+        raw = input("\nEnter a number (1-2) [1]: ").strip()
+        if raw == "":
+            return "tracked"
+        if raw == "1":
+            return "tracked"
+        if raw == "2":
+            return "clean"
+        print("Please enter 1 or 2.")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--mode", choices=["tracked", "clean"], default=None,
+                         help="'tracked' deletes strictly by data/created-ids/*.json (default); "
+                              "'clean' ignores tracking and deletes every live record found. "
+                              "Prompted interactively if omitted.")
     parser.add_argument("--business-id", type=int, default=None,
                          help="Which business/location's billing counters to offer "
                               "resetting afterward, if this login has access to more than one")
     args = parser.parse_args()
 
+    if args.mode is not None:
+        mode = args.mode
+    else:
+        try:
+            mode = _prompt_mode()
+        except EOFError:
+            mode = "tracked"
+            print("\nNo input available — defaulting to tracked-only mode.")
+
     if args.dry_run:
-        run_teardown(nexudus_delete=None, dry_run=True)
+        if mode == "clean":
+            # Even a dry run needs a real nexudus_list to discover what's
+            # live — there's no tracked-file fallback in this mode (see
+            # _live_discover_all). nexudus_delete/nexudus_run_command stay
+            # unused either way; dry_run=True never calls them.
+            import nexudus_client as client
+            run_teardown(nexudus_delete=None, dry_run=True, mode=mode, nexudus_list=client.nexudus_list)
+        else:
+            run_teardown(nexudus_delete=None, dry_run=True, mode=mode)
     else:
         import nexudus_client as client
         from pipeline import _select_business, list_businesses
 
+        if mode == "clean":
+            confirm = input(
+                "\n'clean' mode deletes every live record on this account, ignoring local "
+                "tracking entirely — including anything this project didn't create. Type "
+                "'delete everything' to proceed: "
+            ).strip()
+            if confirm != "delete everything":
+                print("Aborted — no changes made.")
+                sys.exit(0)
+
         try:
             run_teardown(nexudus_delete=client.nexudus_delete, dry_run=False,
                          nexudus_run_command=client.nexudus_run_command,
-                         nexudus_list=client.nexudus_list)
+                         nexudus_list=client.nexudus_list, mode=mode)
         except Exception as e:  # noqa: BLE001 — every anticipated failure mode is already
             # handled inside run_teardown itself (per-record, per-entity);
             # this is the last-resort net for something genuinely

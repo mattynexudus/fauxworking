@@ -306,6 +306,258 @@ class TestUntrackedInvoiceDiscovery(_TeardownTestBase):
         self.assertEqual(survivors, [])  # discovered, then deleted, then swept from tracking
 
 
+class TestLiveDiscoverAll(unittest.TestCase):
+    """_live_discover_all — mode='clean's live-listing replacement for
+    tracked-file loading. No CREATED_IDS_DIR isolation needed here since
+    this function never touches the filesystem."""
+
+    def test_skips_no_list_support_entities(self):
+        calls = []
+
+        def fake_list(entity, filters):
+            calls.append(entity)
+            return []
+
+        teardown._live_discover_all(fake_list)
+        self.assertNotIn("coworkerinvoicehistories", calls)
+
+    def test_uses_per_coworker_filter_for_coworkerextraservices(self):
+        def fake_list(entity, filters):
+            if entity == "coworkers":
+                return [{"Id": 1}, {"Id": 2}]
+            if entity == "coworkerextraservices":
+                cid = filters.get("CoworkerExtraService_Coworker")
+                return [{"Id": 100 + cid}]
+            return []
+
+        by_entity, pooled = teardown._live_discover_all(fake_list)
+        ids = sorted(r["Id"] for _, _, r in by_entity["coworkerextraservices"])
+        self.assertEqual(ids, [101, 102])
+
+    def test_dedupes_records_seen_across_multiple_coworkers(self):
+        # A shared extra service could come back for more than one
+        # coworker filter — must not be double-counted.
+        def fake_list(entity, filters):
+            if entity == "coworkers":
+                return [{"Id": 1}, {"Id": 2}]
+            if entity == "coworkerextraservices":
+                return [{"Id": 999}]  # same record, every coworker
+            return []
+
+        by_entity, pooled = teardown._live_discover_all(fake_list)
+        self.assertEqual(len(by_entity["coworkerextraservices"]), 1)
+
+    def test_records_are_tagged_with_synthetic_entity_and_no_path(self):
+        def fake_list(entity, filters):
+            return [{"Id": 1}] if entity == "taxrates" else []
+
+        by_entity, pooled = teardown._live_discover_all(fake_list)
+        path, i, record = by_entity["taxrates"][0]
+        self.assertIsNone(path)
+        self.assertEqual(record["entity"], "taxrates")
+        self.assertEqual(record["Id"], 1)
+
+
+class TestCleanModeEndToEnd(_TeardownTestBase):
+    """mode='clean' wired through run_teardown — no tracked files
+    involved at all, deletes whatever nexudus_list finds live."""
+
+    def test_deletes_live_records_with_no_tracking_file_present(self):
+        # Deliberately no _write_tracked_file call — clean mode must not
+        # need one.
+        def fake_list(entity, filters):
+            if entity == "taxrates":
+                return [{"Id": 7}]
+            return []
+
+        deleted = []
+        result = teardown.run_teardown(
+            nexudus_delete=lambda entity, rid: deleted.append((entity, rid)),
+            dry_run=False, nexudus_run_command=lambda *a, **k: None,
+            nexudus_list=fake_list, mode="clean",
+        )
+
+        self.assertEqual(deleted, [("taxrates", 7)])
+        self.assertEqual(result["deleted"], 1)
+
+    def test_mode_clean_without_nexudus_list_raises(self):
+        with self.assertRaises(ValueError):
+            teardown.run_teardown(nexudus_delete=lambda *a: None, dry_run=False, mode="clean")
+
+    def test_no_survivor_file_written_in_clean_mode(self):
+        # Nothing to persist to — there's no backing tracked file for a
+        # live-discovered record, so this must not raise trying to write one.
+        def fake_list(entity, filters):
+            return [{"Id": 1}] if entity == "taxrates" else []
+
+        teardown.run_teardown(
+            nexudus_delete=lambda *a: None, dry_run=False,
+            nexudus_run_command=lambda *a, **k: None, nexudus_list=fake_list, mode="clean",
+        )
+        self.assertEqual(list(Path(self._tmpdir.name).glob("*.json")), [])
+
+
+class _FakeApiError(RuntimeError):
+    """Mimics nexudus_client.NexudusApiError closely enough for these
+    tests: a message string _delete_entity_batch's exception handling
+    checks with `in`, and no .response attribute (so status resolves to
+    None, matching a body-level rejection rather than a distinct HTTP
+    status)."""
+
+
+class TestPricePlanLockedSelfHeal(_TeardownTestBase):
+    """A CoworkerTimePass/CoworkerExtraService granted by a price plan
+    rejects DELETE outright — no delete path exists at all for these (see
+    PRICE_PLAN_LOCKED_USE_COMMAND). USE_TIME_PASS/USE_EXTRA_SERVICE are
+    the best-available terminal action and must be tracked as their own
+    outcome, never silently reported as "deleted"."""
+
+    def test_price_plan_locked_timepass_is_marked_used_not_deleted(self):
+        _write_tracked_file(self._tmpdir.name, "gen.json", [
+            {"Id": 1, "entity": "coworkertimepasses"},
+        ])
+        commands_run = []
+
+        def fake_delete(entity, rid):
+            raise _FakeApiError(
+                "This time pass is from a price plan and it cannot be deleted. "
+                "You can mark it as used instead.")
+
+        result = teardown.run_teardown(
+            nexudus_delete=fake_delete, dry_run=False,
+            nexudus_run_command=lambda entity, cmd, ids, **k: commands_run.append((entity, cmd, ids)),
+            nexudus_list=lambda *a, **k: [],
+        )
+
+        self.assertEqual(result["entity_outcomes"]["coworkertimepasses"]["marked_used"], 1)
+        self.assertEqual(result["entity_outcomes"]["coworkertimepasses"]["deleted"], 0)
+        self.assertIn(("coworkertimepasses", "USE_TIME_PASS", [1]), commands_run)
+        # Resolved either way — nothing left to usefully retry — so it's
+        # swept from tracking same as a real delete.
+        survivors = json.loads((Path(self._tmpdir.name) / "gen.json").read_text())
+        self.assertEqual(survivors, [])
+
+    def test_price_plan_locked_extraservice_uses_its_own_command_and_parameters(self):
+        _write_tracked_file(self._tmpdir.name, "gen.json", [
+            {"Id": 2, "entity": "coworkerextraservices"},
+        ])
+        commands_run = []
+
+        def fake_delete(entity, rid):
+            raise _FakeApiError(
+                "This extra service is from a price plan and it cannot be deleted. "
+                "You can use it instead.")
+
+        result = teardown.run_teardown(
+            nexudus_delete=fake_delete, dry_run=False,
+            nexudus_run_command=lambda entity, cmd, ids, **k: commands_run.append((entity, cmd, ids)),
+            nexudus_list=lambda *a, **k: [],
+        )
+
+        self.assertEqual(result["entity_outcomes"]["coworkerextraservices"]["marked_used"], 1)
+        self.assertEqual(commands_run, [("coworkerextraservices", "USE_EXTRA_SERVICE", [2])])
+
+    def test_mark_used_failure_is_counted_as_failed_not_deleted(self):
+        _write_tracked_file(self._tmpdir.name, "gen.json", [
+            {"Id": 1, "entity": "coworkertimepasses"},
+        ])
+
+        def fake_delete(entity, rid):
+            raise _FakeApiError("This time pass is from a price plan and it cannot be deleted.")
+
+        def fake_command(entity, cmd, ids, **k):
+            raise RuntimeError("USE_TIME_PASS also failed")
+
+        result = teardown.run_teardown(
+            nexudus_delete=fake_delete, dry_run=False,
+            nexudus_run_command=fake_command, nexudus_list=lambda *a, **k: [],
+        )
+
+        self.assertEqual(result["entity_outcomes"]["coworkertimepasses"]["marked_used"], 0)
+        self.assertEqual(result["entity_outcomes"]["coworkertimepasses"]["failed"], 1)
+
+
+class TestRevertChargeSelfHeal(_TeardownTestBase):
+    """A CoworkerExtraService created via CHARGE_BOOKING rejects a direct
+    delete ("Revert the charges of that booking instead") — the fix is
+    UNCHARGE_BOOKING on the originating booking, then retry the delete."""
+
+    def test_reverts_booking_charge_then_deletes(self):
+        _write_tracked_file(self._tmpdir.name, "gen.json", [
+            {"Id": 5, "entity": "coworkerextraservices", "BookingId": 999},
+        ])
+        commands_run = []
+        deleted = []
+        delete_attempts = []
+
+        def fake_delete(entity, rid):
+            delete_attempts.append((entity, rid))
+            if len(delete_attempts) == 1:
+                raise _FakeApiError(
+                    "This charge came from a booking. Revert the charges of that booking "
+                    "instead of deleting this charge directly.")
+            deleted.append((entity, rid))
+
+        result = teardown.run_teardown(
+            nexudus_delete=fake_delete, dry_run=False,
+            nexudus_run_command=lambda entity, cmd, ids, **k: commands_run.append((entity, cmd, ids)),
+            nexudus_list=lambda *a, **k: [],
+        )
+
+        self.assertIn(("bookings", "UNCHARGE_BOOKING", [999]), commands_run)
+        self.assertEqual(deleted, [("coworkerextraservices", 5)])
+        self.assertEqual(result["entity_outcomes"]["coworkerextraservices"]["deleted"], 1)
+
+    def test_without_booking_id_falls_through_to_ordinary_failure(self):
+        _write_tracked_file(self._tmpdir.name, "gen.json", [
+            {"Id": 5, "entity": "coworkerextraservices"},  # no BookingId
+        ])
+
+        def fake_delete(entity, rid):
+            raise _FakeApiError("Revert the charges of that booking instead of deleting directly.")
+
+        result = teardown.run_teardown(
+            nexudus_delete=fake_delete, dry_run=False,
+            nexudus_run_command=lambda *a, **k: None, nexudus_list=lambda *a, **k: [],
+        )
+
+        self.assertEqual(result["entity_outcomes"]["coworkerextraservices"]["failed"], 1)
+        self.assertEqual(result["entity_outcomes"]["coworkerextraservices"]["deleted"], 0)
+
+
+class TestBookingUnchargeSelfHeal(unittest.TestCase):
+    """_delete_one's own bookings self-heal — the direct-DELETE-failure
+    path (already-charged), distinct from the coworkerextraservices side
+    tested above."""
+
+    def test_already_charged_booking_reverts_then_retries_cancel_and_delete(self):
+        commands_run = []
+        delete_calls = []
+
+        def fake_delete(entity, rid):
+            delete_calls.append((entity, rid))
+            if len(delete_calls) == 1:
+                raise _FakeApiError("This booking has already been charged to this customer.")
+
+        def fake_run_command(entity, cmd, ids, **k):
+            commands_run.append((entity, cmd, ids))
+
+        teardown._delete_one("bookings", 42, fake_delete, fake_run_command, nexudus_list=lambda *a, **k: [])
+
+        self.assertIn(("bookings", "UNCHARGE_BOOKING", [42]), commands_run)
+        # CANCEL_BOOKING then DELETE both ran again after the revert.
+        self.assertIn(("bookings", "CANCEL_BOOKING", [42]), commands_run)
+        self.assertEqual(delete_calls, [("bookings", 42), ("bookings", 42)])
+
+    def test_unrelated_failure_still_raises(self):
+        def fake_delete(entity, rid):
+            raise _FakeApiError("some other unrelated rejection")
+
+        with self.assertRaises(_FakeApiError):
+            teardown._delete_one("bookings", 1, fake_delete, lambda *a, **k: None,
+                                  nexudus_list=lambda *a, **k: [])
+
+
 class TestPreflightIncompleteRunNotice(unittest.TestCase):
     def setUp(self):
         self._tmpdir = tempfile.TemporaryDirectory()
