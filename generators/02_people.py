@@ -53,7 +53,7 @@ class PeopleGenerator(BaseGenerator):
             raise FileNotFoundError(
                 f"{path} not found. Run 'python prebuild.py' first."
             )
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
 
     def run(self, nexudus_list, nexudus_create, nexudus_update, prev_output):
         biz = prev_output["business_id"]

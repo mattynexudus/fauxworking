@@ -234,6 +234,78 @@ class TestSurvivorPersistence(_TeardownTestBase):
         self.assertIn("products", surviving_entities)
 
 
+class TestUntrackedInvoiceDiscovery(_TeardownTestBase):
+    """_discover_untracked_coworker_invoices — the pre-flight sync that
+    catches invoices Nexudus's recurring billing generated for a known
+    seeded coworker after 06_financial.py's own discovery step last ran,
+    which financial.json would otherwise have no record of at all."""
+
+    def test_untracked_invoice_for_known_coworker_is_discovered_and_deleted(self):
+        _write_tracked_file(self._tmpdir.name, "financial.json", [
+            {"Id": 100, "entity": "coworkerinvoices", "CoworkerId": 42},
+        ])
+        live_invoices = [
+            {"Id": 100, "CoworkerId": 42},  # already tracked
+            {"Id": 101, "CoworkerId": 42},  # untracked, known coworker — should be picked up
+        ]
+        commands_run = []
+
+        result = teardown.run_teardown(
+            nexudus_delete=lambda *a: None, dry_run=False,
+            nexudus_run_command=lambda entity, cmd, ids, **k: commands_run.append((entity, cmd, ids)),
+            nexudus_list=lambda entity, filters: live_invoices if entity == "coworkerinvoices" else [],
+        )
+
+        self.assertEqual(result["entity_outcomes"]["coworkerinvoices"]["seen"], 2)
+        self.assertEqual(result["entity_outcomes"]["coworkerinvoices"]["deleted"], 2)
+        self.assertIn(("coworkerinvoices", "COWORKER_INVOICE_DELETE", [101]), commands_run)
+
+    def test_invoice_for_unknown_coworker_is_ignored(self):
+        _write_tracked_file(self._tmpdir.name, "financial.json", [
+            {"Id": 100, "entity": "coworkerinvoices", "CoworkerId": 42},
+        ])
+        live_invoices = [
+            {"Id": 100, "CoworkerId": 42},
+            {"Id": 999, "CoworkerId": 1123713612},  # a real, unrelated customer — never seen before
+        ]
+
+        result = teardown.run_teardown(
+            nexudus_delete=lambda *a: None, dry_run=False,
+            nexudus_run_command=lambda *a, **k: None,
+            nexudus_list=lambda entity, filters: live_invoices if entity == "coworkerinvoices" else [],
+        )
+
+        self.assertEqual(result["entity_outcomes"]["coworkerinvoices"]["seen"], 1)
+
+    def test_dry_run_never_calls_nexudus_list_for_discovery(self):
+        _write_tracked_file(self._tmpdir.name, "financial.json", [
+            {"Id": 100, "entity": "coworkerinvoices", "CoworkerId": 42},
+        ])
+
+        def boom(*a, **k):
+            raise AssertionError("nexudus_list must not be called during a dry run")
+
+        teardown.run_teardown(nexudus_delete=None, dry_run=True, nexudus_list=boom)
+
+    def test_discovered_invoice_persists_to_financial_json_when_deleted(self):
+        path = _write_tracked_file(self._tmpdir.name, "financial.json", [])
+        live_invoices = [{"Id": 101, "CoworkerId": 42}]
+        # A sibling tracked file supplies the "known coworker" signal —
+        # discovery isn't limited to coworkers already tracked via invoices.
+        _write_tracked_file(self._tmpdir.name, "contracts.json", [
+            {"Id": 5, "entity": "coworkercontracts", "CoworkerId": 42},
+        ])
+
+        teardown.run_teardown(
+            nexudus_delete=lambda *a: None, dry_run=False,
+            nexudus_run_command=lambda *a, **k: None,
+            nexudus_list=lambda entity, filters: live_invoices if entity == "coworkerinvoices" else [],
+        )
+
+        survivors = json.loads(path.read_text())
+        self.assertEqual(survivors, [])  # discovered, then deleted, then swept from tracking
+
+
 class TestPreflightIncompleteRunNotice(unittest.TestCase):
     def setUp(self):
         self._tmpdir = tempfile.TemporaryDirectory()

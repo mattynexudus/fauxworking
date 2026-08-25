@@ -76,7 +76,7 @@ ENTITY_MODULES = {
     "businesssettings": "sys",
 }
 
-DEFAULT_TIMEOUT = 30
+DEFAULT_TIMEOUT = 60
 MAX_PAGES = 50  # safety cap for auto-pagination
 MAX_RATE_LIMIT_RETRIES = 8
 _RATE_LIMIT_WAIT_RE = re.compile(r"Wait ([\d.]+) seconds")

@@ -224,7 +224,7 @@ def load_tracked_records():
         return files
     for path in sorted(CREATED_IDS_DIR.glob("*.json")):
         try:
-            records = json.loads(path.read_text())
+            records = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             records = []
         if records:
@@ -327,6 +327,47 @@ def _delete_one(entity, record_id, nexudus_delete, nexudus_run_command, nexudus_
         _run_steps(entity, record_id, steps, nexudus_delete, nexudus_run_command)
 
 
+def _discover_untracked_coworker_invoices(files, by_entity, pooled, nexudus_list):
+    """Pre-flight sync, run once before the main delete loop: financial.json
+    only ever gets populated when 06_financial.py's own discovery step runs
+    (rule 38b), but Nexudus's automated recurring-contract billing keeps
+    generating fresh invoices for every active seeded contract in between
+    generation runs, and nothing re-syncs the tracking file after the fact.
+    Confirmed live: 101 untracked invoices for this project's own seeded
+    coworkers found in a single comparison — same accumulation pattern as
+    rule 44, but for invoices that were never tracked at all, so
+    _COWORKER_CLEANUP_TARGETS' reactive-only cleanup (which only fires once
+    COWORKER_DELETE itself has already failed) was the only thing standing
+    between them and a permanently-stuck teardown. Matches
+    06_financial.py::_list_invoices' own "only ever touch our own tracked
+    records" filter — never by bare live-scope alone, only coworkers this
+    project already has some tracked record for."""
+    known_coworker_ids = {
+        r.get("CoworkerId") for _, _, r in pooled
+        if isinstance(r, dict) and r.get("CoworkerId") is not None
+    }
+    if not known_coworker_ids:
+        return
+
+    tracked_ids = {r.get("Id") for _, _, r in by_entity.get("coworkerinvoices", [])}
+    live_invoices = nexudus_list("coworkerinvoices", {})
+    financial_path = CREATED_IDS_DIR / "financial.json"
+    added = 0
+    for inv in live_invoices:
+        if inv.get("CoworkerId") not in known_coworker_ids or inv.get("Id") in tracked_ids:
+            continue
+        record = {"entity": "coworkerinvoices", **inv, "DiscoveredInvoiceId": str(inv["Id"])}
+        records = files.setdefault(financial_path, [])
+        records.append(record)
+        item = (financial_path, len(records) - 1, record)
+        pooled.append(item)
+        by_entity.setdefault("coworkerinvoices", []).append(item)
+        added += 1
+    if added:
+        print(f"Pre-flight: found {added} untracked coworkerinvoices for known coworkers "
+              f"— added to this run.\n")
+
+
 def _entity_bucket(entity_outcomes, entity):
     return entity_outcomes.setdefault(entity, {
         "seen": 0, "deleted": 0, "skipped_no_support": 0, "skipped_no_id": 0,
@@ -418,7 +459,7 @@ def _last_generation_run_incomplete():
     if not REPORT_PATH.exists():
         return False
     try:
-        text = REPORT_PATH.read_text()
+        text = REPORT_PATH.read_text(encoding="utf-8")
     except OSError:
         return False
     return any(marker in text for marker in _INCOMPLETE_RUN_MARKERS)
@@ -498,6 +539,9 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
               f"skipped (left in tracking, not deleted). Check data/created-ids/ for a stray "
               f"file that doesn't belong there.\n")
 
+    if not dry_run and nexudus_list is not None:
+        _discover_untracked_coworker_invoices(files, by_entity, pooled, nexudus_list)
+
     total_seen = len(pooled)
     deleted_keys = set()  # (path, index) confirmed gone
     entity_outcomes = {}
@@ -555,7 +599,7 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
             # Rewrite each file, keeping only records that weren't confirmed deleted.
             for path, records in files.items():
                 survivors = [r for i, r in enumerate(records) if (path, i) not in deleted_keys]
-                path.write_text(json.dumps(survivors, indent=2) + "\n")
+                path.write_text(json.dumps(survivors, indent=2) + "\n", encoding="utf-8")
             print("\nUpdated data/created-ids/*.json to remove deleted records.")
 
     return {
