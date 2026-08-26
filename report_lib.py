@@ -80,7 +80,7 @@ def _grouped_records():
     if CREATED_IDS_DIR.exists():
         for path in sorted(CREATED_IDS_DIR.glob("*.json")):
             try:
-                records = json.loads(path.read_text())
+                records = json.loads(path.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
                 records = []
             for r in records:
@@ -108,7 +108,7 @@ def target_for(entity):
         path = DATA_DIR / data_file if data_file else None
         if path and path.exists():
             try:
-                return len(json.loads(path.read_text()))
+                return len(json.loads(path.read_text(encoding="utf-8")))
             except json.JSONDecodeError:
                 pass
     return VOLUMES.get(target_key)
@@ -251,4 +251,4 @@ def write_report(path, reconciliation_entity_counts=None, layer_failures=None):
         lines.append("")
         lines.append("=== What's in the account now (cumulative, all runs) ===")
     lines += report_lines()
-    Path(path).write_text("\n".join(lines) + "\n")
+    Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")

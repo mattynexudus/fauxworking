@@ -69,6 +69,7 @@ ENTITY_MODULES = {
     "communitythreads": "community", "communitymessages": "community",
     "blogposts": "content", "coworkertasks": "crm", "coworkerledgerentries": "billing",
     "coworkerinvoices": "billing", "coworkerinvoicehistories": "billing",
+    "coworkerinvoicelines": "billing",
     "crmopportunities": "crm", "crmopportunityhistories": "crm", "opportunitytypes": "crm",
     "proposals": "billing", "coworkerdatafiles": "spaces", "users": "sys",
     "businesses": "sys", "cancelledbookings": "spaces",
@@ -76,7 +77,7 @@ ENTITY_MODULES = {
     "businesssettings": "sys",
 }
 
-DEFAULT_TIMEOUT = 30
+DEFAULT_TIMEOUT = 60
 MAX_PAGES = 50  # safety cap for auto-pagination
 MAX_RATE_LIMIT_RETRIES = 8
 _RATE_LIMIT_WAIT_RE = re.compile(r"Wait ([\d.]+) seconds")

@@ -102,12 +102,12 @@ class BaseGenerator:
 
     def _load_ids(self) -> list[dict]:
         if self._ids_file.exists():
-            return json.loads(self._ids_file.read_text())
+            return json.loads(self._ids_file.read_text(encoding="utf-8"))
         return []
 
     def _save_ids(self):
         CREATED_IDS_DIR.mkdir(parents=True, exist_ok=True)
-        self._ids_file.write_text(json.dumps(self._created_ids, indent=2))
+        self._ids_file.write_text(json.dumps(self._created_ids, indent=2), encoding="utf-8")
 
     def track_id(self, record: dict):
         """Append a created record's key fields and persist.

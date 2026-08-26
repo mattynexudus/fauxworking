@@ -701,8 +701,8 @@ if __name__ == "__main__":
     gen = FinancialGenerator(dry_run=args.dry_run)
 
     if gen.dry_run:
-        mock_contract_defs = json.loads((DATA_DIR / "contracts.json").read_text())
-        mock_coworker_defs = json.loads((DATA_DIR / "coworkers.json").read_text())
+        mock_contract_defs = json.loads((DATA_DIR / "contracts.json").read_text(encoding="utf-8"))
+        mock_coworker_defs = json.loads((DATA_DIR / "coworkers.json").read_text(encoding="utf-8"))
         mock_coworker_ids = {c["index"]: f"DRY-CW-{c['index']}" for c in mock_coworker_defs}
 
         mock_prev = {
