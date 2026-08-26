@@ -86,7 +86,7 @@ class CommunityGenerator(BaseGenerator):
         path = DATA_DIR / filename
         if not path.exists():
             raise FileNotFoundError(f"{path} not found. Run 'python prebuild.py' first.")
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
 
     def run(self, nexudus_list, nexudus_create, nexudus_update, prev_output):
         biz = prev_output["business_id"]
@@ -681,7 +681,7 @@ if __name__ == "__main__":
         ref = importlib.import_module("generators.00_reference")
         struct = importlib.import_module("generators.01_structural")
 
-        mock_coworker_defs = json.loads((DATA_DIR / "coworkers.json").read_text())
+        mock_coworker_defs = json.loads((DATA_DIR / "coworkers.json").read_text(encoding="utf-8"))
         mock_coworker_ids = {c["index"]: f"DRY-CW-{c['index']}" for c in mock_coworker_defs}
         mock_resource_ids = {r["Name"]: f"DRY-RES-{r['Name']}" for r in struct.RESOURCES}
         mock_help_desk_dept_ids = {d["Name"]: f"DRY-DEPT-{d['Name']}" for d in struct.HELP_DESK_DEPARTMENTS}

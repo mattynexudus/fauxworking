@@ -1658,7 +1658,7 @@ def generate_coworker_data_files(rng, proposals):
 def write_json(path, data):
     """Write data to JSON file with consistent formatting."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"  Written {path} ({len(data)} records)")
 
 

@@ -86,7 +86,7 @@ class CrmProposalsGenerator(BaseGenerator):
         path = DATA_DIR / filename
         if not path.exists():
             raise FileNotFoundError(f"{path} not found. Run 'python prebuild.py' first.")
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
 
     def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_run_command, prev_output):
         biz = prev_output["business_id"]
@@ -496,7 +496,7 @@ if __name__ == "__main__":
         import importlib
         struct = importlib.import_module("generators.01_structural")
 
-        mock_coworker_defs = json.loads((DATA_DIR / "coworkers.json").read_text())
+        mock_coworker_defs = json.loads((DATA_DIR / "coworkers.json").read_text(encoding="utf-8"))
         mock_coworker_ids = {c["index"]: f"DRY-CW-{c['index']}" for c in mock_coworker_defs}
         mock_tariff_ids = {t["Name"]: f"DRY-TARIFF-{t['Name']}" for t in struct.TARIFFS}
         mock_discount_code_ids = {d["Code"]: f"DRY-DISC-{d['Code']}" for d in struct.DISCOUNT_CODES}
