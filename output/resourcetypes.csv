@@ -1,0 +1,6 @@
+Id,BusinessId,CreatedOn,CustomFields,IsNew,LocalizationDetails,Name,SystemId,ToStringText,UniqueId,UpdatedBy,UpdatedOn
+1415379774,1421022733,2026-08-25T19:10:52.4382256Z,,False,,Meeting Room,,Meeting Room,253747c6-94e5-4b8f-b2c8-a29cec33b6a7,Olena+e2@nexudus.com,2026-08-25T19:10:52.4382256Z
+1415379775,1421022733,2026-08-25T19:10:52.7350897Z,,False,,Hot Desk,,Hot Desk,caffe6f2-6998-4019-8dd2-d1b55e7d4b96,Olena+e2@nexudus.com,2026-08-25T19:10:52.7350897Z
+1415379673,1421022733,2026-08-25T19:10:53.046211Z,,False,,Private Office,,Private Office,3fa6e096-453b-4d06-b765-45431f4ab8cd,Olena+e2@nexudus.com,2026-08-25T19:10:53.046211Z
+1415379674,1421022733,2026-08-25T19:10:53.3743504Z,,False,,Phone Booth,,Phone Booth,27a9f4b4-4e58-4ec3-9d73-0778e392ae93,Olena+e2@nexudus.com,2026-08-25T19:10:53.3743504Z
+1415379675,1421022733,2026-08-25T19:10:53.7024904Z,,False,,Parking,,Parking,f580d8e8-4f63-4851-b626-b1d61231667c,Olena+e2@nexudus.com,2026-08-25T19:10:53.7024904Z

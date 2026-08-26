@@ -3,140 +3,140 @@
     "index": 1,
     "EventIndex": 1,
     "Price": 10,
-    "SaleStartDayOffset": -71,
-    "SaleEndDayOffset": -41
+    "SaleStartDayOffset": -76,
+    "SaleEndDayOffset": -46
   },
   {
     "index": 2,
     "EventIndex": 2,
-    "Price": 0,
+    "Price": 25,
     "SaleStartDayOffset": -76,
     "SaleEndDayOffset": -46
   },
   {
     "index": 3,
     "EventIndex": 3,
-    "Price": 10,
-    "SaleStartDayOffset": -71,
-    "SaleEndDayOffset": -41
+    "Price": 15,
+    "SaleStartDayOffset": -69,
+    "SaleEndDayOffset": -39
   },
   {
     "index": 4,
     "EventIndex": 4,
     "Price": 0,
-    "SaleStartDayOffset": -62,
-    "SaleEndDayOffset": -32
+    "SaleStartDayOffset": -68,
+    "SaleEndDayOffset": -38
   },
   {
     "index": 5,
     "EventIndex": 5,
-    "Price": 10,
-    "SaleStartDayOffset": -197,
-    "SaleEndDayOffset": -167
+    "Price": 0,
+    "SaleStartDayOffset": -92,
+    "SaleEndDayOffset": -62
   },
   {
     "index": 6,
     "EventIndex": 6,
-    "Price": 0,
-    "SaleStartDayOffset": -242,
-    "SaleEndDayOffset": -212
+    "Price": 15,
+    "SaleStartDayOffset": -212,
+    "SaleEndDayOffset": -182
   },
   {
     "index": 7,
     "EventIndex": 7,
     "Price": 10,
-    "SaleStartDayOffset": -100,
-    "SaleEndDayOffset": -70
+    "SaleStartDayOffset": -63,
+    "SaleEndDayOffset": -33
   },
   {
     "index": 8,
     "EventIndex": 8,
-    "Price": 25,
-    "SaleStartDayOffset": 2,
-    "SaleEndDayOffset": 32
+    "Price": 0,
+    "SaleStartDayOffset": 58,
+    "SaleEndDayOffset": 88
   },
   {
     "index": 9,
     "EventIndex": 9,
     "Price": 0,
-    "SaleStartDayOffset": -9,
-    "SaleEndDayOffset": 21
+    "SaleStartDayOffset": 75,
+    "SaleEndDayOffset": 105
   },
   {
     "index": 10,
     "EventIndex": 10,
-    "Price": 0,
-    "SaleStartDayOffset": 31,
-    "SaleEndDayOffset": 61
+    "Price": 25,
+    "SaleStartDayOffset": 78,
+    "SaleEndDayOffset": 108
   },
   {
     "index": 11,
     "EventIndex": 11,
     "Price": 0,
-    "SaleStartDayOffset": -80,
-    "SaleEndDayOffset": -50
+    "SaleStartDayOffset": -74,
+    "SaleEndDayOffset": -44
   },
   {
     "index": 12,
     "EventIndex": 12,
     "Price": 0,
-    "SaleStartDayOffset": -66,
-    "SaleEndDayOffset": -36
+    "SaleStartDayOffset": -174,
+    "SaleEndDayOffset": -144
   },
   {
     "index": 13,
     "EventIndex": 13,
-    "Price": 15,
-    "SaleStartDayOffset": -5,
-    "SaleEndDayOffset": 25
+    "Price": 10,
+    "SaleStartDayOffset": 63,
+    "SaleEndDayOffset": 93
   },
   {
     "index": 14,
     "EventIndex": 14,
-    "Price": 15,
-    "SaleStartDayOffset": -210,
-    "SaleEndDayOffset": -180
+    "Price": 0,
+    "SaleStartDayOffset": -186,
+    "SaleEndDayOffset": -156
   },
   {
     "index": 15,
     "EventIndex": 15,
-    "Price": 10,
-    "SaleStartDayOffset": 56,
-    "SaleEndDayOffset": 86
+    "Price": 25,
+    "SaleStartDayOffset": 59,
+    "SaleEndDayOffset": 89
   },
   {
     "index": 16,
     "EventIndex": 16,
-    "Price": 10,
-    "SaleStartDayOffset": 38,
-    "SaleEndDayOffset": 68
+    "Price": 25,
+    "SaleStartDayOffset": 4,
+    "SaleEndDayOffset": 34
   },
   {
     "index": 17,
     "EventIndex": 17,
-    "Price": 15,
-    "SaleStartDayOffset": -90,
-    "SaleEndDayOffset": -60
+    "Price": 0,
+    "SaleStartDayOffset": -196,
+    "SaleEndDayOffset": -166
   },
   {
     "index": 18,
     "EventIndex": 18,
     "Price": 25,
-    "SaleStartDayOffset": 6,
-    "SaleEndDayOffset": 36
+    "SaleStartDayOffset": -210,
+    "SaleEndDayOffset": -180
   },
   {
     "index": 19,
     "EventIndex": 19,
-    "Price": 0,
-    "SaleStartDayOffset": -191,
-    "SaleEndDayOffset": -161
+    "Price": 15,
+    "SaleStartDayOffset": -208,
+    "SaleEndDayOffset": -178
   },
   {
     "index": 20,
     "EventIndex": 20,
-    "Price": 15,
-    "SaleStartDayOffset": -13,
-    "SaleEndDayOffset": 17
+    "Price": 10,
+    "SaleStartDayOffset": 0,
+    "SaleEndDayOffset": 30
   }
 ]

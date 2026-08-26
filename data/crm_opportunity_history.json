@@ -4,608 +4,629 @@
     "OpportunityIndex": 1,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -118
+    "DayOffset": -64
   },
   {
     "index": 2,
     "OpportunityIndex": 2,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -116
+    "DayOffset": -16
   },
   {
     "index": 3,
     "OpportunityIndex": 3,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -30
+    "DayOffset": -120
   },
   {
     "index": 4,
     "OpportunityIndex": 4,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -40
+    "DayOffset": -113
   },
   {
     "index": 5,
     "OpportunityIndex": 5,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -111
+    "DayOffset": -100
   },
   {
     "index": 6,
     "OpportunityIndex": 6,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -33
+    "DayOffset": -16
   },
   {
     "index": 7,
     "OpportunityIndex": 7,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -78
+    "DayOffset": -65
   },
   {
     "index": 8,
     "OpportunityIndex": 7,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -39
+    "DayOffset": -32
   },
   {
     "index": 9,
     "OpportunityIndex": 8,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -45
+    "DayOffset": -12
   },
   {
     "index": 10,
     "OpportunityIndex": 8,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -22
+    "DayOffset": -6
   },
   {
     "index": 11,
     "OpportunityIndex": 9,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -65
+    "DayOffset": -46
   },
   {
     "index": 12,
     "OpportunityIndex": 9,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -32
+    "DayOffset": -23
   },
   {
     "index": 13,
     "OpportunityIndex": 10,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -21
+    "DayOffset": -29
   },
   {
     "index": 14,
     "OpportunityIndex": 10,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -10
+    "DayOffset": -14
   },
   {
     "index": 15,
     "OpportunityIndex": 11,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -30
+    "DayOffset": -23
   },
   {
     "index": 16,
     "OpportunityIndex": 11,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -15
+    "DayOffset": -11
   },
   {
     "index": 17,
     "OpportunityIndex": 12,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -48
+    "DayOffset": -85
   },
   {
     "index": 18,
     "OpportunityIndex": 12,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -32
+    "DayOffset": -56
   },
   {
     "index": 19,
     "OpportunityIndex": 12,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -16
+    "DayOffset": -28
   },
   {
     "index": 20,
     "OpportunityIndex": 13,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -32
+    "DayOffset": -61
   },
   {
     "index": 21,
     "OpportunityIndex": 13,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -21
+    "DayOffset": -40
   },
   {
     "index": 22,
     "OpportunityIndex": 13,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -10
+    "DayOffset": -20
   },
   {
     "index": 23,
     "OpportunityIndex": 14,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -32
+    "DayOffset": -104
   },
   {
     "index": 24,
     "OpportunityIndex": 14,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -21
+    "DayOffset": -69
   },
   {
     "index": 25,
     "OpportunityIndex": 14,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -10
+    "DayOffset": -34
   },
   {
     "index": 26,
     "OpportunityIndex": 15,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -119
+    "DayOffset": -27
   },
   {
     "index": 27,
     "OpportunityIndex": 15,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -79
+    "DayOffset": -18
   },
   {
     "index": 28,
     "OpportunityIndex": 15,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -39
+    "DayOffset": -9
   },
   {
     "index": 29,
     "OpportunityIndex": 16,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -55
+    "DayOffset": -85
   },
   {
     "index": 30,
     "OpportunityIndex": 16,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -41
+    "DayOffset": -63
   },
   {
     "index": 31,
     "OpportunityIndex": 16,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -27
+    "DayOffset": -42
   },
   {
     "index": 32,
     "OpportunityIndex": 16,
     "OldStage": "Proposal Sent",
     "NewStage": "Negotiation",
-    "DayOffset": -13
+    "DayOffset": -21
   },
   {
     "index": 33,
     "OpportunityIndex": 17,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -117
+    "DayOffset": -57
   },
   {
     "index": 34,
     "OpportunityIndex": 17,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -87
+    "DayOffset": -42
   },
   {
     "index": 35,
     "OpportunityIndex": 17,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -58
+    "DayOffset": -28
   },
   {
     "index": 36,
     "OpportunityIndex": 17,
     "OldStage": "Proposal Sent",
     "NewStage": "Negotiation",
-    "DayOffset": -29
+    "DayOffset": -14
   },
   {
     "index": 37,
     "OpportunityIndex": 18,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -48
+    "DayOffset": -94
   },
   {
     "index": 38,
     "OpportunityIndex": 18,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -36
+    "DayOffset": -70
   },
   {
     "index": 39,
     "OpportunityIndex": 18,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -24
+    "DayOffset": -47
   },
   {
     "index": 40,
     "OpportunityIndex": 18,
     "OldStage": "Proposal Sent",
     "NewStage": "Negotiation",
-    "DayOffset": -12
+    "DayOffset": -23
   },
   {
     "index": 41,
     "OpportunityIndex": 19,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -33
+    "DayOffset": -19
   },
   {
     "index": 42,
     "OpportunityIndex": 19,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -24
+    "DayOffset": -14
   },
   {
     "index": 43,
     "OpportunityIndex": 19,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -16
+    "DayOffset": -9
   },
   {
     "index": 44,
     "OpportunityIndex": 19,
     "OldStage": "Proposal Sent",
     "NewStage": "Negotiation",
-    "DayOffset": -8
+    "DayOffset": -4
   },
   {
     "index": 45,
     "OpportunityIndex": 20,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -84
+    "DayOffset": -49
   },
   {
     "index": 46,
     "OpportunityIndex": 20,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -67
+    "DayOffset": -39
   },
   {
     "index": 47,
     "OpportunityIndex": 20,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -50
+    "DayOffset": -29
   },
   {
     "index": 48,
     "OpportunityIndex": 20,
     "OldStage": "Proposal Sent",
     "NewStage": "Negotiation",
-    "DayOffset": -33
+    "DayOffset": -19
   },
   {
     "index": 49,
     "OpportunityIndex": 20,
     "OldStage": "Negotiation",
     "NewStage": "Won",
-    "DayOffset": -16
+    "DayOffset": -9
   },
   {
     "index": 50,
     "OpportunityIndex": 21,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -41
+    "DayOffset": -39
   },
   {
     "index": 51,
     "OpportunityIndex": 21,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -32
+    "DayOffset": -31
   },
   {
     "index": 52,
     "OpportunityIndex": 21,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -24
+    "DayOffset": -23
   },
   {
     "index": 53,
     "OpportunityIndex": 21,
     "OldStage": "Proposal Sent",
     "NewStage": "Negotiation",
-    "DayOffset": -16
+    "DayOffset": -15
   },
   {
     "index": 54,
     "OpportunityIndex": 21,
     "OldStage": "Negotiation",
     "NewStage": "Won",
-    "DayOffset": -8
+    "DayOffset": -7
   },
   {
     "index": 55,
     "OpportunityIndex": 22,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -87
+    "DayOffset": -58
   },
   {
     "index": 56,
     "OpportunityIndex": 22,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -69
+    "DayOffset": -46
   },
   {
     "index": 57,
     "OpportunityIndex": 22,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -52
+    "DayOffset": -34
   },
   {
     "index": 58,
     "OpportunityIndex": 22,
     "OldStage": "Proposal Sent",
     "NewStage": "Negotiation",
-    "DayOffset": -34
+    "DayOffset": -23
   },
   {
     "index": 59,
     "OpportunityIndex": 22,
     "OldStage": "Negotiation",
     "NewStage": "Won",
-    "DayOffset": -17
+    "DayOffset": -11
   },
   {
     "index": 60,
     "OpportunityIndex": 23,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -17
+    "DayOffset": -103
   },
   {
     "index": 61,
     "OpportunityIndex": 23,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -13
+    "DayOffset": -82
   },
   {
     "index": 62,
     "OpportunityIndex": 23,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -10
+    "DayOffset": -61
   },
   {
     "index": 63,
     "OpportunityIndex": 23,
     "OldStage": "Proposal Sent",
     "NewStage": "Negotiation",
-    "DayOffset": -6
+    "DayOffset": -41
   },
   {
     "index": 64,
     "OpportunityIndex": 23,
     "OldStage": "Negotiation",
     "NewStage": "Won",
-    "DayOffset": -3
+    "DayOffset": -20
   },
   {
     "index": 65,
     "OpportunityIndex": 24,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -53
+    "DayOffset": -46
   },
   {
     "index": 66,
     "OpportunityIndex": 24,
     "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -42
+    "DayOffset": -36
   },
   {
     "index": 67,
     "OpportunityIndex": 24,
     "OldStage": "Qualified",
     "NewStage": "Proposal Sent",
-    "DayOffset": -31
+    "DayOffset": -27
   },
   {
     "index": 68,
     "OpportunityIndex": 24,
     "OldStage": "Proposal Sent",
     "NewStage": "Negotiation",
-    "DayOffset": -21
+    "DayOffset": -18
   },
   {
     "index": 69,
     "OpportunityIndex": 24,
     "OldStage": "Negotiation",
     "NewStage": "Won",
-    "DayOffset": -10
+    "DayOffset": -9
   },
   {
     "index": 70,
     "OpportunityIndex": 25,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -117
+    "DayOffset": -74
   },
   {
     "index": 71,
     "OpportunityIndex": 25,
     "OldStage": "Lead",
     "NewStage": "Lost",
-    "DayOffset": -58
+    "DayOffset": -37
   },
   {
     "index": 72,
     "OpportunityIndex": 26,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -73
+    "DayOffset": -66
   },
   {
     "index": 73,
     "OpportunityIndex": 26,
     "OldStage": "Lead",
-    "NewStage": "Lost",
-    "DayOffset": -36
-  },
-  {
-    "index": 74,
-    "OpportunityIndex": 27,
-    "OldStage": null,
-    "NewStage": "Lead",
-    "DayOffset": -86
-  },
-  {
-    "index": 75,
-    "OpportunityIndex": 27,
-    "OldStage": "Lead",
     "NewStage": "Qualified",
-    "DayOffset": -57
-  },
-  {
-    "index": 76,
-    "OpportunityIndex": 27,
-    "OldStage": "Qualified",
-    "NewStage": "Lost",
-    "DayOffset": -28
-  },
-  {
-    "index": 77,
-    "OpportunityIndex": 28,
-    "OldStage": null,
-    "NewStage": "Lead",
-    "DayOffset": -89
-  },
-  {
-    "index": 78,
-    "OpportunityIndex": 28,
-    "OldStage": "Lead",
-    "NewStage": "Qualified",
-    "DayOffset": -66
-  },
-  {
-    "index": 79,
-    "OpportunityIndex": 28,
-    "OldStage": "Qualified",
-    "NewStage": "Proposal Sent",
     "DayOffset": -44
   },
   {
-    "index": 80,
-    "OpportunityIndex": 28,
-    "OldStage": "Proposal Sent",
+    "index": 74,
+    "OpportunityIndex": 26,
+    "OldStage": "Qualified",
     "NewStage": "Lost",
     "DayOffset": -22
   },
   {
-    "index": 81,
-    "OpportunityIndex": 29,
+    "index": 75,
+    "OpportunityIndex": 27,
     "OldStage": null,
     "NewStage": "Lead",
-    "DayOffset": -109
+    "DayOffset": -84
+  },
+  {
+    "index": 76,
+    "OpportunityIndex": 27,
+    "OldStage": "Lead",
+    "NewStage": "Qualified",
+    "DayOffset": -63
+  },
+  {
+    "index": 77,
+    "OpportunityIndex": 27,
+    "OldStage": "Qualified",
+    "NewStage": "Proposal Sent",
+    "DayOffset": -42
+  },
+  {
+    "index": 78,
+    "OpportunityIndex": 27,
+    "OldStage": "Proposal Sent",
+    "NewStage": "Lost",
+    "DayOffset": -21
+  },
+  {
+    "index": 79,
+    "OpportunityIndex": 28,
+    "OldStage": null,
+    "NewStage": "Lead",
+    "DayOffset": -32
+  },
+  {
+    "index": 80,
+    "OpportunityIndex": 28,
+    "OldStage": "Lead",
+    "NewStage": "Qualified",
+    "DayOffset": -24
+  },
+  {
+    "index": 81,
+    "OpportunityIndex": 28,
+    "OldStage": "Qualified",
+    "NewStage": "Proposal Sent",
+    "DayOffset": -16
   },
   {
     "index": 82,
-    "OpportunityIndex": 29,
-    "OldStage": "Lead",
-    "NewStage": "Qualified",
-    "DayOffset": -81
+    "OpportunityIndex": 28,
+    "OldStage": "Proposal Sent",
+    "NewStage": "Lost",
+    "DayOffset": -8
   },
   {
     "index": 83,
     "OpportunityIndex": 29,
-    "OldStage": "Qualified",
-    "NewStage": "Proposal Sent",
-    "DayOffset": -54
+    "OldStage": null,
+    "NewStage": "Lead",
+    "DayOffset": -41
   },
   {
     "index": 84,
     "OpportunityIndex": 29,
-    "OldStage": "Proposal Sent",
-    "NewStage": "Lost",
-    "DayOffset": -27
+    "OldStage": "Lead",
+    "NewStage": "Qualified",
+    "DayOffset": -30
   },
   {
     "index": 85,
-    "OpportunityIndex": 30,
-    "OldStage": null,
-    "NewStage": "Lead",
-    "DayOffset": -105
+    "OpportunityIndex": 29,
+    "OldStage": "Qualified",
+    "NewStage": "Proposal Sent",
+    "DayOffset": -20
   },
   {
     "index": 86,
-    "OpportunityIndex": 30,
-    "OldStage": "Lead",
-    "NewStage": "Qualified",
-    "DayOffset": -70
+    "OpportunityIndex": 29,
+    "OldStage": "Proposal Sent",
+    "NewStage": "Lost",
+    "DayOffset": -10
   },
   {
     "index": 87,
     "OpportunityIndex": 30,
+    "OldStage": null,
+    "NewStage": "Lead",
+    "DayOffset": -120
+  },
+  {
+    "index": 88,
+    "OpportunityIndex": 30,
+    "OldStage": "Lead",
+    "NewStage": "Qualified",
+    "DayOffset": -90
+  },
+  {
+    "index": 89,
+    "OpportunityIndex": 30,
     "OldStage": "Qualified",
+    "NewStage": "Proposal Sent",
+    "DayOffset": -60
+  },
+  {
+    "index": 90,
+    "OpportunityIndex": 30,
+    "OldStage": "Proposal Sent",
     "NewStage": "Lost",
-    "DayOffset": -35
+    "DayOffset": -30
   }
 ]

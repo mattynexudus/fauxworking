@@ -1,0 +1,4 @@
+Id,Active,AddedManagers,BusinessId,CreatedOn,CustomFields,Description,IsNew,LocalizationDetails,Managers,Name,RemovedManagers,SystemId,TaskListId,ToStringText,UniqueId,UpdatedBy,UpdatedOn
+1414804869,False,,1421022733,2026-08-25T19:12:55.0043923Z,,"WiFi, hardware, and access issues",False,,[],IT Support,,,0,IT Support,bb2ca4ec-95e8-46fd-bcf2-632bab619c3e,Olena+e2@nexudus.com,2026-08-25T19:12:55.0043923Z
+1414804970,False,,1421022733,2026-08-25T19:12:55.3409423Z,,"Building, cleaning, and maintenance issues",False,,[],Facilities,,,0,Facilities,160a58dd-42ea-482f-81f0-c349d9b0045d,Olena+e2@nexudus.com,2026-08-25T19:12:55.3409423Z
+1414804870,False,,1421022733,2026-08-25T19:12:55.6137646Z,,"Invoices, payments, and account queries",False,,[],Billing,,,0,Billing,a1bed161-d7d3-4ef7-a3c2-c81c0bbdc761,Olena+e2@nexudus.com,2026-08-25T19:12:55.6137646Z

@@ -1,0 +1,7 @@
+Id,CreatedOn,CustomFields,IsNew,LocalizationDetails,PassRenewalTime,PassesIncluded,SystemId,Tariff,TariffId,TariffName,TimePassId,TimePassName,ToStringText,UniqueId,UpdatedBy,UpdatedOn
+1415376246,2026-08-25T19:11:11.592432Z,,False,,1,5,,Hot Desk Monthly,1415417162,Hot Desk Monthly,1415344929,Day Pass,Day Pass,490088eb-6fdd-4f0e-aa0e-a220def72869,Olena+e2@nexudus.com,2026-08-25T19:11:11.592432Z
+1415376247,2026-08-25T19:11:13.2186721Z,,False,,1,6,,Dedicated Desk Monthly,1415417258,Dedicated Desk Monthly,1415344929,Day Pass,Day Pass,720bfc33-71e2-48e5-90fb-6cb9e3644d67,Olena+e2@nexudus.com,2026-08-25T19:11:13.2186721Z
+1415376352,2026-08-25T19:11:14.8347989Z,,False,,1,7,,Private Office Small,1415417259,Private Office Small,1415344929,Day Pass,Day Pass,442b9787-a012-43e2-b5f8-822e3ecf64c9,Olena+e2@nexudus.com,2026-08-25T19:11:14.8347989Z
+1415376353,2026-08-25T19:11:18.6485563Z,,False,,1,7,,Private Office Large,1415417260,Private Office Large,1415344929,Day Pass,Day Pass,5ee14cc3-141a-48b7-8997-b550c6bd815b,Olena+e2@nexudus.com,2026-08-25T19:11:18.6485563Z
+1415376248,2026-08-25T19:11:21.7806558Z,,False,,1,5,,Hot Desk Quarterly,1415417261,Hot Desk Quarterly,1415344929,Day Pass,Day Pass,04d86738-16ef-4107-afee-110289e44109,Olena+e2@nexudus.com,2026-08-25T19:11:21.7806558Z
+1415376249,2026-08-25T19:11:23.3750614Z,,False,,1,7,,Private Office Annual,1415417262,Private Office Annual,1415344929,Day Pass,Day Pass,a2c0584e-404e-4455-b5f6-4ee33f4cfd0b,Olena+e2@nexudus.com,2026-08-25T19:11:23.3750614Z

@@ -1,0 +1,122 @@
+Report generated 2026-08-25T20:48:31.106211+00:00
+
+=== This run: target vs. actual ===
+Entity                             Target  Created  Existed   Failed
+--------------------------------------------------------------------
+blogposts                              10        0       10        0
+bookings                              240        3      232        5  <-- short
+    reasons: validation_rejected=5
+bookingvisitors                        94        1       86        7  <-- short
+    reasons: parent_skipped=7
+calendareventcategories                 4        0        4        0
+calendarevents                         20        0       20        0
+cancelledbookings                      40        0       32        8  <-- short
+    reasons: validation_rejected=8
+checkins                              300        0      300        0
+communitygroups                         3        0        3        0
+communitymessages                      46        0       46        0
+communitythreads                       15        0       15        0
+contractdeposits                       10        0       10        0
+contractpausedperiods                  12        0       12        0
+contractproducts                       30        0       30        0
+coworkerbookingcredits                 25        0       25        0
+coworkerbookingcreditusehistories       50        0       50        0
+coworkercontracts                      76        0       76        0
+coworkerdatafiles                      10        0       10        0
+coworkerdeliveries                     40        0       40        0
+coworkerextraservices                  80        0       79        1  <-- short
+    reasons: parent_skipped=1
+coworkerinventoryassets                12        0       12        0
+coworkerinvoices                      220       48      145        5  <-- short
+    reasons: unknown_error=5
+coworkerledgerentries                   0       48        5        0
+coworkerproducts                       20        0       20        0
+coworkers                              50        0       50        0
+coworkertasks                          20        0       20        0
+coworkertimepasses                     40        0       40        0
+crmboardcolumns                        10        0       10        0
+crmboards                               2        0        2        0
+crmopportunities                       30        0        0        3  <-- short
+    reasons: unknown_error=2, systemic_rate_limit=1
+crmopportunityhistories                90        0        0       90  <-- short
+    reasons: parent_skipped=90
+discountcodes                           6        0        6        0
+eventattendees                         60        0       60        0
+eventproducts                          20        0       20        0
+extraservices                           7        0        7        0
+financialaccounts                       8        0        8        0
+floorplandesks                         68        0       68        0
+floorplans                              3        0        3        0
+helpdeskdepartments                     3        0        3        0
+helpdeskmessages                       25        0       25        0
+inventoryassets                        15        0       15        0
+opportunitytypes                        4        0        4        0
+products                               12        0       12        0
+proposals                              15        0       15        0
+resources                              20        0       20        0
+resourcetypes                           5        0        5        0
+tariffextraservices                    14        0       14        0
+tariffs                                 8        0        8        0
+tarifftimepasses                        6        0        6        0
+taxrates                                3        0        3        0
+teams                                   5        0        5        0
+timepasses                              4        0        4        0
+visitors                               60        0       60        0
+
+Some entities fell short of this run's target — see reasons above.
+
+=== What's in the account now (cumulative, all runs) ===
+Entity                            Created   Target
+--------------------------------------------------
+blogposts                              10       10
+bookings                              235      240  <-- below target
+bookingvisitors                        87        -
+calendareventcategories                 4        4
+calendarevents                         20       20
+cancelledbookings                      32        -
+checkins                              300      300
+communitygroups                         3        3
+communitymessages                      46       40
+communitythreads                       15       15
+contractdeposits                       10       10
+contractpausedperiods                  12       12
+contractproducts                       30       30
+coworkerbookingcredits                 25       25
+coworkerbookingcreditusehistories       50        -
+coworkercontracts                      76       90  <-- below target
+coworkerdatafiles                      10       10
+coworkerdeliveries                     40       40
+coworkerextraservices                  79       80  <-- below target
+coworkerinventoryassets                12       12
+coworkerinvoices                      203        -
+coworkerledgerentries                 183        -
+coworkerproducts                       20       20
+coworkers                              50       50
+coworkertasks                          20       20
+coworkertimepasses                    148       40
+crmboardcolumns                        10       10
+crmboards                               2        2
+crmopportunities                        1       30  <-- below target
+discountcodes                           6        6
+eventattendees                         60       60
+eventproducts                          20        -
+extraservices                           7        6
+financialaccounts                       8        8
+floorplandesks                         68       40
+floorplans                              3        3
+helpdeskdepartments                     3        3
+helpdeskmessages                       25       25
+inventoryassets                        15       15
+products                               12       15  <-- below target
+proposals                              15       15
+resources                              20       20
+resourcetypes                           5        5
+tariffextraservices                    14        -
+tariffs                                 8        8
+tarifftimepasses                        6        -
+taxrates                                3        3
+teams                                   5        5
+timepasses                              4        4
+visitors                               60       60
+
+Total tracked records: 2100

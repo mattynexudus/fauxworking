@@ -1,0 +1,9 @@
+Id,AccountType,BusinessId,Code,CreatedOn,CustomFields,Description,IsNew,LocalizationDetails,Name,SystemId,ToStringText,UniqueId,UpdatedBy,UpdatedOn
+1415063335,1,1421022733,MEM-001,2026-08-25T19:10:49.5427466Z,,,False,,Membership Revenue,,MEM-001 - Membership Revenue,e9836334-fe40-45fa-9957-1f14496ee306,Olena+e2@nexudus.com,2026-08-25T19:10:49.5427466Z
+1415063336,1,1421022733,BKG-001,2026-08-25T19:10:49.839623Z,,,False,,Booking Revenue,,BKG-001 - Booking Revenue,19cdcf28-045f-4c0f-a9ba-b3325cfb3bc9,Olena+e2@nexudus.com,2026-08-25T19:10:49.839623Z
+1415063231,1,1421022733,PRD-001,2026-08-25T19:10:50.1685289Z,,,False,,Product Sales,,PRD-001 - Product Sales,1323c03d-04be-425b-af26-df1b46c9a6e3,Olena+e2@nexudus.com,2026-08-25T19:10:50.1685289Z
+1415063337,1,1421022733,EVT-001,2026-08-25T19:10:50.4965361Z,,,False,,Event Revenue,,EVT-001 - Event Revenue,86a13f75-f2a6-4ef7-9a81-dd45f5ff9877,Olena+e2@nexudus.com,2026-08-25T19:10:50.4965361Z
+1415063338,1,1421022733,CRD-001,2026-08-25T19:10:50.7934246Z,,,False,,Credit Sales,,CRD-001 - Credit Sales,f4455f0a-09bd-4cb0-9400-bb8cbdc37c9c,Olena+e2@nexudus.com,2026-08-25T19:10:50.7934246Z
+1415063339,2,1421022733,PAY-001,2026-08-25T19:10:51.1684119Z,,,False,,Payment Receipts,,PAY-001 - Payment Receipts,9d986e8b-39a1-4ae4-a5c9-3278b66ebdc1,Olena+e2@nexudus.com,2026-08-25T19:10:51.1684119Z
+1415063232,3,1421022733,DEP-001,2026-08-25T19:10:51.5292354Z,,,False,,Deposit Holding,,DEP-001 - Deposit Holding,b641ba38-b10f-4300-822a-b8a961b8b810,Olena+e2@nexudus.com,2026-08-25T19:10:51.5292354Z
+1415063340,2,1421022733,REF-001,2026-08-25T19:10:51.9034671Z,,,False,,Refund Account,,REF-001 - Refund Account,a32a85e7-db7e-46ac-a0a4-fd480ec5cf9a,Olena+e2@nexudus.com,2026-08-25T19:10:51.9034671Z

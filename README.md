@@ -4,6 +4,17 @@ This tool fills a Nexudus account with realistic-looking test data — customers
 
 It talks directly to Nexudus over the internet; you don't need any AI tool running to use it.
 
+## A note for Windows users
+
+Everything below is written for a terminal (macOS Terminal, or Windows PowerShell/Command Prompt). Two things differ on Windows:
+
+- **`python3` → `python`.** Windows installs Python as `python`, not `python3`. Every command below that starts with `python3` should be typed as `python` instead. (If `python` doesn't work either, try `py`.)
+- **`./fauxworking` needs a bash shell.** The `fauxworking` wrapper is a bash script, which plain PowerShell/Command Prompt can't run directly. You have two options:
+  - Use **Git Bash** (installed alongside [Git for Windows](https://git-scm.com/downloads/win)) or **WSL** — either lets you run `./fauxworking ...` exactly as written throughout this README.
+  - Or skip the wrapper entirely and run the underlying Python commands directly (see "Getting more control" below) — every one of those works fine in plain PowerShell/Command Prompt with `python` instead of `python3`.
+
+Everywhere else — `git`, `pip install`, `python3 nexudus_auth.py setup`, etc. — works the same on both, just swap `python3` for `python` on Windows.
+
 ## Before you start
 
 **Work on your own branch, not the shared project.** This keeps your changes separate so you can't accidentally break the shared version everyone else uses. If you're not familiar with this, just copy and run:
@@ -68,6 +79,16 @@ At the end, it prints a summary — how many records were created, how many alre
 
 **Running it again is safe.** If you run it a second time, it checks what's already there and only adds what's missing — it won't create duplicates.
 
+## Keeping the export in sync
+
+One thing keeps changing on its own after a run: Nexudus raises new invoices for active contracts over time, on its own schedule — independent of anything this tool does. If it's been a while since your last run, the `output/coworkerinvoices.csv` file can go stale.
+
+```bash
+./fauxworking refresh
+```
+
+This pulls in any invoices Nexudus generated on its own since your last run, re-exports every CSV in `output/` from the refreshed data, and also produces `output/coworkerinvoicelines.csv` — a line-by-line breakdown of every invoice (not available in `coworkerinvoices.csv` itself). It's read-only aside from noting the new invoices it finds — it never creates, changes, or deletes anything in the account.
+
 ## Undoing it
 
 If you want to remove everything this tool created:
@@ -85,6 +106,7 @@ It'll show you what it's about to delete and ask you to type "yes" first. This o
 ```bash
 ./fauxworking daily     # Add a few fresh records "for today" (handy to run daily)
 ./fauxworking verify    # Check what's in the account against expected counts
+./fauxworking refresh   # Pull in invoices Nexudus raised on its own, re-export output/
 ```
 
 If you don't want to use the wrapper at all, you can run the same steps yourself directly:
@@ -94,6 +116,7 @@ python3 prebuild.py              # Generate the test data (one-time, or re-run t
 bash scripts/seed_all.sh         # Push it all to Nexudus
 bash scripts/daily.sh            # Add a few fresh records "for today" (handy to run daily)
 bash scripts/verify.sh           # Check what's in the account against expected counts
+python3 refresh_output.py        # Pull in invoices Nexudus raised on its own, re-export output/
 python3 teardown.py --dry-run    # Shows what would be deleted, without deleting anything
 python3 teardown.py              # Actually deletes it
 ```
@@ -161,7 +184,8 @@ All dates are **relative to the run date** — the data spans 24 months back fro
 | `generators/` | One Python file per layer (00–07) + daily update |
 | `generators/base.py` | Shared base class: idempotency, ID tracking, dry-run, run-summary counting |
 | `teardown.py` | Deletes every tracked record, reverse dependency order |
-| `scripts/` | Shell wrappers: seed_all, seed_layer, daily, teardown, verify |
+| `refresh_output.py` | Discovers invoices Nexudus raised on its own since the last run, re-exports `output/*.csv`, and exports `output/coworkerinvoicelines.csv` |
+| `scripts/` | Shell wrappers: seed_all, seed_layer, daily, teardown, verify, refresh |
 | `reference/` | Entity dependency graph, API module map, enum values, extending-the-model guide |
 | `tests/` | Unit tests for the pure-logic pieces (volume rescaling, run-summary counting) — `python -m unittest discover tests` |
 | `data/created-ids/` | Runtime: JSON files tracking IDs of records created per generator (gitignored) |

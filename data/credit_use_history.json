@@ -1,302 +1,302 @@
 [
   {
     "index": 1,
-    "CreditIndex": 7,
-    "CreditUsed": 22.69,
-    "BookingIndex": null
+    "CreditIndex": 3,
+    "CreditUsed": 20.53,
+    "BookingIndex": 140
   },
   {
     "index": 2,
-    "CreditIndex": 15,
-    "CreditUsed": 19.39,
+    "CreditIndex": 3,
+    "CreditUsed": 33.8,
     "BookingIndex": null
   },
   {
     "index": 3,
-    "CreditIndex": 5,
-    "CreditUsed": 38.58,
-    "BookingIndex": null
+    "CreditIndex": 8,
+    "CreditUsed": 25.18,
+    "BookingIndex": 165
   },
   {
     "index": 4,
     "CreditIndex": 13,
-    "CreditUsed": 7.77,
-    "BookingIndex": 143
+    "CreditUsed": 39.92,
+    "BookingIndex": 145
   },
   {
     "index": 5,
-    "CreditIndex": 4,
-    "CreditUsed": 11.31,
+    "CreditIndex": 6,
+    "CreditUsed": 13.69,
     "BookingIndex": null
   },
   {
     "index": 6,
-    "CreditIndex": 20,
-    "CreditUsed": 5.98,
-    "BookingIndex": null
+    "CreditIndex": 19,
+    "CreditUsed": 18.16,
+    "BookingIndex": 100
   },
   {
     "index": 7,
-    "CreditIndex": 3,
-    "CreditUsed": 24.15,
-    "BookingIndex": null
+    "CreditIndex": 1,
+    "CreditUsed": 9.83,
+    "BookingIndex": 230
   },
   {
     "index": 8,
-    "CreditIndex": 4,
-    "CreditUsed": 10.41,
-    "BookingIndex": null
+    "CreditIndex": 18,
+    "CreditUsed": 15.54,
+    "BookingIndex": 165
   },
   {
     "index": 9,
     "CreditIndex": 18,
-    "CreditUsed": 23.3,
-    "BookingIndex": 208
+    "CreditUsed": 36.75,
+    "BookingIndex": 140
   },
   {
     "index": 10,
-    "CreditIndex": 4,
-    "CreditUsed": 22.88,
-    "BookingIndex": 7
+    "CreditIndex": 17,
+    "CreditUsed": 19.04,
+    "BookingIndex": 54
   },
   {
     "index": 11,
-    "CreditIndex": 16,
-    "CreditUsed": 5.25,
-    "BookingIndex": 224
+    "CreditIndex": 13,
+    "CreditUsed": 13.28,
+    "BookingIndex": 102
   },
   {
     "index": 12,
-    "CreditIndex": 20,
-    "CreditUsed": 6.28,
-    "BookingIndex": 157
+    "CreditIndex": 14,
+    "CreditUsed": 34.02,
+    "BookingIndex": 74
   },
   {
     "index": 13,
-    "CreditIndex": 19,
-    "CreditUsed": 9.62,
-    "BookingIndex": 78
+    "CreditIndex": 17,
+    "CreditUsed": 36.05,
+    "BookingIndex": 203
   },
   {
     "index": 14,
-    "CreditIndex": 19,
-    "CreditUsed": 24.42,
-    "BookingIndex": 196
+    "CreditIndex": 14,
+    "CreditUsed": 14.31,
+    "BookingIndex": 180
   },
   {
     "index": 15,
-    "CreditIndex": 8,
-    "CreditUsed": 12.84,
+    "CreditIndex": 19,
+    "CreditUsed": 5.1,
     "BookingIndex": null
   },
   {
     "index": 16,
-    "CreditIndex": 17,
-    "CreditUsed": 28.2,
-    "BookingIndex": null
+    "CreditIndex": 20,
+    "CreditUsed": 6.53,
+    "BookingIndex": 83
   },
   {
     "index": 17,
-    "CreditIndex": 10,
-    "CreditUsed": 26.26,
-    "BookingIndex": 52
+    "CreditIndex": 2,
+    "CreditUsed": 33.19,
+    "BookingIndex": 8
   },
   {
     "index": 18,
-    "CreditIndex": 8,
-    "CreditUsed": 29.98,
-    "BookingIndex": 166
+    "CreditIndex": 5,
+    "CreditUsed": 17.77,
+    "BookingIndex": 108
   },
   {
     "index": 19,
-    "CreditIndex": 12,
-    "CreditUsed": 21.11,
-    "BookingIndex": null
+    "CreditIndex": 11,
+    "CreditUsed": 10.53,
+    "BookingIndex": 158
   },
   {
     "index": 20,
-    "CreditIndex": 18,
-    "CreditUsed": 32.4,
+    "CreditIndex": 12,
+    "CreditUsed": 24.89,
     "BookingIndex": null
   },
   {
     "index": 21,
-    "CreditIndex": 7,
-    "CreditUsed": 16.84,
-    "BookingIndex": null
+    "CreditIndex": 12,
+    "CreditUsed": 13.09,
+    "BookingIndex": 207
   },
   {
     "index": 22,
-    "CreditIndex": 1,
-    "CreditUsed": 33.01,
-    "BookingIndex": 230
+    "CreditIndex": 6,
+    "CreditUsed": 38.92,
+    "BookingIndex": 200
   },
   {
     "index": 23,
-    "CreditIndex": 4,
-    "CreditUsed": 31.81,
-    "BookingIndex": null
+    "CreditIndex": 18,
+    "CreditUsed": 20.06,
+    "BookingIndex": 159
   },
   {
     "index": 24,
-    "CreditIndex": 7,
-    "CreditUsed": 8.51,
-    "BookingIndex": 202
+    "CreditIndex": 12,
+    "CreditUsed": 37.1,
+    "BookingIndex": null
   },
   {
     "index": 25,
-    "CreditIndex": 2,
-    "CreditUsed": 28.85,
-    "BookingIndex": null
+    "CreditIndex": 10,
+    "CreditUsed": 28.16,
+    "BookingIndex": 110
   },
   {
     "index": 26,
-    "CreditIndex": 16,
-    "CreditUsed": 28.66,
-    "BookingIndex": 73
+    "CreditIndex": 20,
+    "CreditUsed": 38.31,
+    "BookingIndex": 114
   },
   {
     "index": 27,
-    "CreditIndex": 3,
-    "CreditUsed": 23.37,
-    "BookingIndex": null
+    "CreditIndex": 18,
+    "CreditUsed": 38.69,
+    "BookingIndex": 114
   },
   {
     "index": 28,
-    "CreditIndex": 8,
-    "CreditUsed": 23.08,
-    "BookingIndex": null
+    "CreditIndex": 11,
+    "CreditUsed": 12.88,
+    "BookingIndex": 183
   },
   {
     "index": 29,
-    "CreditIndex": 9,
-    "CreditUsed": 14.22,
-    "BookingIndex": 171
+    "CreditIndex": 1,
+    "CreditUsed": 27.07,
+    "BookingIndex": 181
   },
   {
     "index": 30,
-    "CreditIndex": 19,
-    "CreditUsed": 12.32,
-    "BookingIndex": null
+    "CreditIndex": 13,
+    "CreditUsed": 17.18,
+    "BookingIndex": 95
   },
   {
     "index": 31,
-    "CreditIndex": 11,
-    "CreditUsed": 7.24,
+    "CreditIndex": 10,
+    "CreditUsed": 36.02,
     "BookingIndex": null
   },
   {
     "index": 32,
-    "CreditIndex": 2,
-    "CreditUsed": 27.8,
-    "BookingIndex": null
+    "CreditIndex": 11,
+    "CreditUsed": 18.93,
+    "BookingIndex": 83
   },
   {
     "index": 33,
-    "CreditIndex": 5,
-    "CreditUsed": 37.77,
-    "BookingIndex": null
+    "CreditIndex": 12,
+    "CreditUsed": 10.23,
+    "BookingIndex": 167
   },
   {
     "index": 34,
-    "CreditIndex": 12,
-    "CreditUsed": 8.9,
-    "BookingIndex": 178
+    "CreditIndex": 2,
+    "CreditUsed": 10.6,
+    "BookingIndex": 4
   },
   {
     "index": 35,
-    "CreditIndex": 17,
-    "CreditUsed": 8.98,
-    "BookingIndex": null
+    "CreditIndex": 9,
+    "CreditUsed": 38.93,
+    "BookingIndex": 148
   },
   {
     "index": 36,
-    "CreditIndex": 15,
-    "CreditUsed": 33.67,
-    "BookingIndex": null
+    "CreditIndex": 6,
+    "CreditUsed": 15.84,
+    "BookingIndex": 155
   },
   {
     "index": 37,
-    "CreditIndex": 3,
-    "CreditUsed": 31.03,
+    "CreditIndex": 1,
+    "CreditUsed": 15.37,
     "BookingIndex": null
   },
   {
     "index": 38,
-    "CreditIndex": 17,
-    "CreditUsed": 35.74,
-    "BookingIndex": 155
+    "CreditIndex": 6,
+    "CreditUsed": 31.52,
+    "BookingIndex": null
   },
   {
     "index": 39,
-    "CreditIndex": 20,
-    "CreditUsed": 6.87,
-    "BookingIndex": null
+    "CreditIndex": 14,
+    "CreditUsed": 5.56,
+    "BookingIndex": 57
   },
   {
     "index": 40,
-    "CreditIndex": 8,
-    "CreditUsed": 27.36,
-    "BookingIndex": 240
+    "CreditIndex": 13,
+    "CreditUsed": 22.64,
+    "BookingIndex": 136
   },
   {
     "index": 41,
-    "CreditIndex": 9,
-    "CreditUsed": 17.5,
-    "BookingIndex": null
+    "CreditIndex": 8,
+    "CreditUsed": 25.09,
+    "BookingIndex": 99
   },
   {
     "index": 42,
-    "CreditIndex": 9,
-    "CreditUsed": 19.42,
-    "BookingIndex": 116
+    "CreditIndex": 4,
+    "CreditUsed": 19.81,
+    "BookingIndex": null
   },
   {
     "index": 43,
-    "CreditIndex": 1,
-    "CreditUsed": 37.02,
-    "BookingIndex": null
+    "CreditIndex": 13,
+    "CreditUsed": 19.81,
+    "BookingIndex": 153
   },
   {
     "index": 44,
-    "CreditIndex": 16,
-    "CreditUsed": 30.4,
-    "BookingIndex": 117
+    "CreditIndex": 3,
+    "CreditUsed": 18.07,
+    "BookingIndex": 118
   },
   {
     "index": 45,
-    "CreditIndex": 1,
-    "CreditUsed": 7.32,
-    "BookingIndex": 75
-  },
-  {
-    "index": 46,
-    "CreditIndex": 13,
-    "CreditUsed": 21.79,
+    "CreditIndex": 4,
+    "CreditUsed": 12.32,
     "BookingIndex": null
   },
   {
+    "index": 46,
+    "CreditIndex": 12,
+    "CreditUsed": 2.83,
+    "BookingIndex": 222
+  },
+  {
     "index": 47,
-    "CreditIndex": 19,
-    "CreditUsed": 28.17,
+    "CreditIndex": 16,
+    "CreditUsed": 38.9,
     "BookingIndex": null
   },
   {
     "index": 48,
-    "CreditIndex": 14,
-    "CreditUsed": 25.38,
-    "BookingIndex": 156
+    "CreditIndex": 15,
+    "CreditUsed": 12.48,
+    "BookingIndex": null
   },
   {
     "index": 49,
-    "CreditIndex": 6,
-    "CreditUsed": 26.05,
+    "CreditIndex": 14,
+    "CreditUsed": 29.3,
     "BookingIndex": null
   },
   {
     "index": 50,
-    "CreditIndex": 5,
-    "CreditUsed": 26.48,
-    "BookingIndex": 171
+    "CreditIndex": 18,
+    "CreditUsed": 25.42,
+    "BookingIndex": 158
   }
 ]

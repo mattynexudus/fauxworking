@@ -69,6 +69,7 @@ ENTITY_MODULES = {
     "communitythreads": "community", "communitymessages": "community",
     "blogposts": "content", "coworkertasks": "crm", "coworkerledgerentries": "billing",
     "coworkerinvoices": "billing", "coworkerinvoicehistories": "billing",
+    "coworkerinvoicelines": "billing",
     "crmopportunities": "crm", "crmopportunityhistories": "crm", "opportunitytypes": "crm",
     "proposals": "billing", "coworkerdatafiles": "spaces", "users": "sys",
     "businesses": "sys", "cancelledbookings": "spaces",

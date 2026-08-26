@@ -1,0 +1,4 @@
+Id,BusinessId,CreatedOn,CustomFields,ExemptionReason,IsNew,LocalizationDetails,Name,Rate,SystemId,ToStringText,UniqueId,UpdatedBy,UpdatedOn
+1415142815,1421022733,2026-08-25T19:10:48.2147305Z,,1,False,,Standard,20.0,,Standard (20.00%),3e87e38c-62ec-4cab-8ff9-ceacde2126b7,Olena+e2@nexudus.com,2026-08-25T19:10:48.2147305Z
+1415142916,1421022733,2026-08-25T19:10:48.6671266Z,,1,False,,Reduced,5.0,,Reduced (5.00%),c8d8dce1-15d2-499e-9e30-a660cb0a557d,Olena+e2@nexudus.com,2026-08-25T19:10:48.6671266Z
+1415142917,1421022733,2026-08-25T19:10:48.9796269Z,,1,False,,Zero-rated,0.0,,Zero-rated (0.00%),f0ef0ba3-4b6c-4958-b8e0-6137c3e8fbf5,Olena+e2@nexudus.com,2026-08-25T19:10:48.9796269Z
