@@ -1,0 +1,72 @@
+[
+  {
+    "index": 1,
+    "ContractIndex": 54,
+    "ProductName": "Security Deposit - Office",
+    "Price": 1000.0,
+    "Refundable": true
+  },
+  {
+    "index": 2,
+    "ContractIndex": 3,
+    "ProductName": "Security Deposit - Office",
+    "Price": 1000.0,
+    "Refundable": true
+  },
+  {
+    "index": 3,
+    "ContractIndex": 67,
+    "ProductName": "Security Deposit - Office",
+    "Price": 1000.0,
+    "Refundable": true
+  },
+  {
+    "index": 4,
+    "ContractIndex": 18,
+    "ProductName": "Security Deposit - Office",
+    "Price": 1000.0,
+    "Refundable": false
+  },
+  {
+    "index": 5,
+    "ContractIndex": 74,
+    "ProductName": "Security Deposit - Office",
+    "Price": 1000.0,
+    "Refundable": false
+  },
+  {
+    "index": 6,
+    "ContractIndex": 33,
+    "ProductName": "Security Deposit - Office",
+    "Price": 1000.0,
+    "Refundable": true
+  },
+  {
+    "index": 7,
+    "ContractIndex": 68,
+    "ProductName": "Security Deposit - Desk",
+    "Price": 250.0,
+    "Refundable": true
+  },
+  {
+    "index": 8,
+    "ContractIndex": 27,
+    "ProductName": "Security Deposit - Desk",
+    "Price": 250.0,
+    "Refundable": true
+  },
+  {
+    "index": 9,
+    "ContractIndex": 21,
+    "ProductName": "Security Deposit - Desk",
+    "Price": 250.0,
+    "Refundable": false
+  },
+  {
+    "index": 10,
+    "ContractIndex": 45,
+    "ProductName": "Security Deposit - Desk",
+    "Price": 250.0,
+    "Refundable": true
+  }
+]

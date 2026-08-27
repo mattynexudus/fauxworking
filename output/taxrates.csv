@@ -1,0 +1,3 @@
+Id,BusinessId,CreatedOn,CustomFields,ExemptionReason,IsNew,LocalizationDetails,Name,Rate,SystemId,ToStringText,UniqueId,UpdatedBy,UpdatedOn
+1415143017,1421021016,2026-08-27T08:24:31.1322722Z,,1,False,,Reduced,5.0,,Reduced (5.00%),ab180587-02d5-4c4a-9c9f-6b54e5ff9cfe,matheus+explore@nexudus.com,2026-08-27T08:24:31.1322722Z
+1415143018,1421021016,2026-08-27T08:24:31.6017281Z,,1,False,,Zero-rated,0.0,,Zero-rated (0.00%),f72ea87f-c222-4842-8162-2f32d35ab034,matheus+explore@nexudus.com,2026-08-27T08:24:31.6017281Z

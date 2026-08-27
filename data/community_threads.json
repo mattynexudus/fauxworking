@@ -1,0 +1,152 @@
+[
+  {
+    "index": 1,
+    "GroupName": "General",
+    "CoworkerIndex": 35,
+    "Subject": "Best time to book the meeting rooms?",
+    "Message": "Would appreciate any pointers, thanks!",
+    "DayOffset": -150,
+    "MessageCount": 5,
+    "Private": false
+  },
+  {
+    "index": 2,
+    "GroupName": "General",
+    "CoworkerIndex": 2,
+    "Subject": "Lost a black jacket in the kitchen area",
+    "Message": "Posting here in case it helps someone else too.",
+    "DayOffset": -54,
+    "MessageCount": 4,
+    "Private": false
+  },
+  {
+    "index": 3,
+    "GroupName": "General",
+    "CoworkerIndex": 25,
+    "Subject": "Anyone know a good coffee spot nearby?",
+    "Message": "Posting here in case it helps someone else too.",
+    "DayOffset": -66,
+    "MessageCount": 5,
+    "Private": false
+  },
+  {
+    "index": 4,
+    "GroupName": "General",
+    "CoworkerIndex": 8,
+    "Subject": "Recommendations for lunch places around here",
+    "Message": "Happy to buy coffee for anyone who can help.",
+    "DayOffset": -162,
+    "MessageCount": 4,
+    "Private": false
+  },
+  {
+    "index": 5,
+    "GroupName": "General",
+    "CoworkerIndex": 42,
+    "Subject": "Wifi's been patchy on the 2nd floor",
+    "Message": "Just wondering if anyone else has run into this.",
+    "DayOffset": -161,
+    "MessageCount": 5,
+    "Private": false
+  },
+  {
+    "index": 6,
+    "GroupName": "General",
+    "CoworkerIndex": 40,
+    "Subject": "Printer on 1st floor out of toner again",
+    "Message": "Just wondering if anyone else has run into this.",
+    "DayOffset": -109,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 7,
+    "GroupName": "Networking",
+    "CoworkerIndex": 33,
+    "Subject": "Freelancers — want to grab coffee and swap notes?",
+    "Message": "Open to suggestions from anyone in the space.",
+    "DayOffset": -25,
+    "MessageCount": 3,
+    "Private": false
+  },
+  {
+    "index": 8,
+    "GroupName": "Networking",
+    "CoworkerIndex": 5,
+    "Subject": "Looking for a UX designer to collaborate with",
+    "Message": "Open to suggestions from anyone in the space.",
+    "DayOffset": -74,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 9,
+    "GroupName": "Networking",
+    "CoworkerIndex": 49,
+    "Subject": "Looking for a co-founder for a side project",
+    "Message": "Happy to buy coffee for anyone who can help.",
+    "DayOffset": -71,
+    "MessageCount": 4,
+    "Private": false
+  },
+  {
+    "index": 10,
+    "GroupName": "Networking",
+    "CoworkerIndex": 45,
+    "Subject": "Any developers interested in a weekend hackathon?",
+    "Message": "Just wondering if anyone else has run into this.",
+    "DayOffset": -152,
+    "MessageCount": 3,
+    "Private": false
+  },
+  {
+    "index": 11,
+    "GroupName": "Networking",
+    "CoworkerIndex": 14,
+    "Subject": "Anyone else working in fintech?",
+    "Message": "Open to suggestions from anyone in the space.",
+    "DayOffset": -125,
+    "MessageCount": 3,
+    "Private": false
+  },
+  {
+    "index": 12,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 19,
+    "Subject": "New meeting room booking system live now",
+    "Message": "Open to suggestions from anyone in the space.",
+    "DayOffset": -164,
+    "MessageCount": 1,
+    "Private": false
+  },
+  {
+    "index": 13,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 50,
+    "Subject": "Reminder: annual member survey closes Friday",
+    "Message": "Just wondering if anyone else has run into this.",
+    "DayOffset": -39,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 14,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 41,
+    "Subject": "Building maintenance this Saturday morning",
+    "Message": "Happy to buy coffee for anyone who can help.",
+    "DayOffset": -8,
+    "MessageCount": 2,
+    "Private": false
+  },
+  {
+    "index": 15,
+    "GroupName": "Announcements",
+    "CoworkerIndex": 12,
+    "Subject": "Kitchen will be closed for cleaning Monday AM",
+    "Message": "Just wondering if anyone else has run into this.",
+    "DayOffset": -143,
+    "MessageCount": 1,
+    "Private": false
+  }
+]

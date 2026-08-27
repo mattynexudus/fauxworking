@@ -1,0 +1,4 @@
+Id,Active,AddedManagers,BusinessId,CreatedOn,CustomFields,Description,IsNew,LocalizationDetails,Managers,Name,RemovedManagers,SystemId,TaskListId,ToStringText,UniqueId,UpdatedBy,UpdatedOn
+1414805273,False,,1421021016,2026-08-27T08:29:10.4689993Z,,"WiFi, hardware, and access issues",False,,[],IT Support,,,0,IT Support,fa2d4a89-ebe4-448f-aa40-2a658dc8c4c9,matheus+explore@nexudus.com,2026-08-27T08:29:10.4689993Z
+1414805274,False,,1421021016,2026-08-27T08:29:11.1252848Z,,"Building, cleaning, and maintenance issues",False,,[],Facilities,,,0,Facilities,db867f1c-6990-49c1-b081-41496999e323,matheus+explore@nexudus.com,2026-08-27T08:29:11.1252848Z
+1414805275,False,,1421021016,2026-08-27T08:29:11.6415485Z,,"Invoices, payments, and account queries",False,,[],Billing,,,0,Billing,30e11c7d-a703-4108-a8eb-e66acf6076b4,matheus+explore@nexudus.com,2026-08-27T08:29:11.6415485Z

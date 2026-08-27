@@ -1,0 +1,324 @@
+[
+  {
+    "index": 1,
+    "ThreadIndex": 1,
+    "CoworkerIndex": 29,
+    "Message": "Same here, has been going on for a few days.",
+    "DayOffsetAfterThread": 0
+  },
+  {
+    "index": 2,
+    "ThreadIndex": 1,
+    "CoworkerIndex": 39,
+    "Message": "I can help with this, sending you a message.",
+    "DayOffsetAfterThread": 6
+  },
+  {
+    "index": 3,
+    "ThreadIndex": 1,
+    "CoworkerIndex": 27,
+    "Message": "I can help with this, sending you a message.",
+    "DayOffsetAfterThread": 0
+  },
+  {
+    "index": 4,
+    "ThreadIndex": 1,
+    "CoworkerIndex": 1,
+    "Message": "I had the same issue last week, still not fixed.",
+    "DayOffsetAfterThread": 8
+  },
+  {
+    "index": 5,
+    "ThreadIndex": 1,
+    "CoworkerIndex": 48,
+    "Message": "I can help with this, sending you a message.",
+    "DayOffsetAfterThread": 5
+  },
+  {
+    "index": 6,
+    "ThreadIndex": 2,
+    "CoworkerIndex": 18,
+    "Message": "I had the same issue last week, still not fixed.",
+    "DayOffsetAfterThread": 0
+  },
+  {
+    "index": 7,
+    "ThreadIndex": 2,
+    "CoworkerIndex": 9,
+    "Message": "I had the same issue last week, still not fixed.",
+    "DayOffsetAfterThread": 2
+  },
+  {
+    "index": 8,
+    "ThreadIndex": 2,
+    "CoworkerIndex": 44,
+    "Message": "Following this thread, interested too.",
+    "DayOffsetAfterThread": 6
+  },
+  {
+    "index": 9,
+    "ThreadIndex": 2,
+    "CoworkerIndex": 40,
+    "Message": "Appreciate you flagging this.",
+    "DayOffsetAfterThread": 16
+  },
+  {
+    "index": 10,
+    "ThreadIndex": 3,
+    "CoworkerIndex": 3,
+    "Message": "Thanks, that's really helpful!",
+    "DayOffsetAfterThread": 1
+  },
+  {
+    "index": 11,
+    "ThreadIndex": 3,
+    "CoworkerIndex": 47,
+    "Message": "Same here, has been going on for a few days.",
+    "DayOffsetAfterThread": 6
+  },
+  {
+    "index": 12,
+    "ThreadIndex": 3,
+    "CoworkerIndex": 36,
+    "Message": "Following this thread, interested too.",
+    "DayOffsetAfterThread": 9
+  },
+  {
+    "index": 13,
+    "ThreadIndex": 3,
+    "CoworkerIndex": 32,
+    "Message": "+1, would love to see this happen.",
+    "DayOffsetAfterThread": 16
+  },
+  {
+    "index": 14,
+    "ThreadIndex": 3,
+    "CoworkerIndex": 48,
+    "Message": "Yeah, I noticed that too — glad it's not just me.",
+    "DayOffsetAfterThread": 0
+  },
+  {
+    "index": 15,
+    "ThreadIndex": 4,
+    "CoworkerIndex": 31,
+    "Message": "Same here, has been going on for a few days.",
+    "DayOffsetAfterThread": 4
+  },
+  {
+    "index": 16,
+    "ThreadIndex": 4,
+    "CoworkerIndex": 5,
+    "Message": "+1, would love to see this happen.",
+    "DayOffsetAfterThread": 2
+  },
+  {
+    "index": 17,
+    "ThreadIndex": 4,
+    "CoworkerIndex": 41,
+    "Message": "Reception should be able to sort that out for you.",
+    "DayOffsetAfterThread": 6
+  },
+  {
+    "index": 18,
+    "ThreadIndex": 4,
+    "CoworkerIndex": 26,
+    "Message": "Thanks, that's really helpful!",
+    "DayOffsetAfterThread": 8
+  },
+  {
+    "index": 19,
+    "ThreadIndex": 5,
+    "CoworkerIndex": 19,
+    "Message": "Yeah, I noticed that too — glad it's not just me.",
+    "DayOffsetAfterThread": 4
+  },
+  {
+    "index": 20,
+    "ThreadIndex": 5,
+    "CoworkerIndex": 11,
+    "Message": "Following this thread, interested too.",
+    "DayOffsetAfterThread": 2
+  },
+  {
+    "index": 21,
+    "ThreadIndex": 5,
+    "CoworkerIndex": 50,
+    "Message": "+1, would love to see this happen.",
+    "DayOffsetAfterThread": 0
+  },
+  {
+    "index": 22,
+    "ThreadIndex": 5,
+    "CoworkerIndex": 30,
+    "Message": "Reception should be able to sort that out for you.",
+    "DayOffsetAfterThread": 12
+  },
+  {
+    "index": 23,
+    "ThreadIndex": 5,
+    "CoworkerIndex": 24,
+    "Message": "I can help with this, sending you a message.",
+    "DayOffsetAfterThread": 10
+  },
+  {
+    "index": 24,
+    "ThreadIndex": 6,
+    "CoworkerIndex": 9,
+    "Message": "I can help with this, sending you a message.",
+    "DayOffsetAfterThread": 0
+  },
+  {
+    "index": 25,
+    "ThreadIndex": 6,
+    "CoworkerIndex": 8,
+    "Message": "Good shout — count me in.",
+    "DayOffsetAfterThread": 6
+  },
+  {
+    "index": 26,
+    "ThreadIndex": 7,
+    "CoworkerIndex": 16,
+    "Message": "Same here, has been going on for a few days.",
+    "DayOffsetAfterThread": 1
+  },
+  {
+    "index": 27,
+    "ThreadIndex": 7,
+    "CoworkerIndex": 25,
+    "Message": "Following this thread, interested too.",
+    "DayOffsetAfterThread": 0
+  },
+  {
+    "index": 28,
+    "ThreadIndex": 7,
+    "CoworkerIndex": 37,
+    "Message": "Appreciate you flagging this.",
+    "DayOffsetAfterThread": 6
+  },
+  {
+    "index": 29,
+    "ThreadIndex": 8,
+    "CoworkerIndex": 48,
+    "Message": "I can help with this, sending you a message.",
+    "DayOffsetAfterThread": 4
+  },
+  {
+    "index": 30,
+    "ThreadIndex": 8,
+    "CoworkerIndex": 41,
+    "Message": "+1, would love to see this happen.",
+    "DayOffsetAfterThread": 4
+  },
+  {
+    "index": 31,
+    "ThreadIndex": 9,
+    "CoworkerIndex": 38,
+    "Message": "I had the same issue last week, still not fixed.",
+    "DayOffsetAfterThread": 5
+  },
+  {
+    "index": 32,
+    "ThreadIndex": 9,
+    "CoworkerIndex": 12,
+    "Message": "Same here, has been going on for a few days.",
+    "DayOffsetAfterThread": 10
+  },
+  {
+    "index": 33,
+    "ThreadIndex": 9,
+    "CoworkerIndex": 29,
+    "Message": "I can help with this, sending you a message.",
+    "DayOffsetAfterThread": 6
+  },
+  {
+    "index": 34,
+    "ThreadIndex": 9,
+    "CoworkerIndex": 6,
+    "Message": "Reception should be able to sort that out for you.",
+    "DayOffsetAfterThread": 16
+  },
+  {
+    "index": 35,
+    "ThreadIndex": 10,
+    "CoworkerIndex": 3,
+    "Message": "Yeah, I noticed that too — glad it's not just me.",
+    "DayOffsetAfterThread": 1
+  },
+  {
+    "index": 36,
+    "ThreadIndex": 10,
+    "CoworkerIndex": 36,
+    "Message": "+1, would love to see this happen.",
+    "DayOffsetAfterThread": 0
+  },
+  {
+    "index": 37,
+    "ThreadIndex": 10,
+    "CoworkerIndex": 12,
+    "Message": "+1, would love to see this happen.",
+    "DayOffsetAfterThread": 6
+  },
+  {
+    "index": 38,
+    "ThreadIndex": 11,
+    "CoworkerIndex": 5,
+    "Message": "Following this thread, interested too.",
+    "DayOffsetAfterThread": 2
+  },
+  {
+    "index": 39,
+    "ThreadIndex": 11,
+    "CoworkerIndex": 50,
+    "Message": "Reception should be able to sort that out for you.",
+    "DayOffsetAfterThread": 10
+  },
+  {
+    "index": 40,
+    "ThreadIndex": 11,
+    "CoworkerIndex": 17,
+    "Message": "Good shout — count me in.",
+    "DayOffsetAfterThread": 9
+  },
+  {
+    "index": 41,
+    "ThreadIndex": 12,
+    "CoworkerIndex": 31,
+    "Message": "I had the same issue last week, still not fixed.",
+    "DayOffsetAfterThread": 1
+  },
+  {
+    "index": 42,
+    "ThreadIndex": 13,
+    "CoworkerIndex": 35,
+    "Message": "Good shout — count me in.",
+    "DayOffsetAfterThread": 1
+  },
+  {
+    "index": 43,
+    "ThreadIndex": 13,
+    "CoworkerIndex": 37,
+    "Message": "Yeah, I noticed that too — glad it's not just me.",
+    "DayOffsetAfterThread": 4
+  },
+  {
+    "index": 44,
+    "ThreadIndex": 14,
+    "CoworkerIndex": 31,
+    "Message": "Following this thread, interested too.",
+    "DayOffsetAfterThread": 1
+  },
+  {
+    "index": 45,
+    "ThreadIndex": 14,
+    "CoworkerIndex": 5,
+    "Message": "Reception should be able to sort that out for you.",
+    "DayOffsetAfterThread": 4
+  },
+  {
+    "index": 46,
+    "ThreadIndex": 15,
+    "CoworkerIndex": 18,
+    "Message": "I can help with this, sending you a message.",
+    "DayOffsetAfterThread": 5
+  }
+]
