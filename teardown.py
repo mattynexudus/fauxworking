@@ -766,7 +766,12 @@ def maybe_clear_generated_data():
     data/created-ids/ tracking (above) never touches these — they're
     reusable across reseed cycles by design, so keeping them is the default;
     this only offers to remove them too for someone who wants the project
-    directory itself back to a clean slate, not just the live account."""
+    directory itself back to a clean slate, not just the live account.
+
+    The glob also picks up data/plan-manifest.json (prebuild's incremental
+    seed/count record) — correct: once the plan files are gone, the manifest
+    must go too so the next prebuild starts fresh rather than thinking the
+    (now deleted) records are still there."""
     files = sorted(DATA_DIR.glob("*.json"))
     if not files:
         return

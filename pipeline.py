@@ -301,7 +301,9 @@ if __name__ == "__main__":
                          help=f"Run layers 0 through this one (default: {len(LAYERS) - 1}, all layers)")
     parser.add_argument("--business-id", type=int, default=None,
                          help="Which business/location to seed into, if this login has access to more than one")
+    parser.add_argument("--dry-run", action="store_true",
+                         help="Preview the whole chain without creating anything (see run_up_to)")
     args = parser.parse_args()
 
-    run_up_to(args.layer, business_id=args.business_id)
+    run_up_to(args.layer, dry_run=args.dry_run, business_id=args.business_id)
     print("\nDone.")

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fauxworking control panel</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <span class="brand">
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+        <rect x="1" y="1" width="18" height="18" rx="5" fill="var(--brand)"></rect>
+        <path d="M6 14V6h5.2M6 10h4.4" stroke="var(--brand-ink)" stroke-width="1.9"
+              stroke-linecap="round" fill="none"></path>
+      </svg>
+      Fauxworking
+    </span>
+    <span class="header-spacer"></span>
+    <span id="auth-pill" class="pill"><span class="dot"></span><span id="auth-text">checking…</span></span>
+    <span id="loc" class="loc" hidden></span>
+    <button id="signout-btn" class="btn small" hidden>Sign out</button>
+  </header>
+
+  <div id="conn-banner" class="conn-banner" hidden>
+    Can’t reach the control panel server — retrying…
+  </div>
+
+  <div id="login" hidden>
+    <h2>Log in to Nexudus</h2>
+    <p class="muted small">Your password is used once to fetch a token pair, then dropped.
+      Only tokens are written to <code>.env</code> (shared with the CLI).</p>
+    <form id="login-form">
+      <label>Email <input type="email" name="email" autocomplete="username" required></label>
+      <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
+      <button type="submit" class="btn primary">Log in</button>
+      <span id="login-error" class="err"></span>
+    </form>
+  </div>
+
+  <main id="main" hidden>
+    <div id="left">
+      <section class="guided" id="guided" aria-label="Set up demo data">
+        <h2>Set up demo data</h2>
+        <div class="stepper" id="stepper"></div>
+        <div class="step-body" id="step-body"></div>
+      </section>
+
+      <details id="commands-wrap">
+        <summary>Individual commands</summary>
+        <div id="groups"></div>
+      </details>
+    </div>
+
+    <div id="right">
+      <section class="panel console-wrap" aria-label="Console">
+        <div class="panel-head">
+          <h2>Console</h2>
+          <span id="status-badge" class="status-badge" hidden></span>
+          <label class="follow"><input type="checkbox" id="follow" checked> follow</label>
+        </div>
+        <pre id="console" class="console" data-empty="No run yet — start one from the left."></pre>
+        <div id="active-run" class="active-run" hidden>
+          <span id="active-run-text"></span>
+          <button id="cancel-btn" class="btn small danger">Cancel</button>
+        </div>
+        <div id="run-hint" class="run-hint" hidden></div>
+      </section>
+
+      <section class="panel" aria-label="Results">
+        <div class="panel-head">
+          <h2>Results</h2><span class="spacer"></span>
+          <button id="results-refresh" class="btn small">Refresh</button>
+        </div>
+        <pre id="report" class="report"></pre>
+        <details class="lastrun">
+          <summary>last-run-report.txt</summary>
+          <pre id="last-run" class="report"></pre>
+        </details>
+        <ul id="outputs" class="outputs"></ul>
+      </section>
+
+      <section class="panel" aria-label="Runs">
+        <div class="panel-head">
+          <h2>Runs</h2><span class="spacer"></span>
+          <button id="runs-refresh" class="btn small">Refresh</button>
+        </div>
+        <table class="runs"><tbody id="runs-body"></tbody></table>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

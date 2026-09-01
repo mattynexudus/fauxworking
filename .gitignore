@@ -15,5 +15,8 @@ __pycache__/
 *.pyo
 .venv/
 
+# Local browser control panel — per-run logs
+/logs/
+
 # Local tool settings — machine-specific, not project source
 .claude/

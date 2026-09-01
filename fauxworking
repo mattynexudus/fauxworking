@@ -8,6 +8,7 @@
 #   ./fauxworking verify     Check what's actually in the account
 #   ./fauxworking daily      Add a fresh day's worth of activity
 #   ./fauxworking refresh    Pull in auto-generated invoices + export invoice lines
+#   ./fauxworking ui         Open the local control panel in your browser
 #
 # Anything after the command is passed straight through, e.g.:
 #   ./fauxworking wizard --business-id 12345
@@ -39,13 +40,16 @@ case "$cmd" in
   refresh)
     bash scripts/refresh.sh "$@"
     ;;
+  ui)
+    bash scripts/ui.sh "$@"
+    ;;
   -h|--help|help)
-    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
     ;;
   *)
     echo "Unknown command: $cmd"
     echo ""
-    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac

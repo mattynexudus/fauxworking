@@ -1,19 +1,29 @@
 """
 Pre-generate all faker-dependent data into static JSON files.
 
-Run this once (or when you want to regenerate with a new seed/volume).
+Runs **incrementally** by default: a `data/plan-manifest.json` records the
+seed and per-entity counts of the last run, and re-running with the same seed
+keeps every record already on disk and only *appends* the newly-requested
+tail. Bumping `--coworkers 50` to `60` adds 10; it never rewrites the first
+50 (which may already be seeded live) or shrinks a file. Lowering a count is
+a no-op with a warning — un-seeding is `teardown.py`'s job. `--fresh`
+regenerates everything from scratch (also what happens automatically when the
+seed changes).
+
 The generated files are gitignored (data/*.json) — each user generates their
 own rather than sharing one specific run's output; generators read them at runtime.
 
 Usage:
-    python prebuild.py               # Generate all data files
-    python prebuild.py --seed 123    # Use a different seed
+    python prebuild.py               # incremental: keep what's there, append new
+    python prebuild.py --coworkers 60  # add coworkers up to 60
+    python prebuild.py --fresh        # regenerate every file from scratch
+    python prebuild.py --seed 123    # different seed => implies --fresh
 """
 
 import argparse
 import json
 import random
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from faker import Faker
 
@@ -1662,6 +1672,45 @@ def write_json(path, data):
     print(f"  Written {path} ({len(data)} records)")
 
 
+MANIFEST_PATH = DATA_DIR / "plan-manifest.json"
+
+# The single data/*.json file whose length tracks each configurable volume —
+# mirrors report_lib.DATA_FILE_BY_VOLUME_KEY. Used only for the plan manifest's
+# count cache (the incremental splice itself keys off each file's real length).
+_PRIMARY_FILE = {
+    "coworkers": "coworkers.json", "visitors": "visitors.json",
+    "bookings_total": "bookings.json", "check_ins": "checkins.json",
+    "crm_opportunities": "crm_opportunities.json", "proposals": "proposals.json",
+    "help_desk_messages": "helpdesk_messages.json",
+    "community_threads": "community_threads.json",
+    "coworker_tasks": "coworker_tasks.json",
+    "coworker_time_passes": "time_passes.json",
+    "coworker_products": "coworker_products.json",
+}
+
+
+def _read_manifest():
+    try:
+        return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _write_manifest(seed):
+    counts = {}
+    for key, fname in _PRIMARY_FILE.items():
+        try:
+            counts[key] = len(json.loads((DATA_DIR / fname).read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            pass
+    MANIFEST_PATH.write_text(
+        json.dumps({"seed": seed,
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "counts": counts}, indent=2) + "\n",
+        encoding="utf-8")
+    print(f"  Written {MANIFEST_PATH}")
+
+
 # config.VOLUMES key -> (CLI flag, argparse dest). Only the keys in
 # CONFIGURABLE_VOLUME_KEYS get a flag — see config.py for why the rest don't.
 FLAG_SPEC = {
@@ -1679,85 +1728,126 @@ FLAG_SPEC = {
 }
 
 
-def generate_all(seed, volumes):
+def generate_all(seed, volumes, fresh=False):
     """Generate every data/*.json file. `volumes` is a full config.VOLUMES-
     shaped dict — pass config.VOLUMES itself to reproduce the default
     output exactly, or override any of CONFIGURABLE_VOLUME_KEYS in a copy
-    of it (see main() and wizard.py for how the CLI/wizard build that)."""
+    of it (see main() and wizard.py for how the CLI/wizard build that).
+
+    Incremental by default (see the module docstring): with `fresh=False` and
+    a plan-manifest.json recorded at the same seed, every file's existing
+    records are kept and only the newly-requested tail is appended. `fresh=True`
+    (or a changed seed) regenerates everything.
+    """
+    manifest = _read_manifest()
+    same_seed = manifest is not None and manifest.get("seed") == seed
+    incremental = not fresh and same_seed
+    if not fresh and manifest is not None and not same_seed:
+        print(f"Note: seed changed {manifest.get('seed')} -> {seed} — regenerating every file "
+              f"from scratch; this will diverge from whatever's already been seeded live.")
+
     rng = random.Random(seed)
     fake = Faker("en_GB")
     Faker.seed(seed)
 
-    print(f"Generating data with seed={seed}...")
+    print(f"Generating data with seed={seed} "
+          f"({'incrementally — keeping existing records' if incremental else 'from scratch'})...")
+
+    def _emit(name, records):
+        """Write data/<name>. In incremental mode: keep the records already on
+        disk untouched and append only records[len(existing):]; never shrink a
+        file (a lowered count just warns)."""
+        path = DATA_DIR / name
+        if incremental and path.exists():
+            try:
+                existing = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                existing = []
+            if len(existing) >= len(records):
+                if len(existing) > len(records):
+                    print(f"  {name}: keeping {len(existing)} on disk (plan wants "
+                          f"{len(records)}; prebuild only grows — use teardown to remove)")
+                records = existing
+            else:
+                if existing:
+                    print(f"  {name}: +{len(records) - len(existing)} (now {len(records)})")
+                # the appended tail was generated against the full new plan; its
+                # index/Email values continue past the head, so it never collides.
+                records = existing + records[len(existing):]
+        write_json(path, records)
 
     coworkers = generate_coworkers(rng, fake, count=volumes["coworkers"])
-    write_json(DATA_DIR / "coworkers.json", coworkers)
+    _emit("coworkers.json", coworkers)
 
     visitors = generate_visitors(rng, fake, len(coworkers), count=volumes["visitors"])
-    write_json(DATA_DIR / "visitors.json", visitors)
+    _emit("visitors.json", visitors)
 
     contracts = generate_contracts(rng, coworkers)
-    write_json(DATA_DIR / "contracts.json", contracts)
+    _emit("contracts.json", contracts)
 
-    write_json(DATA_DIR / "contract_products.json", generate_contract_products(rng, contracts))
-    write_json(DATA_DIR / "contract_schedules.json", generate_contract_schedules(rng, contracts))
+    _emit("contract_products.json", generate_contract_products(rng, contracts))
+    _emit("contract_schedules.json", generate_contract_schedules(rng, contracts))
     paused_periods = generate_contract_paused_periods(rng, contracts)
-    write_json(DATA_DIR / "contract_paused_periods.json", paused_periods)
-    write_json(DATA_DIR / "contract_deposits.json", generate_contract_deposits(rng, contracts))
-    write_json(DATA_DIR / "coworker_inventory_assets.json", generate_coworker_inventory_assets(rng, coworkers))
-    write_json(DATA_DIR / "desk_assignments.json", generate_desk_assignments(rng, contracts))
+    _emit("contract_paused_periods.json", paused_periods)
+    _emit("contract_deposits.json", generate_contract_deposits(rng, contracts))
+    _emit("coworker_inventory_assets.json", generate_coworker_inventory_assets(rng, coworkers))
+    _emit("desk_assignments.json", generate_desk_assignments(rng, contracts))
 
     bookings = generate_bookings(rng, coworkers, visitors, total=volumes["bookings_total"])
-    write_json(DATA_DIR / "bookings.json", bookings)
+    _emit("bookings.json", bookings)
 
-    write_json(DATA_DIR / "checkins.json", generate_checkins(rng, coworkers, total=volumes["check_ins"]))
-    write_json(DATA_DIR / "extra_services.json", generate_extra_services(rng, coworkers, bookings))
+    _emit("checkins.json", generate_checkins(rng, coworkers, total=volumes["check_ins"]))
+    _emit("extra_services.json", generate_extra_services(rng, coworkers, bookings))
 
     booking_credits = generate_booking_credits(rng, coworkers)
-    write_json(DATA_DIR / "booking_credits.json", booking_credits)
-    write_json(DATA_DIR / "credit_use_history.json",
-               generate_credit_use_history(rng, booking_credits, bookings))
+    _emit("booking_credits.json", booking_credits)
+    _emit("credit_use_history.json",
+          generate_credit_use_history(rng, booking_credits, bookings))
 
-    write_json(DATA_DIR / "time_passes.json",
-               generate_time_passes(rng, coworkers, count=volumes["coworker_time_passes"]))
-    write_json(DATA_DIR / "coworker_products.json",
-               generate_coworker_products(rng, coworkers, count=volumes["coworker_products"]))
+    _emit("time_passes.json",
+          generate_time_passes(rng, coworkers, count=volumes["coworker_time_passes"]))
+    _emit("coworker_products.json",
+          generate_coworker_products(rng, coworkers, count=volumes["coworker_products"]))
 
-    write_json(DATA_DIR / "deliveries.json", generate_deliveries(rng, coworkers))
+    _emit("deliveries.json", generate_deliveries(rng, coworkers))
 
     calendar_events = generate_calendar_events(rng)
-    write_json(DATA_DIR / "calendar_events.json", calendar_events)
-    write_json(DATA_DIR / "event_products.json", generate_event_products(rng, calendar_events))
-    write_json(DATA_DIR / "event_attendees.json",
-               generate_event_attendees(rng, fake, calendar_events, coworkers, contracts, paused_periods))
+    _emit("calendar_events.json", calendar_events)
+    _emit("event_products.json", generate_event_products(rng, calendar_events))
+    _emit("event_attendees.json",
+          generate_event_attendees(rng, fake, calendar_events, coworkers, contracts, paused_periods))
 
-    write_json(DATA_DIR / "helpdesk_messages.json",
-               generate_helpdesk_messages(rng, coworkers, count=volumes["help_desk_messages"]))
+    _emit("helpdesk_messages.json",
+          generate_helpdesk_messages(rng, coworkers, count=volumes["help_desk_messages"]))
 
     community_threads = generate_community_threads(rng, fake, coworkers, count=volumes["community_threads"])
-    write_json(DATA_DIR / "community_threads.json", community_threads)
-    write_json(DATA_DIR / "community_messages.json",
-               generate_community_messages(rng, fake, community_threads, coworkers))
+    _emit("community_threads.json", community_threads)
+    _emit("community_messages.json",
+          generate_community_messages(rng, fake, community_threads, coworkers))
 
-    write_json(DATA_DIR / "blog_posts.json", generate_blog_posts(rng))
-    write_json(DATA_DIR / "coworker_tasks.json",
-               generate_coworker_tasks(rng, coworkers, count=volumes["coworker_tasks"]))
+    _emit("blog_posts.json", generate_blog_posts(rng))
+    _emit("coworker_tasks.json",
+          generate_coworker_tasks(rng, coworkers, count=volumes["coworker_tasks"]))
 
     crm_opportunities = generate_crm_opportunities(rng, coworkers, count=volumes["crm_opportunities"])
-    write_json(DATA_DIR / "crm_opportunities.json", crm_opportunities)
-    write_json(DATA_DIR / "crm_opportunity_history.json",
-               generate_crm_opportunity_history(rng, crm_opportunities))
+    _emit("crm_opportunities.json", crm_opportunities)
+    _emit("crm_opportunity_history.json",
+          generate_crm_opportunity_history(rng, crm_opportunities))
 
     proposals = generate_proposals(rng, crm_opportunities, coworkers, count=volumes["proposals"])
-    write_json(DATA_DIR / "proposals.json", proposals)
-    write_json(DATA_DIR / "coworker_data_files.json", generate_coworker_data_files(rng, proposals))
+    _emit("proposals.json", proposals)
+    _emit("coworker_data_files.json", generate_coworker_data_files(rng, proposals))
 
+    _write_manifest(seed)
     print("Done.")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Pre-generate test data files")
     parser.add_argument("--seed", type=int, default=RANDOM_SEED, help="Random seed")
+    parser.add_argument("--fresh", action="store_true",
+                         help="Regenerate every file from scratch, ignoring plan-manifest.json "
+                              "(default: keep existing records, append only new ones)")
     for volume_key in CONFIGURABLE_VOLUME_KEYS:
         flag, dest = FLAG_SPEC[volume_key]
         parser.add_argument(flag, dest=dest, type=int, default=None,
@@ -1771,7 +1861,7 @@ def main():
     }
     volumes = {**VOLUMES, **overrides}
 
-    generate_all(args.seed, volumes)
+    generate_all(args.seed, volumes, fresh=args.fresh)
 
 
 if __name__ == "__main__":

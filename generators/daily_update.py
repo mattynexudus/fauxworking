@@ -40,6 +40,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import pipeline
 from generators.base import BaseGenerator
 from config import TEST_EMAIL_DOMAIN, TEST_NAME_PREFIX, to_utc_str
 
@@ -51,6 +52,8 @@ def parse_args():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--date", type=str, help="Specific date, YYYY-MM-DD (default: today)")
     parser.add_argument("--days", type=int, default=1, help="Backfill this many days ending at --date/today")
+    parser.add_argument("--business-id", type=int, default=None,
+                         help="Which business/location to run against, if this login has access to more than one")
     return parser.parse_args()
 
 
@@ -318,10 +321,21 @@ class DailyUpdateGenerator(BaseGenerator):
                 self.count_create()
 
 
-def resolve_context(nexudus_list):
-    """Live-query business/coworker/resource context — no prev_output chain here."""
+def resolve_context(nexudus_list, business_id=None):
+    """Live-query business/coworker/resource context — no prev_output chain here.
+
+    business_id picks which business (location) to run against, for logins
+    with access to more than one — see pipeline._select_business. Left None,
+    that resolves the normal way: the account's one business, or a loud
+    SystemExit listing the options if there's more than one and none was
+    given, same as every other entry point (CLAUDE.md rule 8). This used to
+    always silently pick businesses[0] regardless — harmless on a
+    single-business login, but a real trap the moment a caller (e.g. the web
+    control panel's location selector) expects the chosen business to
+    actually be honored here too.
+    """
     businesses = nexudus_list("businesses", {})
-    business_id = businesses[0]["Id"] if businesses else None
+    business_id = pipeline._select_business(businesses, business_id)["Id"]
 
     # Coworker_Email is an exact-match filter, not a substring/contains —
     # filtering by "@{domain}" always returns zero results. List every
@@ -403,7 +417,7 @@ if __name__ == "__main__":
         sys.path.insert(0, str(Path(__file__).parent.parent))
         import nexudus_client as client
 
-        context = resolve_context(client.nexudus_list)
+        context = resolve_context(client.nexudus_list, business_id=args.business_id)
         for d in dates:
             gen = DailyUpdateGenerator(target_date=d, dry_run=False)
             gen.run(

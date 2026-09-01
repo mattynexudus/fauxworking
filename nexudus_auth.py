@@ -32,7 +32,9 @@ import time
 from pathlib import Path
 
 import requests
-from dotenv import load_dotenv, set_key
+from dotenv import load_dotenv, set_key, unset_key
+
+TOKEN_ENV_KEYS = ("NEXUDUS_ACCESS_TOKEN", "NEXUDUS_REFRESH_TOKEN", "NEXUDUS_TOKEN_EXPIRES_AT")
 
 PROJECT_ROOT = Path(__file__).parent
 ENV_PATH = PROJECT_ROOT / ".env"
@@ -100,26 +102,52 @@ def _check_admin_access(access_token, email):
     print(f"✓ Authenticated as {me.get('Email')} — admin.")
 
 
-def setup():
-    print(f"Nexudus login ({base_url()})")
-    email = input("Email: ").strip()
-    password = getpass.getpass("Password: ")
+def authenticate(email, password):
+    """Exchange an email + password for an OAuth2 token pair, persist the
+    tokens to .env (chmod 600), and verify the account is a Nexudus admin.
 
+    The non-interactive core of setup() — no prompts, no getpass — reused by
+    the browser control panel's login endpoint. Same failure semantics as
+    setup(): raises SystemExit on a bad login or a non-admin account (tokens
+    are still written before the admin check, exactly as before). Returns the
+    raw token payload; disposing of `password` is the caller's job.
+    """
     resp = requests.post(
         f"{base_url()}/api/token",
         data={"grant_type": "password", "username": email, "password": password},
         timeout=30,
     )
-    del password  # out of memory as soon as we're done with it
-
     if resp.status_code != 200:
         raise SystemExit(f"Login failed ({resp.status_code}): {resp.text[:300]}")
 
     payload = resp.json()
     _save_tokens(payload["access_token"], payload["refresh_token"], payload["expires_in"])
-    print(f"✓ Tokens saved to {ENV_PATH} (chmod 600, gitignored).")
-
     _check_admin_access(payload["access_token"], email)
+    return payload
+
+
+def is_authenticated():
+    """True if get_access_token() would succeed right now — tokens present in
+    .env and still valid or refreshable. Lets the control panel render its
+    auth banner without side effects (a refresh, if due, is a harmless
+    side effect get_access_token() would do on the next real call anyway)."""
+    try:
+        get_access_token()
+        return True
+    except SystemExit:
+        return False
+
+
+def setup():
+    print(f"Nexudus login ({base_url()})")
+    email = input("Email: ").strip()
+    password = getpass.getpass("Password: ")
+    try:
+        payload = authenticate(email, password)
+    finally:
+        del password  # out of memory as soon as we're done with it
+
+    print(f"✓ Tokens saved to {ENV_PATH} (chmod 600, gitignored).")
     print(f"✓ Access token valid for ~{int(payload['expires_in']) // 3600}h; "
           "will auto-refresh on future runs.")
 
@@ -157,8 +185,30 @@ def get_access_token():
     return payload["access_token"]
 
 
+def logout():
+    """Clear the stored tokens — from .env, and from this process's own
+    os.environ.
+
+    Both matter: get_access_token() calls load_dotenv(ENV_PATH,
+    override=True), and python-dotenv's override only touches keys still
+    present *in the file* — a key removed from the file leaves a
+    long-running process's os.environ holding the old value behind, which
+    would make this appear to silently do nothing from inside e.g. the web
+    control panel's server process. The CLI and the panel share this one
+    .env, so this signs both out.
+    """
+    for key in TOKEN_ENV_KEYS:
+        if ENV_PATH.exists():
+            unset_key(str(ENV_PATH), key)
+        os.environ.pop(key, None)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 2 or sys.argv[1] != "setup":
-        print("Usage: python nexudus_auth.py setup")
+    if len(sys.argv) == 2 and sys.argv[1] == "setup":
+        setup()
+    elif len(sys.argv) == 2 and sys.argv[1] == "logout":
+        logout()
+        print("✓ Signed out — tokens removed from .env.")
+    else:
+        print("Usage: python nexudus_auth.py setup|logout")
         sys.exit(1)
-    setup()

@@ -99,6 +99,29 @@ If you want to remove everything this tool created:
 
 It'll show you what it's about to delete and ask you to type "yes" first. This only ever deletes records it created and tracked itself — never anything else in the account, and never by guessing based on names.
 
+## The control panel (browser UI)
+
+If you'd rather click buttons than remember flags, there's a small local web page that runs all of the above for you:
+
+```bash
+./fauxworking ui
+```
+
+Then open **<http://127.0.0.1:8765>**. It's bound to your machine only, on purpose — the panel can trigger teardown and the process holds your Nexudus login tokens, so it's not meant to be reachable from anywhere else.
+
+What it does:
+
+- **Log in / sign out from the browser.** If `.env` has no valid token yet you get a login form (the same one-time exchange as `python3 nexudus_auth.py setup`); the header shows whether you're signed in, and **Sign out** clears the token — for the CLI too, since they share `.env`.
+- **A guided "Set up demo data" flow up front** — three steps (volumes → options → review) that mirror the terminal wizard: pick how much data, choose all layers or stop at one, see the exact equivalent command, then **Preview (dry run)** and, only after that, **Run for real**. Step one shows how many of each entity are already seeded live and prefills the current count — bumping a number **adds** that many; it never rewrites or removes what's there (that's `prebuild`'s new incremental default — a "Start data fresh" checkbox in step two opts out). Preview and live regenerate `data/*.json` the same way, so they always agree.
+- **The individual commands below that**, grouped and ordered — Seed to Nexudus · Keep it fresh · Check (read-only) · Danger zone — each card tagged with what it touches (offline / read-only / writes live / deletes). Dry-run/live is one toggle per card, not two cards. (Regenerating `data/*.json` on its own isn't a card — the guided flow does it as step one; `python3 prebuild.py` still does it from the terminal.)
+- **A location selector in the header** that every command which takes one is run against, so the target is never ambiguous. Live commands stay disabled until you pick one on a multi-location login.
+- **Live output**, streamed as it happens, plus a durable log per run under `logs/` (gitignored) — a browser refresh or reopening the tab doesn't lose it.
+- **One run at a time** — a second command while one is active is refused, not queued.
+- **Safety by default.** Dry-run is pre-checked wherever it applies; a live write needs a second confirming click; teardown's live delete needs its exact confirmation phrase typed. Clean-mode teardown (ignore tracking, delete everything found live) is intentionally terminal-only.
+- **Results after every run** — the same "what's in the account now" table `./fauxworking verify` prints, the full `last-run-report.txt`, and `output/*.csv` download links.
+
+`scripts/ui.sh --host 0.0.0.0` (or `$FAUXWORKING_UI_PORT`/`$FAUXWORKING_UI_HOST`) exists if you really want it reachable from another machine on your network, but there's no login wall beyond the Nexudus one — only do that on a network you trust.
+
 ## Getting more control (optional)
 
 `./fauxworking` also has a couple of other commands:
@@ -107,6 +130,7 @@ It'll show you what it's about to delete and ask you to type "yes" first. This o
 ./fauxworking daily     # Add a few fresh records "for today" (handy to run daily)
 ./fauxworking verify    # Check what's in the account against expected counts
 ./fauxworking refresh   # Pull in invoices Nexudus raised on its own, re-export output/
+./fauxworking ui        # Open the browser control panel (see above)
 ```
 
 If you don't want to use the wrapper at all, you can run the same steps yourself directly:
@@ -129,7 +153,7 @@ python3 prebuild.py --coworkers 10 --bookings 20
 
 Run `python3 prebuild.py --help` to see every option.
 
-If your login has access to more than one business/location, pass `--business-id <id>` to `seed_all.sh`, `seed_layer.sh`, or any `generators/0N_*.py` directly — otherwise it'll ask you to pick one rather than guessing.
+If your login has access to more than one business/location, pass `--business-id <id>` to `seed_all.sh`, `seed_layer.sh`, `daily.sh`/`generators/daily_update.py`, or any `generators/0N_*.py` directly — otherwise it'll list the options and stop rather than guessing. (`daily_update.py` used to silently use the first business; it now follows the same rule as everything else.)
 
 Every command above also supports `--dry-run` if you want to preview without creating anything.
 

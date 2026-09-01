@@ -166,6 +166,16 @@ RANDOM_SEED = 42
 WRITE_PACING_SECONDS = 0.1
 
 # ---------------------------------------------------------------------------
+# Local browser control panel — see scripts/ui.sh / `./fauxworking ui`
+# ---------------------------------------------------------------------------
+# Bound to localhost only. scripts/ui.sh forwards --host/--port for a future
+# LAN use, but no token auth / LAN hardening is built — the panel can trigger
+# teardown and the process holds Nexudus tokens, so keep it on 127.0.0.1.
+# Env FAUXWORKING_UI_HOST / FAUXWORKING_UI_PORT override at launch.
+WEB_UI_HOST = "127.0.0.1"
+WEB_UI_PORT = 8765
+
+# ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 from pathlib import Path
@@ -174,3 +184,4 @@ PROJECT_ROOT = Path(__file__).parent
 DATA_DIR = PROJECT_ROOT / "data"
 CREATED_IDS_DIR = DATA_DIR / "created-ids"
 OUTPUT_DIR = PROJECT_ROOT / "output"
+LOGS_DIR = PROJECT_ROOT / "logs"  # one file per control-panel run: logs/run-<ts>-<command>.log

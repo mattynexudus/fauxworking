@@ -64,6 +64,9 @@ def parse_args():
                          help="Skip the preview and go straight to a live run")
     parser.add_argument("--dry-run", action="store_true",
                          help="Preview only — don't offer to run live afterward")
+    parser.add_argument("--fresh", action="store_true",
+                         help="Regenerate data/*.json from scratch instead of appending to "
+                              "what's already there (see prebuild.py)")
     parser.add_argument("--layer", type=int, default=None,
                          help=f"How many layers to run, 0-{len(pipeline.LAYERS) - 1} (default: all of them)")
     parser.add_argument("--yes", action="store_true",
@@ -290,7 +293,7 @@ def main():
     seed = args.seed if args.seed is not None else config.RANDOM_SEED
 
     print("=== Generating data ===")
-    prebuild.generate_all(seed, volumes)
+    prebuild.generate_all(seed, volumes, fresh=args.fresh)
     print()
 
     layer_index = collect_layer_index(args)
