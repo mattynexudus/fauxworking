@@ -55,6 +55,13 @@ def gather_plan() -> dict:
     }
 
 
+# last-run-report.txt ends with a full copy of report_lib.report_lines() under
+# this header (see report_lib.write_report). The panel already shows that live
+# table as the main "Results" block, so the last-run view is trimmed to just
+# the run-specific part above it: timestamp, layer failures, this-run reconciliation.
+_CUMULATIVE_MARKER = "=== What's in the account now (cumulative, all runs) ==="
+
+
 def gather_report() -> dict:
     try:
         lines = report_lib.report_lines()
@@ -65,7 +72,9 @@ def gather_report() -> dict:
     try:
         path = report_lib.REPORT_PATH
         if path.exists():
-            last_run_report = path.read_text(encoding="utf-8")
+            text = path.read_text(encoding="utf-8")
+            head = text.split(_CUMULATIVE_MARKER, 1)[0].rstrip()
+            last_run_report = head or text
     except OSError:
         last_run_report = None
 

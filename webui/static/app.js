@@ -802,7 +802,7 @@ async function loadReport() {
   let r;
   try { r = await api("/api/report"); } catch (_) { return; }
   $("#report").textContent = (r.report_lines || []).join("\n");
-  $("#last-run").textContent = r.last_run_report || "(no last-run-report.txt yet)";
+  $("#last-run").textContent = r.last_run_report || "(no live seeding run yet)";
   const ul = $("#outputs");
   ul.innerHTML = "";
   if (!(r.outputs || []).length) {
