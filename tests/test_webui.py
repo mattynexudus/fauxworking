@@ -249,6 +249,15 @@ class TestRegistryShape(unittest.TestCase):
         guided = [c.id for c in registry.REGISTRY if c.guided_only]
         self.assertEqual(guided, ["wizard"])
 
+    def test_pipeline_is_hidden_but_still_runnable(self):
+        # not shown as a card (guided flow covers "seed the current plan"),
+        # but kept for CLI/API parity.
+        self.assertTrue(registry.BY_ID["pipeline"].hidden)
+        self.assertIn("pipeline.py", build_argv("pipeline"))
+        blob = {c["id"]: c for c in registry.commands_json()["commands"]}
+        self.assertTrue(blob["pipeline"]["hidden"])
+        self.assertFalse(blob["verify"]["hidden"])
+
     def test_wizard_volume_params_all_have_defaults(self):
         # regression: they used to render as 11 blank boxes. The guided flow
         # drives itself from wizard's param defs, so this is where it matters.

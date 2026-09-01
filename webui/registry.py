@@ -125,7 +125,8 @@ class Command:
     writes_live: bool = False
     notes: str = ""
     tone: str = "safe"         # safe | read | live | danger — the badge shown on its card
-    guided_only: bool = False  # True => not listed; only reachable via the guided flow
+    guided_only: bool = False  # True => the guided flow renders itself from this entry
+    hidden: bool = False       # True => runnable via /api/run and the CLI, but not shown as a card
 
     def __post_init__(self):
         assert self.group in GROUP_IDS, f"{self.id}: unknown group {self.group!r}"
@@ -157,12 +158,16 @@ def _volume_params(with_defaults: bool) -> list:
 
 REGISTRY = [
     Command(
+        # Not shown as a card: the guided "Set up demo data" flow now skips the
+        # regenerate step when nothing changed, so it covers "seed the current
+        # plan" too. Kept here for CLI/API parity (python pipeline.py, or a
+        # direct POST /api/run).
         id="pipeline",
         label="Seed data to Nexudus",
         group="seed",
         tone="live",
-        description="Run the live seed chain. Pick a layer to stop after — earlier layers "
-                    "always run first (re-running them is a safe no-op).",
+        hidden=True,
+        description="Seed data/*.json into the live account without regenerating it first.",
         argv_head=["pipeline.py"],
         params=[Param("layer", "choice", "Through layer", flag=None, default="",
                       choices=[["", "All layers (0–7)"]] + _LAYER_CHOICES,
@@ -408,6 +413,7 @@ def _command_json(c: Command) -> dict:
         "notes": c.notes,
         "tone": c.tone,
         "guided_only": c.guided_only,
+        "hidden": c.hidden,
         "params": [
             {
                 "name": p.name, "type": p.type, "label": p.label, "flag": p.flag,

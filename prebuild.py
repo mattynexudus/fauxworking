@@ -1,14 +1,14 @@
 """
 Pre-generate all faker-dependent data into static JSON files.
 
-Runs **incrementally** by default: a `data/plan-manifest.json` records the
-seed and per-entity counts of the last run, and re-running with the same seed
-keeps every record already on disk and only *appends* the newly-requested
-tail. Bumping `--coworkers 50` to `60` adds 10; it never rewrites the first
-50 (which may already be seeded live) or shrinks a file. Lowering a count is
-a no-op with a warning — un-seeding is `teardown.py`'s job. `--fresh`
-regenerates everything from scratch (also what happens automatically when the
-seed changes).
+Runs **incrementally** by default: whenever a plan is already on disk (and the
+seed hasn't changed), every record on disk is kept and only the newly-requested
+tail is appended. Bumping `--coworkers 50` to `60` adds 10; it never rewrites
+the first 50 (which may already be seeded live) or shrinks a file. Lowering a
+count is a no-op with a warning — un-seeding is `teardown.py`'s job. If **no**
+target exceeds what's on disk, generation is skipped entirely. `--fresh` (or a
+changed `--seed`) rebuilds everything from scratch. `data/plan-manifest.json`
+records the seed + counts of the last run for tooling to read.
 
 The generated files are gitignored (data/*.json) — each user generates their
 own rather than sharing one specific run's output; generators read them at runtime.
@@ -1728,23 +1728,49 @@ FLAG_SPEC = {
 }
 
 
+def _plan_covers(volumes) -> bool:
+    """True if every data/*.json is present and already at least as long as its
+    configurable target — i.e. regenerating would only rewrite identical files."""
+    for key, fname in _PRIMARY_FILE.items():
+        try:
+            have = len(json.loads((DATA_DIR / fname).read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            return False
+        if volumes.get(key) is not None and volumes[key] > have:
+            return False
+    # a couple of non-configurable files must exist too, so a half-wiped
+    # data/ dir doesn't count as "covered"
+    return (DATA_DIR / "contracts.json").exists() and (DATA_DIR / "bookings.json").exists()
+
+
 def generate_all(seed, volumes, fresh=False):
     """Generate every data/*.json file. `volumes` is a full config.VOLUMES-
     shaped dict — pass config.VOLUMES itself to reproduce the default
     output exactly, or override any of CONFIGURABLE_VOLUME_KEYS in a copy
     of it (see main() and wizard.py for how the CLI/wizard build that).
 
-    Incremental by default (see the module docstring): with `fresh=False` and
-    a plan-manifest.json recorded at the same seed, every file's existing
-    records are kept and only the newly-requested tail is appended. `fresh=True`
-    (or a changed seed) regenerates everything.
+    Incremental by default (see the module docstring): whenever a plan is
+    already on disk and the seed hasn't changed, every file's existing records
+    are kept and only the newly-requested tail is appended — and if no target
+    exceeds what's on disk, generation is skipped entirely (nothing to do).
+    `fresh=True` or a changed seed rebuilds everything from scratch.
     """
     manifest = _read_manifest()
-    same_seed = manifest is not None and manifest.get("seed") == seed
-    incremental = not fresh and same_seed
-    if not fresh and manifest is not None and not same_seed:
-        print(f"Note: seed changed {manifest.get('seed')} -> {seed} — regenerating every file "
+    manifest_seed = manifest.get("seed") if manifest else None
+    seed_changed = manifest_seed is not None and manifest_seed != seed
+    plan_present = all((DATA_DIR / f).exists() for f in _PRIMARY_FILE.values())
+    incremental = not fresh and plan_present and not seed_changed
+
+    if seed_changed and not fresh:
+        print(f"Note: seed changed {manifest_seed} -> {seed} — regenerating every file "
               f"from scratch; this will diverge from whatever's already been seeded live.")
+
+    if incremental and _plan_covers(volumes):
+        print("Plan already covers every target — skipping regeneration "
+              "(raise a volume target, or pass --fresh, to rebuild).")
+        _write_manifest(seed)
+        print("Done.")
+        return
 
     rng = random.Random(seed)
     fake = Faker("en_GB")

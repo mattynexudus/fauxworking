@@ -525,7 +525,8 @@ function updateGuidedCard() {
       const d = Number(gVal(k, planCount(k) ?? 0)) - Number(planCount(k) ?? 0);
       return d > 0 ? `+${d} ${labelOf(k).toLowerCase()}` : null;
     }).filter(Boolean);
-    delta = parts.length ? `Adds ${parts.join(", ")}.` : "No new data — re-seeds the current plan.";
+    delta = parts.length ? `Adds ${parts.join(", ")}.`
+      : "No target raised — regeneration is skipped, it just seeds the current plan.";
   }
   const layerTxt = gVal("layer") ? `layers 0–${gVal("layer")}` : "every layer";
   $("#guided-delta").textContent = `${delta} Then seeds ${layerTxt}.`;
@@ -582,20 +583,22 @@ function renderGroups() {
   if (!state.auth) return;
   const wrap = $("#groups");
   wrap.innerHTML = "";
-  const listed = state.commands.filter(c => !c.guided_only);
+  const listed = state.commands.filter(c => !c.guided_only && !c.hidden);
   $("#commands-wrap > summary").textContent = `Individual commands (${listed.length})`;
 
-  state.groups.forEach((g, i) => {
+  let n = 0;
+  for (const g of state.groups) {
     const cmds = listed.filter(c => c.group === g.id);
-    if (!cmds.length) return;
+    if (!cmds.length) continue;
     const sec = el("section", { class: "group tone-" + g.tone });
     sec.append(el("div", { class: "group-head" },
-      el("span", { class: "gnum", text: ["①", "②", "③", "④", "⑤"][i] || String(i + 1) }),
+      el("span", { class: "gnum", text: ["①", "②", "③", "④", "⑤"][n] || String(n + 1) }),
       el("h3", { text: g.label }),
       el("span", { class: "gblurb", text: g.blurb })));
     for (const c of cmds) sec.append(renderCard(c));
     wrap.append(sec);
-  });
+    n++;
+  }
 }
 
 function renderCard(c) {

@@ -77,6 +77,30 @@ class TestPrebuildIncremental(unittest.TestCase):
         prebuild.generate_all(42, _vol(coworkers=3), fresh=True)
         self.assertEqual(len(self._read("coworkers.json")), 3)
 
+    def test_regeneration_skipped_when_no_target_grows(self):
+        prebuild.generate_all(42, _vol(coworkers=6))
+        before = (self.data / "coworkers.json").stat().st_mtime_ns
+        contracts_before = self._read("contracts.json")
+
+        # same targets, nothing raised -> _plan_covers() true -> skip
+        prebuild.generate_all(42, _vol(coworkers=6))
+        self.assertEqual((self.data / "coworkers.json").stat().st_mtime_ns, before)
+        self.assertEqual(self._read("contracts.json"), contracts_before)
+
+        # raise one target -> not covered -> runs again
+        prebuild.generate_all(42, _vol(coworkers=9))
+        self.assertEqual(len(self._read("coworkers.json")), 9)
+
+    def test_incremental_without_a_manifest(self):
+        # plan files present, manifest absent -> still keeps what's on disk
+        prebuild.generate_all(42, _vol(coworkers=6))
+        (self.data / "plan-manifest.json").unlink()
+        head = self._read("coworkers.json")
+        prebuild.generate_all(42, _vol(coworkers=8))
+        grown = self._read("coworkers.json")
+        self.assertEqual(grown[:6], head)
+        self.assertEqual(len(grown), 8)
+
 
 if __name__ == "__main__":
     unittest.main()
