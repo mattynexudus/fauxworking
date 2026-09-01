@@ -189,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
             )
         except BadRequest as e:
             return self._send_json({"error": str(e)}, status=400)
-        self._send_json({"argv": argv, "display": " ".join(argv)})
+        self._send_json({"argv": argv, "display": " ".join(registry.pretty_argv(argv))})
 
     def _api_logout(self):
         if self.server.manager.active() is not None:

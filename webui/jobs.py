@@ -34,6 +34,7 @@ from webui.registry import BadRequest
 
 _HEARTBEAT_SECS = 15
 _CANCEL_GRACE_SECS = 10
+_MAX_LOG_FILES = 200   # keep the newest N run-*.log; prune the rest on each start
 
 
 class RunInProgress(Exception):
@@ -79,6 +80,7 @@ class Job:
             "run_id": self.run_id,
             "command": self.command,
             "argv": self.argv,
+            "argv_display": " ".join(registry.pretty_argv(self.argv)) if self.argv else None,
             "status": self.status,
             "started_at": self.started_at,
             "ended_at": self.ended_at,
@@ -166,6 +168,7 @@ class JobManager:
 
             run_id = self._next_run_id(command_id)
             self._logs_dir.mkdir(parents=True, exist_ok=True)
+            self._prune_logs()
             log_path = self._logs_dir / f"run-{run_id}.log"
             log_fh = open(log_path, "w", encoding="utf-8")
             log_fh.write(f"# {_now_iso()}  cwd={config.PROJECT_ROOT}  argv={argv}\n")
@@ -239,6 +242,20 @@ class JobManager:
         return ordered[:limit]
 
     # -- internals ----------------------------------------------------------
+    def _prune_logs(self) -> None:
+        """Keep only the newest _MAX_LOG_FILES run-*.log — the Runs view shows a
+        capped list and nothing else reads old logs, so they just accumulate."""
+        try:
+            files = sorted(self._logs_dir.glob("run-*.log"),
+                           key=lambda p: p.stat().st_mtime, reverse=True)
+        except OSError:
+            return
+        for p in files[_MAX_LOG_FILES:]:
+            try:
+                p.unlink()
+            except OSError:
+                pass
+
     def _next_run_id(self, command_id) -> str:
         base = f"{time.strftime('%Y%m%d-%H%M%S')}-{command_id}"
         taken = {j.run_id for j in self._history}

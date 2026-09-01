@@ -105,7 +105,8 @@ class Param:
     choices: list | None = None   # [[value, label], ...] for type == "choice"
     help: str = ""             # shown as a caption beside the field, every type
     min: object = None
-    max: object = None
+    max: object = None         # hard cap — rejected by _coerce
+    soft_max: object = None    # advisory — the UI warns "large / long run" past this
     selector: bool = False    # True => not an argv token; it picks the target script
 
 
@@ -145,9 +146,11 @@ def _volume_params(with_defaults: bool) -> list:
         help_text = f"default {config.VOLUMES[key]}"
         if key == "coworkers":
             help_text = f"Nexudus caps this at ~{COWORKER_DAILY_LIMIT}/day, per account"
+        # advisory ceiling: well above the default, but past it a run gets slow
+        soft = None if key == "coworkers" else max(400, config.VOLUMES[key] * 5)
         out.append(Param(
             name=key, type="int", label=VOLUME_LABELS[key], flag=flag,
-            default=default, min=0, max=max_, help=help_text,
+            default=default, min=0, max=max_, soft_max=soft, help=help_text,
         ))
     return out
 
@@ -180,7 +183,7 @@ REGISTRY = [
         params=[
             Param("date", "date", "Target date", flag="--date", help="default: today"),
             Param("days", "int", "Days to backfill", flag="--days", default=1, min=1,
-                  help="N days ending at the target date"),
+                  soft_max=14, help="N days ending at the target date — one run per day, so a big number is a long run"),
         ],
         accepts_business_id=True,
         offers_dry_run=True,
@@ -214,10 +217,11 @@ REGISTRY = [
         description="prebuild + pipeline in one go. Regenerates data/*.json, then seeds.",
         argv_head=["wizard.py"],
         params=[
-            Param("layer", "int", "Through layer", flag="--layer", default=_MAX_LAYER,
-                  min=0, max=_MAX_LAYER, help=f"0-{_MAX_LAYER}"),
+            Param("layer", "choice", "Through layer", flag="--layer", default="",
+                  choices=[["", "All layers (0–7)"]] + _LAYER_CHOICES,
+                  min=0, max=_MAX_LAYER, help="stop after this layer; earlier layers run first"),
             Param("seed", "int", "Seed", flag="--seed", default=config.RANDOM_SEED,
-                  help="reproducible — same seed, same data"),
+                  help="changing this forces a full rebuild (--fresh) of every data file"),
             Param("export_csv", "bool", "Export CSVs to output/", flag="--export-csv",
                   default=True, help="writes output/*.csv when this run goes live"),
             Param("fresh", "bool", "Start data fresh", flag="--fresh", default=False,
@@ -298,7 +302,9 @@ def _build_wizard_argv(params, business_id, dry_run) -> list:
 
     by_name = {p.name: p for p in cmd.params}
 
-    layer = _coerce(by_name["layer"], params.get("layer")) or by_name["layer"].default
+    layer = _coerce(by_name["layer"], params.get("layer"))
+    if layer in (None, ""):
+        layer = _MAX_LAYER          # blank / "all layers" => through the last one
     argv += ["--layer", str(layer)]
 
     seed = _coerce(by_name["seed"], params.get("seed"))
@@ -377,6 +383,17 @@ def build_argv(command_id, params=None, business_id=None, dry_run=False) -> list
     return argv
 
 
+def pretty_argv(argv) -> list:
+    """argv with the interpreter path collapsed to `python` and `-u` dropped —
+    for display only, never for execution."""
+    out = list(argv)
+    if out and out[0] == PY[0]:
+        out[0] = "python"
+        if len(out) > 1 and out[1] == "-u":
+            del out[1]
+    return out
+
+
 def _command_json(c: Command) -> dict:
     return {
         "id": c.id,
@@ -395,7 +412,7 @@ def _command_json(c: Command) -> dict:
             {
                 "name": p.name, "type": p.type, "label": p.label, "flag": p.flag,
                 "default": p.default, "choices": p.choices, "help": p.help,
-                "min": p.min, "max": p.max, "selector": p.selector,
+                "min": p.min, "max": p.max, "soft_max": p.soft_max, "selector": p.selector,
             }
             for p in c.params
         ],

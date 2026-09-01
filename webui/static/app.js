@@ -25,26 +25,17 @@ const store = {
 
 async function api(path, opts) {
   let res;
-  try {
-    res = await fetch(path, opts);
-  } catch (_) {
-    setConn(false);
-    const e = new Error("network");
-    e.offline = true;
-    throw e;
-  }
+  try { res = await fetch(path, opts); }
+  catch (_) { setConn(false); const e = new Error("network"); e.offline = true; throw e; }
   setConn(true);
   let body = null;
   try { body = await res.json(); } catch (_) {}
   if (!res.ok) {
     const e = new Error((body && body.error) || res.statusText);
-    e.status = res.status;
-    e.body = body;
-    throw e;
+    e.status = res.status; e.body = body; throw e;
   }
   return body;
 }
-
 const jpost = (path, obj) =>
   api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(obj || {}) });
 
@@ -52,6 +43,31 @@ function setConn(ok) {
   if (ok === state.connOk) return;
   state.connOk = ok;
   $("#conn-banner").hidden = ok;
+}
+
+function setTitle(marker) {
+  document.title = marker ? `${marker} · Fauxworking` : "Fauxworking control panel";
+}
+
+// Two-click confirm on a button, auto-disarming after `ms`. Replaces native confirm().
+function armable(btn, { armLabel, run, ms = 4000 }) {
+  const orig = btn.textContent;
+  let armed = false, timer = null;
+  const disarm = () => {
+    armed = false; btn.classList.remove("armed"); btn.textContent = orig;
+    if (timer) { clearTimeout(timer); timer = null; }
+  };
+  btn.addEventListener("click", () => {
+    if (btn.disabled) return;
+    if (!armed) {
+      armed = true; btn.classList.add("armed"); btn.textContent = armLabel;
+      timer = setTimeout(disarm, ms);
+      return;
+    }
+    disarm(); run();
+  });
+  btn._disarm = disarm;
+  return btn;
 }
 
 /* ============================================================ state */
@@ -70,19 +86,22 @@ const state = {
   businessId: null,
   bizError: null,
   activeRunId: null,
-  activeStartedAt: null,
   stream: null,
   streamingRunId: null,
   streamErrCount: 0,
-  lastRun: null,          // {command, dryRun}
-  plan: null,             // {seed, counts, seeded} from /api/plan
-  guided: { step: 0, values: {} },
+  lastRun: null,          // {command, dryRun, status}
+  plan: null,             // {seed, counts, seeded}
+  volCells: {},           // key -> {live, plan, row, input}
+  argvCache: { key: null, display: "" },
+  pollTick: 0,
+  ticker: null,           // 1s elapsed ticker while a run is active
+  guided: { values: {} },
 };
 
 /* ============================================================ boot */
 async function loadAll() {
   await loadBusinesses(false);
-  await loadCommands();
+  if (!(await loadCommands())) return;
   await loadPlan();
   renderVolumesPanel();
   renderGuided();
@@ -98,8 +117,6 @@ async function loadPlan() {
   try { state.plan = await api("/api/plan"); } catch (_) {}
 }
 
-// Logged out: nothing but the login card. Tear down any live view and clear
-// state so a session that expires mid-run leaves nothing stale behind #main.
 function showLoggedOut() {
   if (state.stream) { state.stream.close(); state.stream = null; }
   state.streamingRunId = null;
@@ -107,7 +124,9 @@ function showLoggedOut() {
   state.plan = null;
   state.commands = [];
   state.byId = {};
-  for (const id of ["groups", "volumes-body", "console", "report", "last-run", "runs-body"]) {
+  state.volCells = {};
+  setTitle(null);
+  for (const id of ["groups", "volumes-body", "step-body", "console", "report", "last-run", "runs-body"]) {
     const n = document.getElementById(id);
     if (n) n.textContent = "";
   }
@@ -119,8 +138,7 @@ function showLoggedOut() {
 
 async function refreshStatus() {
   let s;
-  try { s = await api("/api/status"); }
-  catch (_) { return; }
+  try { s = await api("/api/status"); } catch (_) { return; }
 
   const wasAuth = state.auth;
   state.auth = s.authenticated;
@@ -133,23 +151,43 @@ async function refreshStatus() {
   if (!s.authenticated) { showLoggedOut(); return; }
 
   state.activeRunId = s.active_run ? s.active_run.run_id : null;
-  state.activeStartedAt = s.active_run ? s.active_run.started_at : null;
   renderActiveRun(s.active_run);
   if (s.active_run && state.streamingRunId !== s.active_run.run_id) {
     attachStream(s.active_run.run_id, true);
   }
   updateAllRunStates();
 
-  if (!wasAuth) loadAll();   // first sight of an authenticated session
+  if (!wasAuth) { loadAll(); return; }
+
+  // slow background refresh (~21s) so a CLI run elsewhere doesn't leave us stale
+  state.pollTick = (state.pollTick + 1) % 7;
+  if (state.pollTick === 0 && !state.activeRunId) idleRefresh();
 }
 
-/* ============================================================ header: location + sign out */
+function idleRefresh() {
+  loadReport(); loadRuns();
+  loadPlan().then(() => { syncVolumesPanel(); updateGuidedCard(); });
+}
+
+/* ============================================================ header */
 function wireStatic() {
   $("#login-form").addEventListener("submit", onLogin);
-  $("#signout-btn").addEventListener("click", onSignOut);
+  armable($("#signout-btn"), { armLabel: "Sign out — CLI too?", run: doSignOut });
+  armable($("#cancel-btn"), { armLabel: "Really stop it?", run: doCancel });
   $("#results-refresh").addEventListener("click", loadReport);
   $("#runs-refresh").addEventListener("click", loadRuns);
-  $("#cancel-btn").addEventListener("click", onCancel);
+
+  const con = $("#console");
+  con.addEventListener("scroll", () => {
+    const atBottom = con.scrollHeight - con.scrollTop - con.clientHeight < 24;
+    if ($("#follow").checked !== atBottom) $("#follow").checked = atBottom;
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    setTitle(null);
+    if (state.auth && !state.activeRunId) idleRefresh();
+  });
 }
 
 async function onLogin(ev) {
@@ -165,14 +203,9 @@ async function onLogin(ev) {
   }
 }
 
-async function onSignOut() {
-  if (!confirm("Sign out? This clears the token for the CLI too (same .env).")) return;
-  try {
-    await jpost("/api/auth/logout", {});
-    location.reload();
-  } catch (e) {
-    alert(e.status === 409 ? e.message : "Sign out failed: " + e.message);
-  }
+async function doSignOut() {
+  try { await jpost("/api/auth/logout", {}); location.reload(); }
+  catch (e) { alert(e.status === 409 ? e.message : "Sign out failed: " + e.message); }
 }
 
 async function loadBusinesses(refresh) {
@@ -207,7 +240,7 @@ function renderLocation() {
         state.businessId = e.target.value ? Number(e.target.value) : null;
         store.set("businessId", state.businessId);
         updateAllRunStates();
-        if (state.guided.step >= 1) renderGuided();
+        updateGuidedCard();
       },
     });
     sel.append(el("option", { value: "" }, "— choose —"));
@@ -228,38 +261,46 @@ function renderLocation() {
 
 /* ============================================================ commands */
 async function loadCommands() {
-  const data = await api("/api/commands");
-  state.groups = data.groups || [];
-  state.commands = data.commands || [];
-  state.byId = Object.fromEntries(state.commands.map(c => [c.id, c]));
-  state.wizard = state.byId.wizard || null;
-  if (data.headline_volume_keys) state.headlineKeys = data.headline_volume_keys;
+  try {
+    const data = await api("/api/commands");
+    state.groups = data.groups || [];
+    state.commands = data.commands || [];
+    state.byId = Object.fromEntries(state.commands.map(c => [c.id, c]));
+    state.wizard = state.byId.wizard || null;
+    if (data.headline_volume_keys) state.headlineKeys = data.headline_volume_keys;
+    return true;
+  } catch (e) {
+    for (const id of ["volumes-body", "step-body", "groups"]) $(`#${id}`).innerHTML = "";
+    $("#step-body").append(
+      el("p", { class: "err small", text: (e.offline ? "Server unreachable." : e.message) + " " }),
+      el("button", { class: "btn small", onclick: () => loadAll() }, "Retry"));
+    return false;
+  }
 }
 
 function volumeParams() {
-  // wizard's int params minus seed/layer/export_csv == the 11 volume knobs
   return (state.wizard ? state.wizard.params : [])
     .filter(p => p.type === "int" && !["seed", "layer"].includes(p.name));
 }
 
-/* ---------- field rendering (shared) ---------- */
+/* ---------- shared field rendering ---------- */
 function renderField(p, value, onInput) {
   const wrap = el("div", { class: "field" + (p.type === "bool" ? " check" : "") });
-  const inputId = "f-" + Math.random().toString(36).slice(2, 8);
+  const id = "f-" + Math.random().toString(36).slice(2, 8);
   let input;
 
   if (p.type === "bool") {
-    input = el("input", { type: "checkbox", id: inputId });
+    input = el("input", { type: "checkbox", id });
     input.checked = value != null ? !!value : !!p.default;
     input.addEventListener("change", () => onInput(input.checked));
-    wrap.append(input, el("label", { for: inputId, text: p.label }));
+    wrap.append(input, el("label", { for: id, text: p.label }));
     if (p.help) wrap.append(el("span", { class: "hint", text: p.help }));
     return { wrap, input, get: () => input.checked };
   }
 
-  wrap.append(el("label", { for: inputId, text: p.label }));
+  wrap.append(el("label", { for: id, text: p.label }));
   if (p.type === "choice") {
-    input = el("select", { id: inputId });
+    input = el("select", { id });
     for (const [v, lbl] of p.choices || []) {
       const o = el("option", { value: String(v) }, lbl);
       if (String(v) === String(value != null ? value : p.default)) o.selected = true;
@@ -267,8 +308,7 @@ function renderField(p, value, onInput) {
     }
   } else {
     input = el("input", {
-      id: inputId,
-      type: p.type === "date" ? "date" : "number",
+      id, type: p.type === "date" ? "date" : "number",
       value: value != null ? value : (p.default != null ? p.default : ""),
     });
     if (p.min != null) input.min = p.min;
@@ -278,151 +318,159 @@ function renderField(p, value, onInput) {
   input.addEventListener("change", () => onInput(readInput(input, p)));
   wrap.append(input);
   if (p.help) wrap.append(el("span", { class: "hint", text: p.help }));
+
+  if (p.type === "int" && p.soft_max != null) {
+    const warn = el("span", { class: "warn-hint", hidden: true });
+    const check = () => {
+      const over = input.value !== "" && Number(input.value) > p.soft_max;
+      warn.hidden = !over;
+      warn.textContent = over ? "large value — expect a slow run" : "";
+      wrap.classList.toggle("warn", over);
+    };
+    input.addEventListener("input", check);
+    wrap.append(warn);
+    check();
+  }
   return { wrap, input, get: () => readInput(input, p) };
 }
 
 function readInput(input, p) {
   if (p.type === "bool") return input.checked;
-  const v = input.value;
-  return v === "" ? undefined : v;
+  return input.value === "" ? undefined : input.value;
+}
+function clearFieldErr(wrap) {
+  wrap.classList.remove("bad");
+  $$(".field-err", wrap).forEach(n => n.remove());
 }
 function setFieldErr(wrap, msg) {
   clearFieldErr(wrap);
   wrap.classList.add("bad");
   wrap.append(el("span", { class: "field-err", text: msg }));
 }
-function clearFieldErr(wrap) {
-  wrap.classList.remove("bad");
-  $$(".field-err", wrap).forEach(n => n.remove());
-}
 
 /* ============================================================ data volumes (standalone) */
+function gVal(name, dflt) { const v = state.guided.values[name]; return v != null ? v : dflt; }
+function gSet(name, v) { state.guided.values[name] = v; store.set("guided", state.guided.values); }
+function planCount(k) { return state.plan && state.plan.counts ? state.plan.counts[k] : undefined; }
+function planSeeded(k) { return (state.plan && state.plan.seeded ? state.plan.seeded[k] : 0) || 0; }
+
+function renderVolumesPanel() {
+  const body = $("#volumes-body");
+  if (!body) return;
+  body.innerHTML = "";
+  state.volCells = {};
+  if (!state.auth || !state.wizard) return;
+
+  const table = (rows) => {
+    const t = el("table", { class: "vol-table" });
+    t.append(el("tr", {},
+      el("th", { text: "" }), el("th", { text: "seeded" }), el("th", { text: "target" })));
+    for (const p of rows) t.append(volumeRow(p));
+    return t;
+  };
+  const params = Object.fromEntries(volumeParams().map(p => [p.name, p]));
+  body.append(table(state.headlineKeys.map(k => params[k]).filter(Boolean)));
+
+  const rest = volumeParams().filter(p => !state.headlineKeys.includes(p.name));
+  const seedP = state.wizard.params.find(p => p.name === "seed");
+  const more = el("details", { class: "more" });
+  more.append(el("summary", { text: `${rest.length} more entities` }));
+  more.append(table(rest));
+  body.append(more);
+
+  if (seedP) {
+    const f = renderField(seedP, gVal("seed"), v => { gSet("seed", v); syncVolumesPanel(); updateGuidedCard(); });
+    const warn = el("div", { class: "warn-hint", id: "seed-warn", hidden: true });
+    f.wrap.append(warn);
+    body.append(f.wrap);
+  }
+  body.append(el("p", { class: "muted small",
+    text: "Raising a target adds that many on the next run — it never rewrites or removes "
+        + "existing records. Lower one via teardown." }));
+  syncVolumesPanel();
+}
+
 function volumeRow(p) {
   const stored = state.guided.values[p.name];
   const start = (stored != null && stored !== "") ? stored
     : (planCount(p.name) != null ? planCount(p.name) : p.default);
   const input = el("input", { type: "number", min: p.min != null ? p.min : 0, value: start });
   if (p.max != null) input.max = p.max;
-  input.addEventListener("input", () => { gSet(p.name, input.value === "" ? undefined : input.value); });
-  const seeded = planSeeded(p.name), gen = planCount(p.name);
-  return el("tr", { class: "vol-row" },
-    el("td", { class: "vol-label", text: p.label }),
-    el("td", { class: "vol-num", text: seeded ? String(seeded) : "—" }),
-    el("td", { class: "vol-num", text: gen != null ? String(gen) : "—" }),
-    el("td", {}, input));
+  input.addEventListener("input", () => {
+    gSet(p.name, input.value === "" ? undefined : input.value);
+    syncVolumesPanel();
+    updateGuidedCard();
+  });
+  const live = el("td", { class: "vol-num" });
+  const row = el("tr", { class: "vol-row" },
+    el("td", { class: "vol-label", text: p.label }), live, el("td", {}, input));
+  state.volCells[p.name] = { live, row, input, p };
+  return row;
 }
 
-function renderVolumesPanel() {
-  const body = $("#volumes-body");
+// in-place update: seeded counts + soft-max / seed / cap warnings, no rebuild
+function syncVolumesPanel() {
+  for (const [key, c] of Object.entries(state.volCells)) {
+    const seeded = planSeeded(key), gen = planCount(key);
+    c.live.textContent = seeded ? String(seeded) : (gen != null ? String(gen) : "—");
+    const val = c.input.value === "" ? null : Number(c.input.value);
+    const over = val != null && ((c.p.max != null && val > c.p.max) ||
+      (c.p.soft_max != null && val > c.p.soft_max));
+    c.row.classList.toggle("warn", !!over);
+    c.input.classList.toggle("bad", c.p.max != null && val != null && val > c.p.max);
+  }
+  const sw = $("#seed-warn");
+  if (sw) {
+    const s = gVal("seed"), manifest = state.plan && state.plan.seed;
+    const changed = s != null && s !== "" && manifest != null && Number(s) !== Number(manifest);
+    sw.hidden = !changed;
+    sw.textContent = changed
+      ? "Seed differs from the last run — this forces a full rebuild and diverges from what's seeded live."
+      : "";
+  }
+}
+
+/* ============================================================ guided flow (single card) */
+function renderGuided() {
+  const body = $("#step-body");
   if (!body) return;
   body.innerHTML = "";
   if (!state.auth || !state.wizard) return;
 
-  const mk = (rows) => {
-    const t = el("table", { class: "vol-table" });
-    t.append(el("tr", {},
-      el("th", { text: "" }), el("th", { text: "live" }),
-      el("th", { text: "plan" }), el("th", { text: "target" })));
-    for (const p of rows) t.append(volumeRow(p));
-    return t;
-  };
-  const params = Object.fromEntries(volumeParams().map(p => [p.name, p]));
-  body.append(mk(state.headlineKeys.map(k => params[k]).filter(Boolean)));
-
-  const rest = volumeParams().filter(p => !state.headlineKeys.includes(p.name));
-  const seedP = state.wizard.params.find(p => p.name === "seed");
-  const more = el("details", { class: "more" });
-  more.append(el("summary", { text: `${rest.length + (seedP ? 1 : 0)} more settings` }));
-  more.append(mk(rest));
-  if (seedP) {
-    more.append(renderField(seedP, gVal("seed"), v => gSet("seed", v)).wrap);
-  }
-  body.append(more);
   body.append(el("p", { class: "muted small",
-    text: "Raising a target adds that many on the next run — it never rewrites or removes "
-        + "existing records. Lower one via teardown, not here." }));
-}
+    text: "Regenerates data/*.json from the Data volumes panel (incrementally), then seeds it." }));
 
-/* ============================================================ guided flow */
-const STEPS = ["Options", "Review & run"];
-
-function renderGuided() {
-  if (!state.auth || !state.wizard) return;
-  state.guided.step = Math.max(0, Math.min(STEPS.length - 1, state.guided.step | 0));
-  renderStepper();
-  const body = $("#step-body");
-  body.innerHTML = "";
-  ({ 0: guidedStepOptions, 1: guidedStepReview }[state.guided.step])(body);
-}
-
-function renderStepper() {
-  const sp = $("#stepper");
-  sp.innerHTML = "";
-  STEPS.forEach((label, i) => {
-    if (i) sp.append(el("span", { class: "bar" }));
-    const cls = i === state.guided.step ? "step active" : i < state.guided.step ? "step done" : "step";
-    sp.append(el("span", { class: cls },
-      el("span", { class: "num", text: i < state.guided.step ? "✓" : String(i + 1) }),
-      el("span", { text: label })));
-  });
-}
-
-function gVal(name, dflt) {
-  const v = state.guided.values[name];
-  return v != null ? v : dflt;
-}
-function gSet(name, v) {
-  state.guided.values[name] = v;
-  store.set("guided", state.guided.values);
-}
-
-function planCount(key) {
-  return state.plan && state.plan.counts ? state.plan.counts[key] : undefined;
-}
-function planSeeded(key) {
-  return (state.plan && state.plan.seeded ? state.plan.seeded[key] : 0) || 0;
-}
-function guidedStepOptions(body) {
-  body.append(el("h3", { text: "1 · Options" }));
-  body.append(el("p", { class: "muted small",
-    text: "Amounts come from the Data volumes panel above. This run regenerates data/*.json "
-        + "(incrementally) and seeds it." }));
-
-  const everything = gVal("everything", true);
-  const everWrap = el("div", { class: "field check" });
-  const everCb = el("input", { type: "checkbox", id: "g-everything" });
-  everCb.checked = everything !== false;
-  everCb.addEventListener("change", () => { gSet("everything", everCb.checked); renderGuided(); });
-  everWrap.append(everCb, el("label", { for: "g-everything", text: "Generate everything (recommended)" }));
-  body.append(everWrap);
-
-  if (everCb.checked === false) {
-    const layerP = state.wizard.params.find(p => p.name === "layer");
-    body.append(renderField(layerP, gVal("layer", layerP.default), v => gSet("layer", v)).wrap);
-  }
+  const layerP = state.wizard.params.find(p => p.name === "layer");
+  body.append(renderField(layerP, gVal("layer", layerP.default),
+    v => { gSet("layer", v); updateGuidedCard(); }).wrap);
 
   const exportP = state.wizard.params.find(p => p.name === "export_csv");
-  body.append(renderField(exportP, gVal("export_csv", true), v => gSet("export_csv", v)).wrap);
+  body.append(renderField(exportP, gVal("export_csv", true),
+    v => { gSet("export_csv", v); updateGuidedCard(); }).wrap);
 
   const freshP = state.wizard.params.find(p => p.name === "fresh");
-  if (freshP) body.append(renderField(freshP, gVal("fresh", false), v => gSet("fresh", v)).wrap);
+  body.append(renderField(freshP, gVal("fresh", false),
+    v => { gSet("fresh", v); updateGuidedCard(); }).wrap);
+  body.append(el("div", { class: "warn-hint", id: "guided-fresh-warn", hidden: true,
+    text: "Rewrites every data file from scratch — diverges from what's already seeded live." }));
 
-  if (state.bizMode === "multi") {
-    body.append(state.businessId
-      ? el("p", { class: "small muted", html: "Will seed into <strong>" +
-          escapeHtml(bizName(state.businessId)) + "</strong>." })
-      : el("p", { class: "err small", text: "Pick a location in the header above to continue." }));
-  } else if (state.bizMode === "single") {
-    body.append(el("p", { class: "small muted", html: "Will seed into <strong>" +
-      escapeHtml(state.businesses[0].name) + "</strong>." }));
-  }
+  body.append(el("p", { class: "small muted", id: "guided-biz" }));
+  body.append(el("p", { class: "review-summary", id: "guided-echo" }));
+  body.append(el("p", { class: "small muted", id: "guided-delta" }));
+  body.append(el("pre", { class: "review-cmd", id: "guided-cmd", text: "…" }));
+  body.append(el("div", { class: "card-err", id: "guided-err" }));
 
   const actions = el("div", { class: "step-actions" });
-  const next = el("button", { class: "btn primary",
-    onclick: () => { state.guided.step = 1; renderGuided(); } }, "Next →");
-  if (state.bizMode === "multi" && !state.businessId) next.disabled = true;
-  actions.append(el("span", { class: "spacer" }), next);
+  const preview = el("button", { class: "btn primary", id: "guided-preview",
+    onclick: () => runGuided(true) }, "Preview (dry run)");
+  const live = armable(el("button", { class: "btn danger", id: "guided-live" }, "Run for real"),
+    { armLabel: "Creates real records across every layer — click to confirm",
+      run: () => runGuided(false), ms: 5000 });
+  actions.append(el("span", { class: "spacer" }), preview, live);
   body.append(actions);
+  body.append(el("div", { class: "go-live-prompt", id: "guided-golive", hidden: true }));
+
+  updateGuidedCard();
 }
 
 function guidedParams() {
@@ -431,83 +479,102 @@ function guidedParams() {
     const v = state.guided.values[vp.name];
     if (v != null && v !== "") p[vp.name] = v;
   }
-  const seed = state.guided.values.seed;
-  if (seed != null && seed !== "") p.seed = seed;
+  for (const k of ["seed", "layer"]) {
+    const v = state.guided.values[k];
+    if (v != null && v !== "") p[k] = v;
+  }
   p.export_csv = gVal("export_csv", true) !== false;
   if (gVal("fresh", false) === true) p.fresh = true;
-  if (gVal("everything", true) === false) p.layer = gVal("layer", state.wizard.params.find(x => x.name === "layer").default);
   return p;
 }
 
-async function guidedStepReview(body) {
-  body.append(el("h3", { text: "2 · Review & run" }));
+function updateGuidedCard() {
+  if (!$("#guided-echo")) return;
+  const fresh = gVal("fresh", false) === true;
+  const seedChanged = (() => {
+    const s = gVal("seed"), m = state.plan && state.plan.seed;
+    return s != null && s !== "" && m != null && Number(s) !== Number(m);
+  })();
 
-  const params = guidedParams();
-  const loc = state.bizMode === "none" ? "the account's business" : bizName(state.businessId) || "—";
-  const layerTxt = gVal("everything", true) === false ? `layers 0–${gVal("layer")}` : "every layer";
+  $("#guided-fresh-warn").hidden = !(fresh || seedChanged);
+  if (seedChanged && !fresh)
+    $("#guided-fresh-warn").textContent =
+      "Seed changed — this run rebuilds every data file from scratch.";
 
-  let dataTxt;
-  if (gVal("fresh", false) === true) {
-    dataTxt = "Rebuild all local data from scratch";
+  // location line
+  const biz = $("#guided-biz");
+  if (state.bizMode === "multi" && !state.businessId) {
+    biz.className = "err small"; biz.textContent = "Pick a location in the header to enable the run.";
   } else {
-    const deltas = state.headlineKeys.map(k => {
-      const want = Number(gVal(k, planCount(k) != null ? planCount(k) : 0));
-      const have = Number(planCount(k) != null ? planCount(k) : 0);
-      const d = want - have;
-      return d > 0 ? `+${d} ${k.replace("_total", "").replace(/_/g, " ")}` : null;
+    biz.className = "small muted";
+    const name = state.bizMode === "none" ? "the account's business"
+      : bizName(state.businessId) || (state.businesses[0] && state.businesses[0].name) || "—";
+    biz.textContent = `Seeds into ${name}.`;
+  }
+
+  // targets echo + delta
+  const labelOf = k => (state.byId.wizard.params.find(p => p.name === k) || {}).label || k;
+  const echo = state.headlineKeys.map(k => `${gVal(k, planCount(k) ?? "?")} ${labelOf(k).toLowerCase()}`);
+  const extra = volumeParams().length - state.headlineKeys.length;
+  $("#guided-echo").textContent = `Targets: ${echo.join(" · ")}${extra > 0 ? ` · +${extra} more` : ""}`;
+
+  let delta;
+  if (fresh || seedChanged) delta = "Rebuilds every data file from scratch.";
+  else {
+    const parts = state.headlineKeys.map(k => {
+      const d = Number(gVal(k, planCount(k) ?? 0)) - Number(planCount(k) ?? 0);
+      return d > 0 ? `+${d} ${labelOf(k).toLowerCase()}` : null;
     }).filter(Boolean);
-    dataTxt = deltas.length ? `Add ${deltas.join(", ")}` : "Keep the existing local data";
+    delta = parts.length ? `Adds ${parts.join(", ")}.` : "No new data — re-seeds the current plan.";
   }
-  body.append(el("p", { class: "review-summary",
-    text: `${dataTxt}, then seed ${layerTxt} into ${loc}.` }));
+  const layerTxt = gVal("layer") ? `layers 0–${gVal("layer")}` : "every layer";
+  $("#guided-delta").textContent = `${delta} Then seeds ${layerTxt}.`;
 
-  const cmdBox = el("pre", { class: "review-cmd", text: "building…" });
-  body.append(cmdBox);
-  const errBox = el("div", { class: "card-err" });
-  body.append(errBox);
-  try {
-    const r = await jpost("/api/argv", {
-      command: "wizard", params, business_id: state.businessId, dry_run: true,
-    });
-    cmdBox.textContent = r.display;
-  } catch (e) {
-    cmdBox.textContent = "(could not build command)";
-    errBox.textContent = e.offline ? "Server unreachable." : e.message;
+  // equivalent command (debounced)
+  const params = guidedParams();
+  const key = JSON.stringify([params, state.businessId]);
+  const cmd = $("#guided-cmd");
+  if (key === state.argvCache.key) { cmd.textContent = state.argvCache.display; }
+  else {
+    cmd.textContent = state.argvCache.display || "…";
+    jpost("/api/argv", { command: "wizard", params, business_id: state.businessId, dry_run: true })
+      .then(r => {
+        state.argvCache = { key, display: r.display };
+        if ($("#guided-cmd")) { $("#guided-cmd").textContent = r.display; $("#guided-err").textContent = ""; }
+      })
+      .catch(e => { if ($("#guided-err")) $("#guided-err").textContent = e.offline ? "" : e.message; });
   }
 
-  const actions = el("div", { class: "step-actions" });
-  const preview = el("button", { class: "btn primary",
-    onclick: () => runGuided(true) }, "Preview (dry run)");
-  const live = liveButton(() => runGuided(false), "Run for real");
-  actions.append(
-    el("button", { class: "btn", onclick: () => { state.guided.step = 0; renderGuided(); } }, "← Back"),
-    el("span", { class: "spacer" }), preview, live);
-  body.append(actions);
-  updateGuidedRunState(actions);
+  // run buttons
+  const blocked = runBlockedReason({ accepts_business_id: true });
+  for (const b of [$("#guided-preview"), $("#guided-live")]) {
+    if (!b) continue;
+    b.disabled = !!blocked;
+    b.title = blocked || "";
+    if (blocked && b._disarm) b._disarm();
+  }
 
-  if (state.lastRun && state.lastRun.command === "wizard" && state.lastRun.dryRun &&
-      state.lastRun.status === "succeeded") {
-    const p = el("div", { class: "go-live-prompt" });
-    p.append(el("span", { text: "That was a preview. Run it for real now?" }),
-      liveButton(() => runGuided(false), "Run for real"));
-    body.append(p);
+  // "run for real?" nudge after a successful preview
+  const gl = $("#guided-golive");
+  const show = state.lastRun && state.lastRun.command === "wizard" &&
+    state.lastRun.dryRun && state.lastRun.status === "succeeded";
+  gl.hidden = !show;
+  if (show && !gl.dataset.built) {
+    gl.dataset.built = "1";
+    gl.append(el("span", { text: "That was a preview. Run it for real now?" }),
+      armable(el("button", { class: "btn danger" }, "Run for real"),
+        { armLabel: "Creates real records — click to confirm", run: () => runGuided(false), ms: 5000 }));
   }
 }
 
-function updateGuidedRunState(actions) {
-  $$(".run-reason", actions).forEach(n => n.remove());
-  const blocked = runBlockedReason({ accepts_business_id: true });
-  $$("button", actions).forEach(b => {
-    if (/^(←|Next)/.test(b.textContent)) return;  // navigation, not a run trigger
-    b.disabled = !!blocked;
-    b.title = blocked || "";
-  });
-  if (blocked) actions.append(el("span", { class: "run-reason", text: blocked }));
+function updateAllRunStates() {
+  $$("#groups .card").forEach(updateCardRunState);
+  updateGuidedCard();
 }
 
 async function runGuided(dryRun) {
   await startRun({ command: "wizard", params: guidedParams(),
-    business_id: state.businessId, dry_run: dryRun }, $("#step-body"));
+    business_id: state.businessId, dry_run: dryRun }, $("#guided-err"));
 }
 
 /* ============================================================ command groups */
@@ -546,26 +613,19 @@ function renderCard(c) {
     for (const p of c.params) {
       const f = renderField(p, undefined, () => {});
       getters[p.name] = f.get;
-      if (p.name === "mode") f.input.addEventListener("change", () => {
-        card._armed = false;
-        updateCardRunState(card);
-      });
+      if (p.name === "mode") f.input.addEventListener("change", () => { disarmCard(card); updateCardRunState(card); });
       fields.append(f.wrap);
     }
     card.append(fields);
   }
 
   const row = el("div", { class: "run-row" });
-
   let dryToggle = null, modeBadge = null;
   if (c.offers_dry_run) {
     dryToggle = el("input", { type: "checkbox" });
-    dryToggle.checked = true; // default to preview, matching the CLI
+    dryToggle.checked = true;
     modeBadge = el("span", { class: "mode-badge preview", text: "preview" });
-    dryToggle.addEventListener("change", () => {
-      card._armed = false;
-      updateCardRunState(card);
-    });
+    dryToggle.addEventListener("change", () => { disarmCard(card); updateCardRunState(card); });
     row.append(el("label", { class: "dry-toggle" }, dryToggle, " dry run"), modeBadge);
   }
 
@@ -591,6 +651,7 @@ function renderCard(c) {
 
   card._ctl = { getters, dryToggle, modeBadge, confirmInput, confirmWrap, cleanNote, runBtn, reason, cardErr };
   card._armed = false;
+  card._armTimer = null;
   updateCardRunState(card);
   return card;
 }
@@ -611,11 +672,15 @@ function runBlockedReason(c) {
   return null;
 }
 
+function disarmCard(card) {
+  card._armed = false;
+  if (card._armTimer) { clearTimeout(card._armTimer); card._armTimer = null; }
+}
+
 function updateCardRunState(card) {
   const c = state.byId[card.dataset.id];
   const { getters, dryToggle, modeBadge, confirmInput, confirmWrap, cleanNote, runBtn, reason } = card._ctl;
 
-  // clean-mode teardown: force dry-run on, it can never run live
   const mode = getters.mode ? getters.mode() : null;
   const cleanLocked = c.id === "teardown" && mode === "clean";
   if (dryToggle) {
@@ -625,13 +690,10 @@ function updateCardRunState(card) {
   if (cleanNote) cleanNote.hidden = !cleanLocked;
 
   const dry = dryToggle ? dryToggle.checked : false;
-
   if (modeBadge) {
     modeBadge.className = "mode-badge " + (dry ? "preview" : "livewrite");
     modeBadge.textContent = dry ? "preview · nothing created" : "writes to live account";
   }
-
-  // the typed-confirm only matters for a live destructive run
   if (confirmWrap) confirmWrap.hidden = !(c.confirm_phrase && !dry);
 
   let blocked = runBlockedReason(c);
@@ -642,20 +704,15 @@ function updateCardRunState(card) {
   runBtn.disabled = !!blocked;
   runBtn.title = blocked || "";
   reason.textContent = blocked || "";
+  if (blocked) disarmCard(card);
 
   if (!blocked && card._armed) {
-    runBtn.textContent = "Confirm: create real records";
-    runBtn.classList.add("danger");
+    runBtn.textContent = "Click again to create real records";
+    runBtn.classList.add("armed");
   } else {
     runBtn.textContent = "Run";
-    runBtn.classList.remove("danger");
+    runBtn.classList.remove("armed");
   }
-}
-
-function updateAllRunStates() {
-  $$("#groups .card").forEach(updateCardRunState);
-  const actions = $("#step-body .step-actions");
-  if (actions) updateGuidedRunState(actions);
 }
 
 async function onCardRun(c, card) {
@@ -666,10 +723,11 @@ async function onCardRun(c, card) {
   // two-stage confirm for a live write that isn't already phrase-gated
   if (c.offers_dry_run && !dry && c.writes_live && !c.confirm_phrase && !card._armed) {
     card._armed = true;
+    card._armTimer = setTimeout(() => { disarmCard(card); updateCardRunState(card); }, 4000);
     updateCardRunState(card);
     return;
   }
-  card._armed = false;
+  disarmCard(card);
   updateCardRunState(card);
 
   await startRun({
@@ -678,20 +736,13 @@ async function onCardRun(c, card) {
     business_id: c.accepts_business_id ? state.businessId : null,
     dry_run: dry,
     confirm: confirmInput ? confirmInput.value : undefined,
-  }, card, cardErr);
-  if (confirmInput) { confirmInput.value = ""; }
+  }, cardErr);
+  if (confirmInput) confirmInput.value = "";
 }
 
 /* ============================================================ run + stream */
-async function startRun(payload, errHost, errSlot) {
-  const showErr = (msg) => {
-    if (errSlot) errSlot.textContent = msg;
-    else if (errHost) {
-      let s = $(".card-err", errHost);
-      if (!s) { s = el("div", { class: "card-err" }); errHost.append(s); }
-      s.textContent = msg;
-    }
-  };
+async function startRun(payload, errSlot) {
+  const showErr = (msg) => { if (errSlot) errSlot.textContent = msg; };
   try {
     const r = await jpost("/api/run", payload);
     state.lastRun = { command: payload.command, dryRun: !!payload.dry_run, status: "running" };
@@ -712,6 +763,8 @@ function attachStream(runId, clear) {
   state.streamingRunId = runId;
   state.streamErrCount = 0;
   setBadge("running");
+  setTitle("● running");
+  startTicker();
 
   const es = new EventSource(`/api/stream/${runId}`);
   state.stream = es;
@@ -741,16 +794,18 @@ async function reconcileRun(runId) {
     if (d.status === "running") { attachStream(runId, false); return; }
     onRunEnd({ status: d.status, exit_code: d.exit_code });
   } catch (_) {
+    setBadge("ended");
+    stopTicker();
     appendConsole("(stream ended — loading the saved log)");
-    try {
-      const res = await fetch(`/api/runs/${runId}/log`);
-      $("#console").textContent = await res.text();
-    } catch (_) {}
+    try { $("#console").textContent = await (await fetch(`/api/runs/${runId}/log`)).text(); }
+    catch (_) {}
   }
 }
 
 function onRunEnd(info) {
+  stopTicker();
   setBadge(info.status || "done", info.exit_code);
+  setTitle(info.status === "succeeded" ? "✓ done" : "✗ " + (info.status || "failed"));
   if (state.lastRun) state.lastRun.status = info.status;
 
   const hint = $("#run-hint");
@@ -759,7 +814,7 @@ function onRunEnd(info) {
     hint.className = "run-hint failed";
     let msg = `Exit code ${info.exit_code}. Re-running is safe — tracked records mean it resumes where it stopped.`;
     if (state.lastRun && ["wizard", "pipeline"].includes(state.lastRun.command))
-      msg += " A whole layer may have failed, or it fell short of target — see Results / last-run-report.txt.";
+      msg += " A layer may have failed, or it fell short of target — see the Results panel below.";
     hint.textContent = msg;
   } else {
     hint.hidden = true;
@@ -767,11 +822,7 @@ function onRunEnd(info) {
 
   loadReport();
   loadRuns();
-  loadPlan().then(() => {
-    if ($("#main").hidden) return;
-    renderVolumesPanel();
-    renderGuided();
-  });
+  loadPlan().then(() => { if (!$("#main").hidden) { syncVolumesPanel(); updateGuidedCard(); } });
   refreshStatus();
 }
 
@@ -788,26 +839,36 @@ function setBadge(status, code) {
     ? `${status} (${code})` : status;
 }
 
+function startTicker() {
+  stopTicker();
+  state.ticker = setInterval(() => {
+    const t = $("#active-run-text");
+    if (!t || $("#active-run").hidden) return;
+    const m = /·\s(\d+)s$/.exec(t.textContent);
+    if (m) t.textContent = t.textContent.replace(/·\s\d+s$/, `· ${Number(m[1]) + 1}s`);
+  }, 1000);
+}
+function stopTicker() { if (state.ticker) { clearInterval(state.ticker); state.ticker = null; } }
+
 function renderActiveRun(run) {
   const bar = $("#active-run");
-  if (!run) { bar.hidden = true; return; }
+  if (!run) { bar.hidden = true; stopTicker(); return; }
   bar.hidden = false;
   const secs = Math.max(0, Math.round(Date.now() / 1000 - run.started_at));
   $("#active-run-text").textContent = `Running ${run.command} · ${secs}s`;
   const btn = $("#cancel-btn");
-  if (!btn.dataset.cancelling) { btn.disabled = false; btn.textContent = "Cancel"; }
+  if (!btn.dataset.cancelling) { btn.disabled = false; if (btn._disarm) btn._disarm(); }
 }
 
-async function onCancel() {
+async function doCancel() {
   if (!state.activeRunId) return;
-  if (!confirm("Stop the current run? Partial data stays tracked; a re-run resumes.")) return;
   const btn = $("#cancel-btn");
   btn.dataset.cancelling = "1";
   btn.disabled = true;
   btn.textContent = "cancelling…";
   try { await jpost(`/api/runs/${state.activeRunId}/cancel`, {}); }
   catch (e) { appendConsole("! " + e.message); }
-  setTimeout(() => { delete btn.dataset.cancelling; }, 2000);
+  setTimeout(() => { delete btn.dataset.cancelling; btn.textContent = "Cancel"; }, 3000);
 }
 
 /* ============================================================ results + runs */
@@ -818,10 +879,7 @@ async function loadReport() {
   $("#last-run").textContent = r.last_run_report || "(no live seeding run yet)";
   const ul = $("#outputs");
   ul.innerHTML = "";
-  if (!(r.outputs || []).length) {
-    ul.append(el("li", { class: "empty", text: "No CSVs exported yet." }));
-    return;
-  }
+  if (!(r.outputs || []).length) { ul.append(el("li", { class: "empty", text: "No CSVs exported yet." })); return; }
   for (const o of r.outputs) {
     ul.append(el("li", {},
       el("a", { href: `/api/output/${o.name}` }, o.name),
@@ -830,57 +888,58 @@ async function loadReport() {
   }
 }
 
+function fmtDur(r) {
+  if (r.status === "running") return "…";
+  if (!r.started_at || !r.ended_at) return "";
+  const s = Math.max(0, Math.round(r.ended_at - r.started_at));
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s`;
+}
+function runTag(r) {
+  const a = r.argv_display || "";
+  if (/--dry-run/.test(a)) return "dry";
+  if (/\s--live\b/.test(a)) return "live";
+  return "";
+}
+
 async function loadRuns() {
   let rows;
   try { rows = await api("/api/runs?limit=40"); } catch (_) { return; }
   const tb = $("#runs-body");
   tb.innerHTML = "";
   if (!rows.length) {
-    tb.append(el("tr", {}, el("td", { colspan: "4", class: "empty", text: "No runs yet." })));
+    tb.append(el("tr", {}, el("td", { colspan: "5", class: "empty", text: "No runs yet." })));
     return;
   }
   for (const r of rows) {
-    const when = r.started_at ? new Date(r.started_at * 1000).toLocaleTimeString() : "";
-    const tr = el("tr", { role: "button", tabindex: "0" },
+    const tag = runTag(r);
+    const tr = el("tr", { role: "button", tabindex: "0", title: r.argv_display || r.argv || "" },
       el("td", { class: "st " + r.status, text: r.status }),
-      el("td", { text: r.command }),
-      el("td", { class: "muted", text: when }),
+      el("td", {}, el("span", { text: r.command }),
+        tag ? el("span", { class: "run-tag " + tag, text: tag }) : null),
+      el("td", { class: "muted", text: r.started_at ? new Date(r.started_at * 1000).toLocaleTimeString() : "" }),
+      el("td", { class: "muted", text: fmtDur(r) }),
       el("td", { class: "muted", text: r.exit_code == null ? "" : "exit " + r.exit_code }));
     const open = () => {
-      if (r.status === "running") attachStream(r.run_id, true);
-      else openLog(r.run_id);
+      if (r.status === "running") { attachStream(r.run_id, true); return; }
+      if (state.stream && !confirm("Replace the live console with this run's saved log?")) return;
+      openLog(r.run_id);
     };
     tr.addEventListener("click", open);
-    tr.addEventListener("keydown", e => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
-    });
+    tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
     tb.append(tr);
   }
 }
 
 async function openLog(runId) {
   try {
-    const res = await fetch(`/api/runs/${runId}/log`);
-    $("#console").textContent = await res.text();
-    $("#status-badge").hidden = true;
+    $("#console").textContent = await (await fetch(`/api/runs/${runId}/log`)).text();
+    setBadge("saved log");
     $("#console").scrollIntoView({ block: "nearest" });
   } catch (_) {}
 }
 
 /* ============================================================ helpers */
-function bizName(id) {
-  const b = state.businesses.find(x => x.id === id);
-  return b ? b.name : null;
-}
-function liveButton(fn, label) {
-  const b = el("button", { class: "btn danger" }, label);
-  let armed = false;
-  b.addEventListener("click", () => {
-    if (!armed) { armed = true; b.textContent = "Click again to confirm"; return; }
-    armed = false; b.textContent = label; fn();
-  });
-  return b;
-}
+function bizName(id) { const b = state.businesses.find(x => x.id === id); return b ? b.name : null; }
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
 }
@@ -893,5 +952,5 @@ function restoreGuided() {
 
 wireStatic();
 restoreGuided();
-refreshStatus();                     // first load; triggers loadAll() when authed
+refreshStatus();
 setInterval(refreshStatus, 3000);

@@ -177,6 +177,34 @@ class TestCommandRegistry(unittest.TestCase):
         self.assertIn("--fresh", build_argv("wizard", {"fresh": True}))
         self.assertNotIn("--fresh", build_argv("wizard", {}))
 
+    def test_wizard_layer_is_a_choice_with_all_option(self):
+        layer = next(p for p in registry.BY_ID["wizard"].params if p.name == "layer")
+        self.assertEqual(layer.type, "choice")
+        self.assertEqual(layer.choices[0][0], "")  # blank == "All layers"
+        # blank resolves to the last layer; a pick is passed straight through
+        self.assertEqual(build_argv("wizard", {})[build_argv("wizard", {}).index("--layer") + 1],
+                         str(len(__import__("pipeline").LAYERS) - 1))
+        argv = build_argv("wizard", {"layer": 3})
+        self.assertEqual(argv[argv.index("--layer") + 1], "3")
+
+    def test_pretty_argv(self):
+        raw = build_argv("wizard", {})
+        pretty = registry.pretty_argv(raw)
+        self.assertEqual(pretty[0], "python")
+        self.assertNotIn("-u", pretty)
+        self.assertIn("wizard.py", pretty)
+        self.assertEqual(raw, build_argv("wizard", {}))  # pretty_argv didn't mutate
+
+    def test_soft_max_present_and_advisory_only(self):
+        blob = registry.commands_json()
+        wp = {p["name"]: p for p in next(c for c in blob["commands"] if c["id"] == "wizard")["params"]}
+        self.assertIsNotNone(wp["bookings_total"]["soft_max"])
+        # advisory: a value over soft_max (but no hard max) still builds fine
+        build_argv("wizard", {"bookings_total": wp["bookings_total"]["soft_max"] + 5000})
+        days = next(p for p in registry.BY_ID["daily_update"].params if p.name == "days")
+        self.assertEqual(days.soft_max, 14)
+        build_argv("daily_update", {"days": 90})  # no exception
+
     def test_unknown_command(self):
         with self.assertRaises(BadRequest):
             build_argv("nope")
@@ -331,6 +359,23 @@ class TestJobLock(_MgrCase):
             _wait(job)
         self.assertTrue(blocker._terminated)
         self.assertEqual(job.status, "cancelled")
+
+    def test_old_logs_are_pruned(self):
+        self.logs.mkdir(parents=True, exist_ok=True)
+        for i in range(210):
+            (self.logs / f"run-old-{i:04d}.log").write_text("x")
+        with patch("webui.jobs._MAX_LOG_FILES", 200), \
+             patch("webui.jobs.subprocess.Popen", PopenSpy()):
+            job = self.mgr.start("verify")
+            _wait(job)
+        remaining = list(self.logs.glob("run-*.log"))
+        self.assertLessEqual(len(remaining), 201)  # 200 kept + the one just written
+
+    def test_to_dict_has_pretty_argv(self):
+        with patch("webui.jobs.subprocess.Popen", PopenSpy()):
+            job = self.mgr.start("verify")
+            _wait(job)
+        self.assertIn("argv_display", job.to_dict())
 
 
 class TestLogAndSSE(_MgrCase):

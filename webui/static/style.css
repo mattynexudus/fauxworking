@@ -159,7 +159,7 @@ header {
 
 @media (max-width: 940px) {
   #main { display: flex; flex-direction: column; }
-  #right { position: static; order: -1; }
+  #right { position: static; }   /* controls first, output below */
 }
 
 /* ---------- panels & cards ---------- */
@@ -175,22 +175,23 @@ header {
 /* ---------- guided flow ---------- */
 .guided { padding: 18px; margin-bottom: 18px; }
 .guided > h2 { font-size: 15px; margin-bottom: 12px; }
-.stepper { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.stepper .step {
-  display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted);
-}
-.stepper .num {
-  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
-  font-size: 11px; font-weight: 600; background: var(--surface-2);
-  border: 1px solid var(--border-strong); color: var(--muted);
-}
-.stepper .step.active .num { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
-.stepper .step.done .num { background: var(--safe-bg); border-color: var(--safe); color: var(--safe); }
-.stepper .bar { flex: 1; height: 1px; background: var(--border-strong); }
-
 .step-body h3 { font-size: 14px; margin-bottom: 4px; }
-.step-actions { display: flex; gap: 10px; margin-top: 16px; }
+.step-actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
 .step-actions .spacer { flex: 1; }
+#guided-echo { margin: 10px 0 2px; }
+#guided-delta { margin: 0 0 8px; }
+#guided-biz { margin: 8px 0 0; }
+
+.warn-hint { font-size: 11.5px; color: var(--live); margin-top: 3px; }
+.field.warn input, .vol-row.warn input { border-color: var(--live); }
+.vol-row.warn .vol-label { color: var(--live); }
+
+.btn.armed {
+  background: var(--danger); border-color: var(--danger); color: #fff;
+  animation: armpulse 1s ease-in-out infinite;
+}
+@keyframes armpulse { 50% { opacity: .78; } }
+@media (prefers-reduced-motion: reduce) { .btn.armed { animation: none; } }
 
 .field { display: flex; flex-direction: column; gap: 3px; margin: 10px 0; }
 .field > label { font-size: 12.5px; font-weight: 600; color: var(--text); }
@@ -300,7 +301,10 @@ details.more[open] > summary { margin-bottom: 6px; }
 .status-badge.running { color: var(--read); background: var(--read-bg); }
 .status-badge.succeeded { color: var(--safe); background: var(--safe-bg); }
 .status-badge.failed, .status-badge.error { color: var(--danger); background: var(--danger-bg); }
-.status-badge.cancelled { color: var(--muted); background: var(--surface-2); }
+.status-badge.cancelled, .status-badge.ended, .status-badge.unknown { color: var(--muted); background: var(--surface-2); }
+.status-badge { text-transform: none; }
+.status-badge.running, .status-badge.succeeded, .status-badge.failed,
+.status-badge.error, .status-badge.cancelled { text-transform: uppercase; }
 .follow { margin-left: auto; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
 
 .active-run {
@@ -334,8 +338,12 @@ details.lastrun .report { max-height: 320px; margin-top: 8px; }
 .runs .st { font-weight: 700; }
 .runs .st.succeeded { color: var(--safe); }
 .runs .st.failed, .runs .st.error { color: var(--danger); }
-.runs .st.cancelled, .runs .st.unknown { color: var(--muted); }
+.runs .st.cancelled, .runs .st.unknown, .runs .st.ended { color: var(--muted); }
 .runs .st.running { color: var(--read); }
+.run-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+  padding: 1px 5px; border-radius: 4px; margin-left: 6px; }
+.run-tag.dry { color: var(--safe); background: var(--safe-bg); }
+.run-tag.live { color: var(--live); background: var(--live-bg); }
 
 .skeleton {
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 37%, var(--surface-2) 63%);
