@@ -307,3 +307,17 @@ if __name__ == "__main__":
 
     run_up_to(args.layer, dry_run=args.dry_run, business_id=args.business_id)
     print("\nDone.")
+
+    # Exit non-zero when the run wasn't fully successful, so a caller (the web
+    # control panel, CI, a script) can tell — mirrors wizard.py::run_live.
+    # An independent-tier layer (4-7) failing is *caught* by run_up_to so the
+    # run continues; without this the process would still exit 0 and look clean.
+    if not args.dry_run:
+        if LAST_RUN_LAYER_FAILURES:
+            print(f"Note: {len(LAST_RUN_LAYER_FAILURES)} layer(s) failed entirely and were "
+                  f"skipped — see above, or {report_lib.REPORT_PATH.name}.")
+            sys.exit(1)
+        if report_lib.has_shortfall(LAST_RUN_ENTITY_COUNTS):
+            print(f"Note: one or more entities fell short of this run's target — see the "
+                  f"reconciliation above, or {report_lib.REPORT_PATH.name}.")
+            sys.exit(1)
