@@ -90,6 +90,7 @@ const state = {
   streamingRunId: null,
   streamErrCount: 0,
   lastRun: null,          // {command, dryRun, status}
+  lastReport: null,       // last /api/report payload (for the "show empty" toggle)
   plan: null,             // {seed, counts, seeded}
   volCells: {},           // key -> {live, plan, row, input}
   argvCache: { key: null, display: "" },
@@ -125,8 +126,10 @@ function showLoggedOut() {
   state.commands = [];
   state.byId = {};
   state.volCells = {};
+  state.lastReport = null;
   setTitle(null);
-  for (const id of ["groups", "volumes-body", "step-body", "console", "report", "last-run", "runs-body"]) {
+  for (const id of ["groups", "volumes-body", "step-body", "console", "report", "report-table",
+                    "report-summary", "last-run", "runs-body", "outputs", "outputs-summary"]) {
     const n = document.getElementById(id);
     if (n) n.textContent = "";
   }
@@ -176,6 +179,7 @@ function wireStatic() {
   armable($("#cancel-btn"), { armLabel: "Really stop it?", run: doCancel });
   $("#results-refresh").addEventListener("click", loadReport);
   $("#runs-refresh").addEventListener("click", loadRuns);
+  $("#outputs-empty").addEventListener("change", renderOutputs);
 
   const con = $("#console");
   con.addEventListener("scroll", () => {
@@ -875,19 +879,82 @@ async function doCancel() {
 }
 
 /* ============================================================ results + runs */
+function fmtBytes(n) {
+  if (n < 1024) return `${n} B`;
+  const kb = n / 1024;
+  return kb < 10 ? `${kb.toFixed(1)} kB` : kb < 1024 ? `${Math.round(kb)} kB` : `${(kb / 1024).toFixed(1)} MB`;
+}
+function relTime(ts) {
+  const s = Date.now() / 1000 - ts;
+  if (s < 90) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return new Date(ts * 1000).toLocaleDateString();
+}
+
 async function loadReport() {
   let r;
   try { r = await api("/api/report"); } catch (_) { return; }
-  $("#report").textContent = (r.report_lines || []).join("\n");
-  $("#last-run").textContent = r.last_run_report || "(no live seeding run yet)";
-  const ul = $("#outputs");
-  ul.innerHTML = "";
-  if (!(r.outputs || []).length) { ul.append(el("li", { class: "empty", text: "No CSVs exported yet." })); return; }
-  for (const o of r.outputs) {
-    ul.append(el("li", {},
-      el("a", { href: `/api/output/${o.name}` }, o.name),
-      el("span", { class: "muted small",
-        text: `${(o.size / 1024).toFixed(1)} kB · ${new Date(o.mtime * 1000).toLocaleString()}` })));
+  state.lastReport = r;
+
+  // cumulative "what's in the account"
+  const s = r.summary || {};
+  const bt = s.below_target || 0;
+  const sum = $("#report-summary");
+  sum.textContent = `${(s.total || 0).toLocaleString()} records tracked · `
+    + (s.entities ? (bt ? `${bt} of ${s.entities} entities below target` : `all ${s.entities} entities on target`) : "no targets");
+  sum.className = "report-summary" + (bt ? " short" : " ok");
+
+  const rt = $("#report-table");
+  rt.innerHTML = "";
+  const rows = r.report || [];
+  if (!rows.length) {
+    rt.append(el("tr", {}, el("td", { class: "empty", colspan: "3", text: "Nothing seeded live yet." })));
+  } else {
+    rt.append(el("tr", {},
+      el("th", { text: "Entity" }), el("th", { class: "num", text: "tracked" }), el("th", { class: "num", text: "target" })));
+    for (const row of rows) {
+      rt.append(el("tr", { class: row.short ? "short" : "" },
+        el("td", { text: row.entity }),
+        el("td", { class: "num", text: row.created.toLocaleString() }),
+        el("td", { class: "num muted", text: row.target == null ? "—" : row.target.toLocaleString() })));
+    }
+  }
+  $("#report").textContent = r.report_text || "";
+
+  // last seeding run
+  const lr = r.last_run || {};
+  $("#last-run").textContent = lr.text || "(no live seeding run yet)";
+  $("#lastrun-summary").textContent = lr.generated_at
+    ? `Last seeding run — ${new Date(lr.generated_at).toLocaleString()}`
+    : "Last seeding run";
+
+  renderOutputs();
+}
+
+function renderOutputs() {
+  const r = state.lastReport || {};
+  const list = r.outputs || [];
+  const os = r.outputs_summary || { files: list.length, with_rows: list.filter(o => o.rows > 0).length };
+  $("#outputs-summary").textContent =
+    list.length ? `Exports — ${os.with_rows} of ${os.files} CSVs have rows` : "Exports";
+  $("#outputs-zip").hidden = !list.length;
+
+  const showEmpty = $("#outputs-empty").checked;
+  const shown = list.filter(o => showEmpty || o.rows > 0);
+  const t = $("#outputs");
+  t.innerHTML = "";
+  if (!shown.length) {
+    t.append(el("tr", {}, el("td", { class: "empty", colspan: "4",
+      text: list.length ? "All exports are empty — nothing seeded yet." : "No CSVs exported yet." })));
+    return;
+  }
+  for (const o of shown) {
+    t.append(el("tr", { class: o.rows > 0 ? "" : "dim" },
+      el("td", {}, el("a", { href: `/api/output/${o.name}` }, o.name.replace(/\.csv$/, ""))),
+      el("td", { class: "num", text: o.rows > 0 ? `${o.rows.toLocaleString()}` : "—" }),
+      el("td", { class: "num muted", text: fmtBytes(o.size) }),
+      el("td", { class: "muted", text: relTime(o.mtime) })));
   }
 }
 

@@ -507,22 +507,39 @@ class TestReportSurface(unittest.TestCase):
     def test_populated(self):
         (self.created / "reference.json").write_text(
             json.dumps([{"entity": "taxrates", "Id": 1}, {"entity": "taxrates", "Id": 2}]))
-        self.report_path.write_text("RUN REPORT TEXT")
-        (self.output / "coworkers.csv").write_text("Id\n1\n")
+        self.report_path.write_text(
+            "Report generated 2026-08-27T09:08:24+00:00\n\n=== This run ===\nx\n"
+            "=== What's in the account now (cumulative, all runs) ===\ncut me\n")
+        (self.output / "coworkers.csv").write_text("Id,Name\n1,a\n2,b\n3,c\n")
+        (self.output / "visitors.csv").write_text("Id,Name\n")  # header only
         p1, p2, p3 = self._patches()
         with p1, p2, p3:
             out = report.gather_report()
-        self.assertTrue(out["report_lines"])
-        self.assertEqual(out["last_run_report"], "RUN REPORT TEXT")
-        self.assertEqual([o["name"] for o in out["outputs"]], ["coworkers.csv"])
+
+        # structured cumulative rows
+        tax = next(r for r in out["report"] if r["entity"] == "taxrates")
+        self.assertEqual(tax["created"], 2)
+        self.assertIn("total", out["summary"])
+        self.assertEqual(out["report_text"], "\n".join(out["report_lines"]))
+
+        # last run: run-specific part only, with its timestamp pulled out
+        self.assertEqual(out["last_run"]["generated_at"], "2026-08-27T09:08:24+00:00")
+        self.assertNotIn("cut me", out["last_run"]["text"])
+
+        # per-CSV row counts + summary
+        by_name = {o["name"]: o for o in out["outputs"]}
+        self.assertEqual(by_name["coworkers.csv"]["rows"], 3)
+        self.assertEqual(by_name["visitors.csv"]["rows"], 0)
+        self.assertEqual(out["outputs_summary"], {"files": 2, "with_rows": 1})
 
     def test_all_absent(self):
         p1, p2, p3 = self._patches()
         with p1, p2, p3:
             out = report.gather_report()
-        self.assertIsNone(out["last_run_report"])
+        self.assertIsNone(out["last_run"]["text"])
         self.assertEqual(out["outputs"], [])
-        self.assertIsInstance(out["report_lines"], list)
+        self.assertEqual(out["report"], [])
+        self.assertEqual(out["outputs_summary"], {"files": 0, "with_rows": 0})
 
 
 # --------------------------------------------------------------------------
@@ -604,6 +621,26 @@ class TestRouting(_ServerCase):
         status, body = self._request("POST", "/api/auth/logout")
         self.assertEqual(status, 200)
         self.assertFalse(body["authenticated"])
+
+    def test_output_zip(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d)
+            (out / "a.csv").write_text("Id\n1\n")
+            (out / "b.csv").write_text("Id\n")
+            with patch.object(config, "OUTPUT_DIR", out):
+                url = f"http://127.0.0.1:{self.port}/api/output.zip"
+                with urllib.request.urlopen(url, timeout=3) as r:
+                    self.assertEqual(r.headers["Content-Type"], "application/zip")
+                    data = r.read()
+        import io, zipfile
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            self.assertEqual(sorted(z.namelist()), ["a.csv", "b.csv"])
+
+    def test_output_zip_404_when_empty(self):
+        with tempfile.TemporaryDirectory() as d:
+            with patch.object(config, "OUTPUT_DIR", Path(d)):
+                status, _ = self._request("GET", "/api/output.zip")
+        self.assertEqual(status, 404)
 
     def test_logout_blocked_while_run_active(self):
         blocker = FakePopen(block=True)

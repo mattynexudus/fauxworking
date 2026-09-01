@@ -71,6 +71,8 @@ class Handler(BaseHTTPRequestHandler):
             m = re.fullmatch(r"/api/stream/([^/]+)", path)
             if m:
                 return self._api_stream(m.group(1))
+            if path == "/api/output.zip":
+                return self._api_output_zip()
             m = re.fullmatch(r"/api/output/([^/]+)", path)
             if m:
                 return self._api_output_csv(m.group(1))
@@ -143,6 +145,18 @@ class Handler(BaseHTTPRequestHandler):
         if not path.is_file() or path.parent != config.OUTPUT_DIR:
             return self._send_json({"error": "no such file"}, status=404)
         self._send_bytes(path.read_bytes(), "text/csv; charset=utf-8")
+
+    def _api_output_zip(self):
+        import io, zipfile
+        files = sorted(config.OUTPUT_DIR.glob("*.csv")) if config.OUTPUT_DIR.exists() else []
+        if not files:
+            return self._send_json({"error": "no CSVs exported yet"}, status=404)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            for f in files:
+                z.write(f, arcname=f.name)
+        self._send_bytes(buf.getvalue(), "application/zip",
+                         download_name="fauxworking-output.zip")
 
     def _api_run(self):
         body = self._read_json()
@@ -275,10 +289,12 @@ class Handler(BaseHTTPRequestHandler):
         self._send_bytes(json.dumps(obj).encode("utf-8"),
                          "application/json; charset=utf-8", status=status)
 
-    def _send_bytes(self, data, content_type, status=200):
+    def _send_bytes(self, data, content_type, status=200, download_name=None):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        if download_name:
+            self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
         self.send_header("Connection", "close")
         self.end_headers()
         if self.command != "HEAD":

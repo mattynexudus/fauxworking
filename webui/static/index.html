@@ -76,12 +76,26 @@
           <h2>Results</h2><span class="spacer"></span>
           <button id="results-refresh" class="btn small">Refresh</button>
         </div>
-        <pre id="report" class="report"></pre>
+
+        <p id="report-summary" class="report-summary"></p>
+        <div class="rtab-wrap"><table id="report-table" class="rtab"></table></div>
+        <details class="raw">
+          <summary>raw <code>verify</code> output</summary>
+          <pre id="report" class="report"></pre>
+        </details>
+
         <details class="lastrun">
-          <summary>Last seeding run — targets vs. actual, layer failures</summary>
+          <summary id="lastrun-summary">Last seeding run</summary>
           <pre id="last-run" class="report"></pre>
         </details>
-        <ul id="outputs" class="outputs"></ul>
+
+        <div class="outputs-head">
+          <span id="outputs-summary" class="muted small"></span>
+          <span class="spacer"></span>
+          <label class="small mono-off"><input type="checkbox" id="outputs-empty"> show empty</label>
+          <a id="outputs-zip" class="btn small" href="/api/output.zip">Download all</a>
+        </div>
+        <div class="otab-wrap"><table id="outputs" class="otab"></table></div>
       </section>
 
       <section class="panel" aria-label="Runs">
