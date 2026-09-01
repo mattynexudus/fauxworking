@@ -84,6 +84,7 @@ async function loadAll() {
   await loadBusinesses(false);
   await loadCommands();
   await loadPlan();
+  renderVolumesPanel();
   renderGuided();
   renderGroups();
   await loadReport();
@@ -106,7 +107,7 @@ function showLoggedOut() {
   state.plan = null;
   state.commands = [];
   state.byId = {};
-  for (const id of ["groups", "console", "report", "last-run", "runs-body"]) {
+  for (const id of ["groups", "volumes-body", "console", "report", "last-run", "runs-body"]) {
     const n = document.getElementById(id);
     if (n) n.textContent = "";
   }
@@ -295,15 +296,63 @@ function clearFieldErr(wrap) {
   $$(".field-err", wrap).forEach(n => n.remove());
 }
 
+/* ============================================================ data volumes (standalone) */
+function volumeRow(p) {
+  const stored = state.guided.values[p.name];
+  const start = (stored != null && stored !== "") ? stored
+    : (planCount(p.name) != null ? planCount(p.name) : p.default);
+  const input = el("input", { type: "number", min: p.min != null ? p.min : 0, value: start });
+  if (p.max != null) input.max = p.max;
+  input.addEventListener("input", () => { gSet(p.name, input.value === "" ? undefined : input.value); });
+  const seeded = planSeeded(p.name), gen = planCount(p.name);
+  return el("tr", { class: "vol-row" },
+    el("td", { class: "vol-label", text: p.label }),
+    el("td", { class: "vol-num", text: seeded ? String(seeded) : "—" }),
+    el("td", { class: "vol-num", text: gen != null ? String(gen) : "—" }),
+    el("td", {}, input));
+}
+
+function renderVolumesPanel() {
+  const body = $("#volumes-body");
+  if (!body) return;
+  body.innerHTML = "";
+  if (!state.auth || !state.wizard) return;
+
+  const mk = (rows) => {
+    const t = el("table", { class: "vol-table" });
+    t.append(el("tr", {},
+      el("th", { text: "" }), el("th", { text: "live" }),
+      el("th", { text: "plan" }), el("th", { text: "target" })));
+    for (const p of rows) t.append(volumeRow(p));
+    return t;
+  };
+  const params = Object.fromEntries(volumeParams().map(p => [p.name, p]));
+  body.append(mk(state.headlineKeys.map(k => params[k]).filter(Boolean)));
+
+  const rest = volumeParams().filter(p => !state.headlineKeys.includes(p.name));
+  const seedP = state.wizard.params.find(p => p.name === "seed");
+  const more = el("details", { class: "more" });
+  more.append(el("summary", { text: `${rest.length + (seedP ? 1 : 0)} more settings` }));
+  more.append(mk(rest));
+  if (seedP) {
+    more.append(renderField(seedP, gVal("seed"), v => gSet("seed", v)).wrap);
+  }
+  body.append(more);
+  body.append(el("p", { class: "muted small",
+    text: "Raising a target adds that many on the next run — it never rewrites or removes "
+        + "existing records. Lower one via teardown, not here." }));
+}
+
 /* ============================================================ guided flow */
-const STEPS = ["Volumes", "Options", "Review & run"];
+const STEPS = ["Options", "Review & run"];
 
 function renderGuided() {
   if (!state.auth || !state.wizard) return;
+  state.guided.step = Math.max(0, Math.min(STEPS.length - 1, state.guided.step | 0));
   renderStepper();
   const body = $("#step-body");
   body.innerHTML = "";
-  ({ 0: guidedStepVolumes, 1: guidedStepOptions, 2: guidedStepReview }[state.guided.step])(body);
+  ({ 0: guidedStepOptions, 1: guidedStepReview }[state.guided.step])(body);
 }
 
 function renderStepper() {
@@ -333,49 +382,11 @@ function planCount(key) {
 function planSeeded(key) {
   return (state.plan && state.plan.seeded ? state.plan.seeded[key] : 0) || 0;
 }
-function volumeField(p) {
-  // default = the user's stored value, else the current generated count, else the registry default
-  const stored = state.guided.values[p.name];
-  const start = (stored != null && stored !== "") ? stored
-    : (planCount(p.name) != null ? planCount(p.name) : p.default);
-  const f = renderField(p, start, v => gSet(p.name, v));
-  const seeded = planSeeded(p.name), gen = planCount(p.name);
-  if (seeded || gen != null) {
-    f.wrap.append(el("span", { class: "hint",
-      text: `${seeded} seeded live${gen != null ? ` · ${gen} in the plan` : ""} — a run only adds new ones` }));
-  }
-  return f.wrap;
-}
-
-function guidedStepVolumes(body) {
-  body.append(el("h3", { text: "1 · How much data?" }));
-  body.append(el("p", { class: "muted small",
-    text: "Regenerates data/*.json locally (incrementally — existing records are kept), then seeds it." }));
-
-  const params = Object.fromEntries(volumeParams().map(p => [p.name, p]));
-  for (const key of state.headlineKeys) {
-    if (!params[key]) continue;
-    body.append(volumeField(params[key]));
-  }
-
-  const more = el("details", { class: "more" });
-  more.append(el("summary", { text: `${volumeParams().length - state.headlineKeys.length + 1} more settings` }));
-  for (const p of volumeParams()) {
-    if (state.headlineKeys.includes(p.name)) continue;
-    more.append(volumeField(p));
-  }
-  const seedP = state.wizard.params.find(p => p.name === "seed");
-  if (seedP) more.append(renderField(seedP, gVal("seed"), v => gSet("seed", v)).wrap);
-  body.append(more);
-
-  const actions = el("div", { class: "step-actions" });
-  actions.append(el("span", { class: "spacer" }),
-    el("button", { class: "btn primary", onclick: () => { state.guided.step = 1; renderGuided(); } }, "Next →"));
-  body.append(actions);
-}
-
 function guidedStepOptions(body) {
-  body.append(el("h3", { text: "2 · Options" }));
+  body.append(el("h3", { text: "1 · Options" }));
+  body.append(el("p", { class: "muted small",
+    text: "Amounts come from the Data volumes panel above. This run regenerates data/*.json "
+        + "(incrementally) and seeds it." }));
 
   const everything = gVal("everything", true);
   const everWrap = el("div", { class: "field check" });
@@ -408,11 +419,9 @@ function guidedStepOptions(body) {
 
   const actions = el("div", { class: "step-actions" });
   const next = el("button", { class: "btn primary",
-    onclick: () => { state.guided.step = 2; renderGuided(); } }, "Next →");
+    onclick: () => { state.guided.step = 1; renderGuided(); } }, "Next →");
   if (state.bizMode === "multi" && !state.businessId) next.disabled = true;
-  actions.append(
-    el("button", { class: "btn", onclick: () => { state.guided.step = 0; renderGuided(); } }, "← Back"),
-    el("span", { class: "spacer" }), next);
+  actions.append(el("span", { class: "spacer" }), next);
   body.append(actions);
 }
 
@@ -431,7 +440,7 @@ function guidedParams() {
 }
 
 async function guidedStepReview(body) {
-  body.append(el("h3", { text: "3 · Review & run" }));
+  body.append(el("h3", { text: "2 · Review & run" }));
 
   const params = guidedParams();
   const loc = state.bizMode === "none" ? "the account's business" : bizName(state.businessId) || "—";
@@ -471,7 +480,7 @@ async function guidedStepReview(body) {
     onclick: () => runGuided(true) }, "Preview (dry run)");
   const live = liveButton(() => runGuided(false), "Run for real");
   actions.append(
-    el("button", { class: "btn", onclick: () => { state.guided.step = 1; renderGuided(); } }, "← Back"),
+    el("button", { class: "btn", onclick: () => { state.guided.step = 0; renderGuided(); } }, "← Back"),
     el("span", { class: "spacer" }), preview, live);
   body.append(actions);
   updateGuidedRunState(actions);
@@ -758,7 +767,11 @@ function onRunEnd(info) {
 
   loadReport();
   loadRuns();
-  loadPlan().then(() => { if (!$("#main").hidden) renderGuided(); });
+  loadPlan().then(() => {
+    if ($("#main").hidden) return;
+    renderVolumesPanel();
+    renderGuided();
+  });
   refreshStatus();
 }
 
