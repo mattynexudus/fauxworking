@@ -1,7 +1,0 @@
-Id,CreatedOn,CustomFields,IsNew,LocalizationDetails,PassRenewalTime,PassesIncluded,SystemId,Tariff,TariffId,TariffName,TimePassId,TimePassName,ToStringText,UniqueId,UpdatedBy,UpdatedOn
-1415377539,2026-08-27T08:24:59.7007467Z,,False,,1,5,,Hot Desk Monthly,1415418446,Hot Desk Monthly,1415345826,Day Pass,Day Pass,1454ae31-b84f-400e-a4ba-6719c77a01ba,matheus+explore@nexudus.com,2026-08-27T08:24:59.7007467Z
-1415377439,2026-08-27T08:25:02.9035535Z,,False,,1,6,,Dedicated Desk Monthly,1415418447,Dedicated Desk Monthly,1415345826,Day Pass,Day Pass,2fb58b86-be64-497e-b46b-6bdd922a5662,matheus+explore@nexudus.com,2026-08-27T08:25:02.9035535Z
-1415377540,2026-08-27T08:25:15.5235046Z,,False,,1,7,,Private Office Small,1415418448,Private Office Small,1415345826,Day Pass,Day Pass,12144333-300c-4ea3-927c-7fa6a46be3eb,matheus+explore@nexudus.com,2026-08-27T08:25:15.5235046Z
-1415377541,2026-08-27T08:25:18.8551548Z,,False,,1,7,,Private Office Large,1415418344,Private Office Large,1415345826,Day Pass,Day Pass,506b6fb2-7d5c-4bfc-84c0-635c0a2da997,matheus+explore@nexudus.com,2026-08-27T08:25:18.8551548Z
-1415377440,2026-08-27T08:25:21.9119306Z,,False,,1,5,,Hot Desk Quarterly,1415418449,Hot Desk Quarterly,1415345826,Day Pass,Day Pass,205930b3-f4bb-4612-8020-7394370b3fcc,matheus+explore@nexudus.com,2026-08-27T08:25:21.9119306Z
-1415377542,2026-08-27T08:25:27.02794Z,,False,,1,7,,Private Office Annual,1415418450,Private Office Annual,1415345826,Day Pass,Day Pass,4130ed03-21b9-47fe-912a-5e73c54018c6,matheus+explore@nexudus.com,2026-08-27T08:25:27.02794Z

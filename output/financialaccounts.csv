@@ -1,5 +1,0 @@
-Id,AccountType,BusinessId,Code,CreatedOn,CustomFields,Description,IsNew,LocalizationDetails,Name,SystemId,ToStringText,UniqueId,UpdatedBy,UpdatedOn
-1415063631,1,1421021016,CRD-001,2026-08-27T08:24:32.570509Z,,,False,,Credit Sales,,CRD-001 - Credit Sales,f0327e77-8278-409d-8d65-984edf90bed1,matheus+explore@nexudus.com,2026-08-27T08:24:32.570509Z
-1415063632,2,1421021016,PAY-001,2026-08-27T08:24:33.088044Z,,,False,,Payment Receipts,,PAY-001 - Payment Receipts,474fc82c-3c9a-4559-8368-2653dffd0b79,matheus+explore@nexudus.com,2026-08-27T08:24:33.088044Z
-1415063732,3,1421021016,DEP-001,2026-08-27T08:24:33.5480376Z,,,False,,Deposit Holding,,DEP-001 - Deposit Holding,b4871235-823e-49eb-9b56-a1b61344dd30,matheus+explore@nexudus.com,2026-08-27T08:24:33.5480376Z
-1415063633,2,1421021016,REF-001,2026-08-27T08:24:34.0106639Z,,,False,,Refund Account,,REF-001 - Refund Account,e1a45682-907f-4743-8c38-2a672e762f90,matheus+explore@nexudus.com,2026-08-27T08:24:34.0106639Z
