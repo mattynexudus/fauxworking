@@ -35,17 +35,12 @@ import config
 import nexudus_client as client
 import report_lib
 
-# (module filename without .py, class name, entity_name from the class)
-LAYERS = [
-    ("generators.00_reference", "ReferenceGenerator"),
-    ("generators.01_structural", "StructuralGenerator"),
-    ("generators.02_people", "PeopleGenerator"),
-    ("generators.03_contracts", "ContractsGenerator"),
-    ("generators.04_activity", "ActivityGenerator"),
-    ("generators.05_community", "CommunityGenerator"),
-    ("generators.06_financial", "FinancialGenerator"),
-    ("generators.07_crm_proposals", "CrmProposalsGenerator"),
-]
+# (module filename without .py, class name, entity_name from the class) —
+# owned by report_lib.py (it needs the same list to compute real_targets()
+# without importing pipeline back, which would be circular) and re-exported
+# here as a plain attribute so `pipeline.LAYERS = [...]` (test fakes) still
+# works exactly as before.
+LAYERS = report_lib.LAYERS
 
 # Layers 0-3 (reference, structural, people, contracts) are a hard,
 # sequential dependency chain — everything after reads IDs from them
@@ -185,8 +180,46 @@ def _whoami(business_id=None):
     }
 
 
-def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
+class SkipLayerError(ValueError):
+    """A skip_layers set that names a layer the pipeline can't actually skip."""
+
+
+def _validate_skip_layers(skip_layers, layer_index):
+    """Normalise skip_layers to a set and reject anything unskippable.
+
+    Only the independent tier (>= HARD_DEPENDENCY_LAYER_COUNT) can be skipped:
+    those layers were checked to not read a prev_output key any other one of
+    them adds, which is the same property that makes a *failure* there
+    survivable (see HARD_DEPENDENCY_LAYER_COUNT). Layers 0-3 are a hard chain —
+    skipping one leaves every later layer working from a genuinely broken
+    foundation (skip people, and activity has no coworker_ids at all), so it's
+    rejected loudly here rather than producing a confusing cascade of failures
+    several layers later.
+    """
+    skip = {int(n) for n in (skip_layers or ())}
+    hard = sorted(n for n in skip if n < HARD_DEPENDENCY_LAYER_COUNT)
+    if hard:
+        raise SkipLayerError(
+            f"Layers 0-{HARD_DEPENDENCY_LAYER_COUNT - 1} are a hard dependency chain and "
+            f"cannot be skipped (got {hard}). Every later layer reads their IDs — "
+            f"use the layer ceiling to stop early instead.")
+    out_of_range = sorted(n for n in skip if not 0 <= n < len(LAYERS))
+    if out_of_range:
+        raise SkipLayerError(
+            f"No such layer(s): {out_of_range}. Valid layers are 0-{len(LAYERS) - 1}.")
+    return {n for n in skip if n <= layer_index}
+
+
+def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True,
+              skip_layers=None):
     """Run layers 0..layer_index (inclusive), return the final prev_output.
+
+    skip_layers omits individual layers from that range — only ones at or past
+    HARD_DEPENDENCY_LAYER_COUNT; anything earlier raises SkipLayerError (see
+    _validate_skip_layers). A skipped layer never constructs its generator, so
+    it contributes nothing to the totals or the reconciliation, and
+    prev_output passes through it untouched — exactly as if it had been
+    caught failing.
 
     business_id picks which business (location) to seed into, for accounts
     with access to more than one — see _select_business(). Ignored in
@@ -214,6 +247,7 @@ def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
     before the exception continues propagating.
     """
     global LAST_RUN_ENTITY_COUNTS, LAST_RUN_LAYER_FAILURES
+    skip = _validate_skip_layers(skip_layers, layer_index)
     prev_output = None
     totals = {"created": 0, "skipped": 0, "failed": 0}
     reconciliation = {}
@@ -222,6 +256,9 @@ def run_up_to(layer_index, dry_run=False, business_id=None, write_csvs=True):
 
     try:
         for i, (module_name, class_name) in enumerate(LAYERS[:layer_index + 1]):
+            if i in skip:
+                print(f"\n--- Layer {i}: {class_name} — skipped by request ---")
+                continue
             module = importlib.import_module(module_name)
             gen = getattr(module, class_name)(dry_run=dry_run)
 
@@ -303,9 +340,18 @@ if __name__ == "__main__":
                          help="Which business/location to seed into, if this login has access to more than one")
     parser.add_argument("--dry-run", action="store_true",
                          help="Preview the whole chain without creating anything (see run_up_to)")
+    parser.add_argument("--skip-layer", type=int, action="append", default=None,
+                         dest="skip_layers", metavar="N",
+                         help=f"Omit layer N from the run; repeatable. Only layers "
+                              f"{HARD_DEPENDENCY_LAYER_COUNT}-{len(LAYERS) - 1} can be skipped — "
+                              f"0-{HARD_DEPENDENCY_LAYER_COUNT - 1} are a hard dependency chain")
     args = parser.parse_args()
 
-    run_up_to(args.layer, dry_run=args.dry_run, business_id=args.business_id)
+    try:
+        run_up_to(args.layer, dry_run=args.dry_run, business_id=args.business_id,
+                  skip_layers=args.skip_layers)
+    except SkipLayerError as e:
+        parser.error(str(e))
     print("\nDone.")
 
     # Exit non-zero when the run wasn't fully successful, so a caller (the web

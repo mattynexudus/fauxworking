@@ -151,9 +151,10 @@ class JobManager:
         if cmd is None:
             raise BadRequest(f"Unknown command: {command_id!r}")
 
-        if cmd.destructive and not dry_run and (confirm or "").strip() != cmd.confirm_phrase:
+        required_phrase = registry.confirm_phrase_for(command_id, params)
+        if cmd.destructive and not dry_run and (confirm or "").strip() != required_phrase:
             raise BadRequest(
-                f'This command needs the exact phrase "{cmd.confirm_phrase}" to run live.')
+                f'This command needs the exact phrase "{required_phrase}" to run live.')
 
         if cmd.accepts_business_id and businesses_mode == "multi" and business_id is None:
             raise BadRequest(

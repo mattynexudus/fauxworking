@@ -69,6 +69,12 @@ def parse_args():
                               "what's already there (see prebuild.py)")
     parser.add_argument("--layer", type=int, default=None,
                          help=f"How many layers to run, 0-{len(pipeline.LAYERS) - 1} (default: all of them)")
+    parser.add_argument("--skip-layer", type=int, action="append", default=None,
+                         dest="skip_layers", metavar="N",
+                         help=f"Omit layer N from the run; repeatable. Only layers "
+                              f"{pipeline.HARD_DEPENDENCY_LAYER_COUNT}-{len(pipeline.LAYERS) - 1} "
+                              f"can be skipped — 0-{pipeline.HARD_DEPENDENCY_LAYER_COUNT - 1} are a "
+                              f"hard dependency chain every later layer reads from")
     parser.add_argument("--yes", action="store_true",
                          help="Skip the live-run confirmation prompt (for non-interactive/scripted use)")
     parser.add_argument("--business-id", type=int, default=None,
@@ -235,6 +241,15 @@ def confirm_live():
     return answer == "yes"
 
 
+def _layer_range_text(layer_index, skip_layers):
+    """"layers 0-7", plus " (skipping 5, 6)" when any are being omitted."""
+    text = f"layers 0-{layer_index}"
+    skipped = sorted(n for n in (skip_layers or ()) if n <= layer_index)
+    if skipped:
+        text += f" (skipping {', '.join(str(n) for n in skipped)})"
+    return text
+
+
 def run_live(layer_index, args, export_csvs):
     """Runs the live pipeline, retrying in place on failure rather than
     letting the whole wizard die and forcing a restart from scratch.
@@ -261,9 +276,10 @@ def run_live(layer_index, args, export_csvs):
         return 1
 
     while True:
-        print(f"\n=== Running layers 0-{layer_index} (LIVE) ===")
+        print(f"\n=== Running {_layer_range_text(layer_index, args.skip_layers)} (LIVE) ===")
         try:
-            pipeline.run_up_to(layer_index, dry_run=False, business_id=business_id, write_csvs=export_csvs)
+            pipeline.run_up_to(layer_index, dry_run=False, business_id=business_id,
+                               write_csvs=export_csvs, skip_layers=args.skip_layers)
             print("\nDone.")
             if pipeline.LAST_RUN_LAYER_FAILURES:
                 print(f"Note: {len(pipeline.LAST_RUN_LAYER_FAILURES)} layer(s) failed entirely this "
@@ -287,6 +303,15 @@ def run_live(layer_index, args, export_csvs):
 def main():
     args = parse_args()
 
+    # Validate --skip-layer here rather than letting run_up_to raise it later:
+    # run_live catches Exception to offer a retry, and a bad flag would loop
+    # there forever re-asking about something no retry can fix.
+    try:
+        pipeline._validate_skip_layers(args.skip_layers, len(pipeline.LAYERS) - 1)
+    except pipeline.SkipLayerError as e:
+        print(f"Error: {e}")
+        return 2
+
     ensure_authenticated()
 
     volumes = collect_volumes(args)
@@ -300,8 +325,9 @@ def main():
 
     if args.dry_run:
         # Explicit --dry-run: preview only, no live follow-up offered.
-        print(f"\n=== Previewing layers 0-{layer_index} (nothing will be created) ===")
-        pipeline.run_up_to(layer_index, dry_run=True)
+        print(f"\n=== Previewing {_layer_range_text(layer_index, args.skip_layers)} "
+              f"(nothing will be created) ===")
+        pipeline.run_up_to(layer_index, dry_run=True, skip_layers=args.skip_layers)
         print("\nDone — that was a preview, nothing was created.")
         return 0
 
@@ -309,8 +335,9 @@ def main():
         # Interactive default: offer a preview, then — without restarting
         # anything or re-asking for volumes — offer to go live right away.
         if _confirm("\nPreview first before creating real records (recommended)?", default=True):
-            print(f"\n=== Previewing layers 0-{layer_index} (nothing will be created) ===")
-            pipeline.run_up_to(layer_index, dry_run=True)
+            print(f"\n=== Previewing {_layer_range_text(layer_index, args.skip_layers)} "
+                  f"(nothing will be created) ===")
+            pipeline.run_up_to(layer_index, dry_run=True, skip_layers=args.skip_layers)
             if not _confirm("\nThat was a preview. Run this for real now?", default=False):
                 print("\nDone — no real records were created. Run `python3 wizard.py` again anytime.")
                 return 0

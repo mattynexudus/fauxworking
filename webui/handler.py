@@ -264,14 +264,18 @@ class Handler(BaseHTTPRequestHandler):
         path = _STATIC_DIR / "index.html"
         if not path.is_file():
             return self._send_json({"error": "index.html missing"}, status=500)
-        self._send_bytes(path.read_bytes(), "text/html; charset=utf-8")
+        self._send_bytes(path.read_bytes(), "text/html; charset=utf-8", no_store=True)
 
     def _send_static_asset(self, name):
         ctype = _STATIC_FILES.get(name)
         path = _STATIC_DIR / name
         if ctype is None or not path.is_file():
             return self._send_json({"error": "not found"}, status=404)
-        self._send_bytes(path.read_bytes(), ctype)
+        # Read fresh off disk every time and tell the browser not to keep a
+        # copy: these assets are edited in place while the server is running,
+        # and a heuristically-cached app.js silently pins the panel to an old
+        # build (which looks exactly like a bug in the current code).
+        self._send_bytes(path.read_bytes(), ctype, no_store=True)
 
     def _read_json(self):
         try:
@@ -289,10 +293,13 @@ class Handler(BaseHTTPRequestHandler):
         self._send_bytes(json.dumps(obj).encode("utf-8"),
                          "application/json; charset=utf-8", status=status)
 
-    def _send_bytes(self, data, content_type, status=200, download_name=None):
+    def _send_bytes(self, data, content_type, status=200, download_name=None,
+                    no_store=False):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        if no_store:
+            self.send_header("Cache-Control", "no-store, must-revalidate")
         if download_name:
             self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
         self.send_header("Connection", "close")

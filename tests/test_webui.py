@@ -141,20 +141,38 @@ class TestCommandRegistry(unittest.TestCase):
         self.assertEqual(
             build_argv("teardown", {"mode": "tracked"}, dry_run=False)[-2:],
             ["--mode", "tracked"])
-        # live + clean: refused, never buildable
-        with self.assertRaises(BadRequest):
-            build_argv("teardown", {"mode": "clean"}, dry_run=False)
+        # live + clean: now buildable — teardown.py's own typed prompt is
+        # bypassed with --yes (the panel/server gate it behind a phrase).
+        self.assertEqual(
+            build_argv("teardown", {"mode": "clean"}, dry_run=False)[-3:],
+            ["--mode", "clean", "--yes"])
 
-    def test_no_command_yields_clean_mode_live(self):
-        for cmd_id in registry.BY_ID:
-            try:
-                argv = build_argv(cmd_id)
-            except BadRequest:
-                continue
-            if "teardown.py" in argv and "--mode" in argv:
-                mode = argv[argv.index("--mode") + 1]
-                if mode == "clean":
-                    self.assertIn("--dry-run", argv)
+    def test_teardown_cleanup_flags_only_on_a_real_run(self):
+        live = build_argv("teardown",
+                          {"mode": "tracked", "clear_data": True, "clear_csv": True,
+                           "reset_counters": True}, dry_run=False)
+        self.assertIn("--clear-generated-data", live)
+        self.assertIn("--clear-csv-outputs", live)
+        self.assertIn("--reset-counters", live)
+        # a preview never runs them, so build_argv drops them
+        preview = build_argv("teardown",
+                             {"mode": "tracked", "clear_data": True, "clear_csv": True,
+                              "reset_counters": True}, dry_run=True)
+        for flag in ("--clear-generated-data", "--clear-csv-outputs", "--reset-counters"):
+            self.assertNotIn(flag, preview)
+
+    def test_confirm_phrase_for_teardown_depends_on_mode(self):
+        self.assertEqual(registry.confirm_phrase_for("teardown", {"mode": "tracked"}),
+                         "delete tracked records")
+        self.assertEqual(registry.confirm_phrase_for("teardown", {"mode": "clean"}),
+                         registry.TEARDOWN_CLEAN_CONFIRM_PHRASE)
+        self.assertEqual(registry.confirm_phrase_for("teardown", None),
+                         "delete tracked records")
+
+    def test_no_command_teardown_defaults_to_tracked_no_yes(self):
+        argv = build_argv("teardown")
+        self.assertEqual(argv[argv.index("--mode") + 1], "tracked")
+        self.assertNotIn("--yes", argv)
 
     def test_wizard_always_complete_and_non_interactive(self):
         import prebuild
@@ -186,6 +204,93 @@ class TestCommandRegistry(unittest.TestCase):
                          str(len(__import__("pipeline").LAYERS) - 1))
         argv = build_argv("wizard", {"layer": 3})
         self.assertEqual(argv[argv.index("--layer") + 1], "3")
+
+    # -- skip_layers -------------------------------------------------------
+    def _layer_tokens(self, params):
+        """Just the --layer / --skip-layer part of a wizard argv."""
+        argv = build_argv("wizard", params)
+        out = []
+        for i, tok in enumerate(argv):
+            if tok in ("--layer", "--skip-layer"):
+                out += [tok, argv[i + 1]]
+        return out
+
+    def test_skip_layer_emits_a_repeated_flag_for_gaps(self):
+        self.assertEqual(
+            self._layer_tokens({"layer": 7, "skip_layers": [5, 6]}),
+            ["--layer", "7", "--skip-layer", "5", "--skip-layer", "6"])
+
+    def test_trailing_skips_collapse_into_the_ceiling(self):
+        # Skipping the top layers is the same instruction as a lower ceiling,
+        # and says it in fewer tokens — so no --skip-layer is emitted at all.
+        self.assertEqual(self._layer_tokens({"layer": 7, "skip_layers": [6, 7]}),
+                         ["--layer", "5"])
+        # ...and a gap below a collapsed ceiling still gets its explicit flag.
+        self.assertEqual(self._layer_tokens({"layer": 7, "skip_layers": [5, 7]}),
+                         ["--layer", "6", "--skip-layer", "5"])
+
+    def test_skip_layer_accepts_a_comma_string(self):
+        self.assertEqual(self._layer_tokens({"layer": 7, "skip_layers": "5,6"}),
+                         self._layer_tokens({"layer": 7, "skip_layers": [5, 6]}))
+
+    def test_skip_layer_rejects_the_hard_dependency_tier(self):
+        with self.assertRaises(BadRequest) as ctx:
+            build_argv("wizard", {"layer": 7, "skip_layers": [2]})
+        self.assertIn("hard dependency chain", str(ctx.exception))
+
+    def test_skip_layer_rejects_nonsense(self):
+        for bad in ([99], ["x"], {"a": 1}):
+            with self.assertRaises(BadRequest):
+                build_argv("wizard", {"layer": 7, "skip_layers": bad})
+
+    def test_skipping_everything_is_rejected(self):
+        with self.assertRaises(BadRequest) as ctx:
+            build_argv("wizard", {"layer": 3, "skip_layers": [0, 1, 2, 3]})
+        # The hard-tier guard fires first — either message is a clean 400.
+        self.assertIsInstance(ctx.exception, BadRequest)
+
+    def test_layer_taxonomy_is_exposed_and_covers_every_tracked_entity(self):
+        blob = registry.commands_json()
+        self.assertEqual(len(blob["layers"]), len(__import__("pipeline").LAYERS))
+        self.assertEqual(blob["hard_dependency_layer_count"],
+                         __import__("pipeline").HARD_DEPENDENCY_LAYER_COUNT)
+        # Every entity that can appear in the Results table has a layer to be
+        # grouped under, or it would silently vanish from the entity table.
+        missing = set(report_lib.TARGET_KEY_BY_ENTITY) - set(blob["layer_by_entity"])
+        self.assertEqual(missing, set(), f"ungrouped entities: {sorted(missing)}")
+        for entity, layer in blob["layer_by_entity"].items():
+            self.assertIn(layer, range(len(blob["layers"])), entity)
+
+    def test_layer_by_entity_covers_every_entity_a_generator_can_track(self):
+        # TARGET_KEY_BY_ENTITY alone missed six real entities (join tables and
+        # other targetless side effects — see LAYER_BY_ENTITY's comment) that
+        # generators do tag and track, so they're seeded and shown live but
+        # silently fell out of the Results table's grouping. Scanning every
+        # generator's own entity="..." call sites is the actual superset this
+        # map needs to cover, static and independent of what's tracked live
+        # in any one account.
+        generators_dir = Path(__file__).parent.parent / "generators"
+        tagged = set()
+        for path in generators_dir.glob("*.py"):
+            tagged |= set(re.findall(r'entity="([a-z_]+)"', path.read_text(encoding="utf-8")))
+        self.assertTrue(tagged, "no entity= tags found — the scan itself is broken")
+        missing = tagged - set(registry.LAYER_BY_ENTITY)
+        self.assertEqual(missing, set(), f"tracked but ungrouped: {sorted(missing)}")
+
+    def test_entity_labels_cover_every_grouped_entity(self):
+        blob = registry.commands_json()
+        labels = blob["entity_labels"]
+        self.assertEqual(set(labels), set(blob["layer_by_entity"]))
+        # An apiPath is unspaced, so a label that still equals it means the
+        # volume-key lookup found nothing and nobody added a fallback.
+        unlabelled = [e for e, l in labels.items() if l == e]
+        self.assertEqual(unlabelled, [], f"no readable label for: {unlabelled}")
+        # The 11 configurable knobs keep their hand-written labels verbatim.
+        self.assertEqual(labels["bookings"], registry.VOLUME_LABELS["bookings_total"])
+        self.assertEqual(labels["checkins"], registry.VOLUME_LABELS["check_ins"])
+        # Derived ones read as words, with the CRM acronym preserved.
+        self.assertEqual(labels["financialaccounts"], "Financial accounts")
+        self.assertEqual(labels["crmboardcolumns"], "CRM board columns")
 
     def test_pretty_argv(self):
         raw = build_argv("wizard", {})
@@ -257,6 +362,13 @@ class TestRegistryShape(unittest.TestCase):
         blob = {c["id"]: c for c in registry.commands_json()["commands"]}
         self.assertTrue(blob["pipeline"]["hidden"])
         self.assertFalse(blob["verify"]["hidden"])
+
+    def test_wizard_has_no_seed_param(self):
+        # the control panel dropped the Seed box (--seed stays a CLI-only flag);
+        # a stray seed value in the payload must not become a --seed token.
+        wizard = registry.BY_ID["wizard"]
+        self.assertNotIn("seed", [p.name for p in wizard.params])
+        self.assertNotIn("--seed", build_argv("wizard", {"seed": 99}))
 
     def test_wizard_volume_params_all_have_defaults(self):
         # regression: they used to render as 11 blank boxes. The guided flow
@@ -452,12 +564,19 @@ class TestDestructiveGating(_MgrCase):
             _wait(job)
         self.assertEqual(job.status, "succeeded")
 
-    def test_teardown_clean_live_refused(self):
+    def test_teardown_clean_live_needs_the_stronger_phrase(self):
         with patch("webui.jobs.subprocess.Popen", PopenSpy()) as spy:
+            # the tracked phrase is not enough for a clean wipe
             with self.assertRaises(BadRequest):
                 self.mgr.start("teardown", params={"mode": "clean"}, dry_run=False,
                                confirm="delete tracked records")
-        self.assertEqual(spy.calls, [])
+            self.assertEqual(spy.calls, [])
+            # the clean phrase runs it, and --yes rides past teardown.py's prompt
+            job = self.mgr.start("teardown", params={"mode": "clean"}, dry_run=False,
+                                 confirm="delete everything")
+            _wait(job)
+        self.assertIn("--yes", spy.calls[0])
+        self.assertEqual(spy.calls[0][spy.calls[0].index("--mode") + 1], "clean")
 
 
 # --------------------------------------------------------------------------
@@ -502,29 +621,65 @@ class TestReportSurface(unittest.TestCase):
             patch.object(report_lib, "CREATED_IDS_DIR", self.created),
             patch.object(report_lib, "REPORT_PATH", self.report_path),
             patch.object(config, "OUTPUT_DIR", self.output),
+            # Without this, target_for() -> real_targets() would instantiate
+            # the *real* generators/0N_*.py classes against this repo's
+            # actual data/ — real_targets() itself has its own dedicated
+            # tests (test_report_lib.py); these tests only care about
+            # gather_report()'s shape, so it's forced empty here.
+            patch.object(report_lib, "LAYERS", []),
+            patch.object(report_lib, "_real_targets_cache", {"fingerprint": None, "value": {}}),
         )
 
     def test_populated(self):
-        (self.created / "reference.json").write_text(
-            json.dumps([{"entity": "taxrates", "Id": 1}, {"entity": "taxrates", "Id": 2}]))
+        (self.created / "reference.json").write_text(json.dumps([
+            {"entity": "taxrates", "Id": 1}, {"entity": "taxrates", "Id": 2},
+            {"entity": "resourcetypes", "Id": 9},  # tracked, but the run below never touched it
+            {"Id": 3},  # no "entity" tag — a stray/malformed record
+        ]))
         self.report_path.write_text(
             "Report generated 2026-08-27T09:08:24+00:00\n\n=== This run ===\nx\n"
             "=== What's in the account now (cumulative, all runs) ===\ncut me\n")
+        # The JSON sibling report_lib.write_run_json actually writes alongside it.
+        self.report_path.with_suffix(".json").write_text(json.dumps({
+            "generated_at": "2026-08-27T09:08:24+00:00",
+            "layer_failures": ["Layer 5 (CommunityGenerator): boom"],
+            "entities": {
+                "taxrates": {"target": 2, "created": 2, "skipped": 0, "failed": 0,
+                             "failure_reasons": {}},
+                "visitors": {"target": 5, "created": 3, "skipped": 0, "failed": 2,
+                             "failure_reasons": {"Access Denied": 2}},
+            },
+        }))
         (self.output / "coworkers.csv").write_text("Id,Name\n1,a\n2,b\n3,c\n")
         (self.output / "visitors.csv").write_text("Id,Name\n")  # header only
-        p1, p2, p3 = self._patches()
-        with p1, p2, p3:
+        p1, p2, p3, p4, p5 = self._patches()
+        with p1, p2, p3, p4, p5:
             out = report.gather_report()
 
         # structured cumulative rows
         tax = next(r for r in out["report"] if r["entity"] == "taxrates")
         self.assertEqual(tax["created"], 2)
         self.assertIn("total", out["summary"])
-        self.assertEqual(out["report_text"], "\n".join(out["report_lines"]))
+        self.assertEqual(out["summary"]["malformed"], 1)
 
-        # last run: run-specific part only, with its timestamp pulled out
+        # this run's per-entity delta joined onto the same rows — present
+        # for an entity the last run touched, None for one it didn't.
+        self.assertEqual(tax["last_run"], {"created": 2, "failed": 0})
+        rt = next(r for r in out["report"] if r["entity"] == "resourcetypes")
+        self.assertIsNone(rt["last_run"])
+
+        # run-level summary for the status strip
+        rs = out["run_summary"]
+        self.assertEqual(rs["generated_at"], "2026-08-27T09:08:24+00:00")
+        self.assertEqual(rs["layer_failures"], ["Layer 5 (CommunityGenerator): boom"])
+        self.assertEqual(rs["total_created"], 5)
+        self.assertEqual(rs["total_failed"], 2)
+        self.assertEqual(rs["entities_failed"], 1)
+        self.assertEqual(rs["top_failure_reasons"], [("Access Denied", 2)])
+
+        # the raw file, shown verbatim (no more trimming the cumulative half out)
         self.assertEqual(out["last_run"]["generated_at"], "2026-08-27T09:08:24+00:00")
-        self.assertNotIn("cut me", out["last_run"]["text"])
+        self.assertIn("cut me", out["last_run"]["text"])
 
         # per-CSV row counts + summary
         by_name = {o["name"]: o for o in out["outputs"]}
@@ -532,14 +687,27 @@ class TestReportSurface(unittest.TestCase):
         self.assertEqual(by_name["visitors.csv"]["rows"], 0)
         self.assertEqual(out["outputs_summary"], {"files": 2, "with_rows": 1})
 
+    def test_no_run_json_falls_back_to_text_timestamp_only(self):
+        # An older last-run-report.txt from before write_run_json existed:
+        # still gives a timestamp (scraped from the text), just no per-entity
+        # deltas or run_summary to join onto the table.
+        self.report_path.write_text("Report generated 2026-08-27T09:08:24+00:00\n\nx\n")
+        p1, p2, p3, p4, p5 = self._patches()
+        with p1, p2, p3, p4, p5:
+            out = report.gather_report()
+        self.assertEqual(out["last_run"]["generated_at"], "2026-08-27T09:08:24+00:00")
+        self.assertIsNone(out["run_summary"])
+
     def test_all_absent(self):
-        p1, p2, p3 = self._patches()
-        with p1, p2, p3:
+        p1, p2, p3, p4, p5 = self._patches()
+        with p1, p2, p3, p4, p5:
             out = report.gather_report()
         self.assertIsNone(out["last_run"]["text"])
+        self.assertIsNone(out["run_summary"])
         self.assertEqual(out["outputs"], [])
         self.assertEqual(out["report"], [])
         self.assertEqual(out["outputs_summary"], {"files": 0, "with_rows": 0})
+        self.assertEqual(out["summary"]["malformed"], 0)
 
 
 # --------------------------------------------------------------------------

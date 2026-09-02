@@ -60,12 +60,19 @@ tracked ID, per rule 6/7).
 
 After a live teardown finishes, it also offers to delete data/*.json — the
 pre-generated test data plan files prebuild.py writes and the generators
-read from (coworkers.json, bookings.json, ...). Teardown clearing the live
-account and data/created-ids/ tracking never touches these on its own —
-they're deliberately reusable across reseed cycles (see README's two-step
-data flow) — so keeping them is the default; this only offers to remove
-them too for someone who wants a genuinely clean project directory (see
-maybe_clear_generated_data below).
+read from (coworkers.json, bookings.json, ...) — and, separately,
+output/*.csv, the per-entity CSV exports. Teardown clearing the live
+account and data/created-ids/ tracking never touches either on its own —
+the plan files are deliberately reusable across reseed cycles (see
+README's two-step data flow) and the CSVs are a read-only snapshot rebuilt
+on the next seed + export — so keeping both is the default; this only
+offers to remove them for someone who wants a genuinely clean project
+directory (see maybe_clear_generated_data / maybe_clear_csv_outputs).
+Non-interactive callers can pass --clear-generated-data /
+--clear-csv-outputs / --reset-counters to take each action without the
+prompt (the web control panel does this, having collected the choices in
+its teardown dialog up front); --yes skips --mode clean's typed
+confirmation the same way.
 
 It also offers to reset that business's
 Billing.Current{Booking,CreditNote,Draft,Invoice}Number counters back to 0
@@ -94,8 +101,12 @@ Two modes, chosen via --mode (or an interactive prompt if omitted):
 Usage:
     python teardown.py                       # Live mode — deletes for real
     python teardown.py --mode clean           # Live mode, ignoring tracking
+    python teardown.py --mode clean --yes     # ...skipping the typed prompt
     python teardown.py --dry-run              # Log what would be deleted
     python teardown.py --dry-run --mode clean # Preview a full live wipe
+    python teardown.py --clear-generated-data --clear-csv-outputs --reset-counters
+                                               # take the post-teardown
+                                               # cleanups without prompting
     python teardown.py --business-id 12345   # pick which business's
                                                # counters to offer resetting,
                                                # for logins with access to
@@ -111,7 +122,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config import CREATED_IDS_DIR, DATA_DIR
+from config import CREATED_IDS_DIR, DATA_DIR, OUTPUT_DIR
 
 # Reverse of the creation dependency order (§3) — children before parents.
 ENTITY_DELETE_ORDER = [
@@ -759,7 +770,7 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
     }
 
 
-def maybe_clear_generated_data():
+def maybe_clear_generated_data(assume_yes=False):
     """Ask whether to also delete data/*.json — the pre-generated test data
     plan files (coworkers.json, bookings.json, ...) that prebuild.py writes
     and the generators read from. Teardown clearing the live account and
@@ -771,7 +782,10 @@ def maybe_clear_generated_data():
     The glob also picks up data/plan-manifest.json (prebuild's incremental
     seed/count record) — correct: once the plan files are gone, the manifest
     must go too so the next prebuild starts fresh rather than thinking the
-    (now deleted) records are still there."""
+    (now deleted) records are still there.
+
+    assume_yes skips the prompt and deletes — for a non-interactive caller
+    (the web control panel) that already collected the choice up front."""
     files = sorted(DATA_DIR.glob("*.json"))
     if not files:
         return
@@ -779,10 +793,13 @@ def maybe_clear_generated_data():
     print(f"\n--- Generated data files in {DATA_DIR} ---")
     print(f"  {len(files)} files (coworkers.json, bookings.json, ...)")
 
-    answer = input(
-        "\nAlso delete these local generated data files? They're safe to keep — "
-        "prebuild.py overwrites them next time you generate new data anyway (y/N): "
-    ).strip().lower()
+    if assume_yes:
+        answer = "y"
+    else:
+        answer = input(
+            "\nAlso delete these local generated data files? They're safe to keep — "
+            "prebuild.py overwrites them next time you generate new data anyway (y/N): "
+        ).strip().lower()
     if answer != "y":
         print("Keeping generated data files.")
         return
@@ -790,6 +807,42 @@ def maybe_clear_generated_data():
     for path in files:
         path.unlink()
     print(f"Deleted {len(files)} generated data files from {DATA_DIR}.")
+
+
+def maybe_clear_csv_outputs(assume_yes=False):
+    """Ask whether to also delete output/*.csv — the per-entity CSV exports
+    (plus the copied run report) that report_lib.write_entity_csvs /
+    refresh_output.py write after a live run. Teardown clearing the live
+    account and local tracking never touches these; they're a read-only
+    snapshot, rebuilt wholesale on the next seed + CSV export. Offered here
+    only for someone who wants the project directory itself back to a clean
+    slate.
+
+    assume_yes skips the prompt and deletes — same rationale as
+    maybe_clear_generated_data."""
+    if not OUTPUT_DIR.exists():
+        return
+    files = sorted(OUTPUT_DIR.glob("*.csv"))
+    if not files:
+        return
+
+    print(f"\n--- Exported CSVs in {OUTPUT_DIR} ---")
+    print(f"  {len(files)} files")
+
+    if assume_yes:
+        answer = "y"
+    else:
+        answer = input(
+            "\nAlso delete these exported CSV files? They're rebuilt on the next "
+            "seed + CSV export (y/N): "
+        ).strip().lower()
+    if answer != "y":
+        print("Keeping exported CSV files.")
+        return
+
+    for path in files:
+        path.unlink()
+    print(f"Deleted {len(files)} exported CSV files from {OUTPUT_DIR}.")
 
 
 # The four auto-incrementing counters Nexudus bumps on every booking,
@@ -817,10 +870,14 @@ def _fetch_counter_settings(business_id, nexudus_list):
     ]
 
 
-def maybe_reset_business_counters(business_id, business_name, nexudus_list, nexudus_update):
+def maybe_reset_business_counters(business_id, business_name, nexudus_list, nexudus_update,
+                                  assume_yes=False):
     """Ask whether to reset business_id's billing counters to 0, now that
     teardown has cleared every tracked record. Purely optional — see the
-    module docstring for why this doesn't just happen automatically."""
+    module docstring for why this doesn't just happen automatically.
+
+    assume_yes skips the prompt and resets — for a non-interactive caller
+    (the web control panel) that already collected the choice up front."""
     settings = _fetch_counter_settings(business_id, nexudus_list)
     if not settings:
         print(f"\nNo billing counter settings found for {business_name} (id={business_id}).")
@@ -830,10 +887,13 @@ def maybe_reset_business_counters(business_id, business_name, nexudus_list, nexu
     for s in settings:
         print(f"  {s['Name']}: {s['Value']}")
 
-    answer = input(
-        "\nReset these to 0? This location may also have real invoices/bookings "
-        "issued outside this tool — resetting reuses their numbers (y/N): "
-    ).strip().lower()
+    if assume_yes:
+        answer = "y"
+    else:
+        answer = input(
+            "\nReset these to 0? This location may also have real invoices/bookings "
+            "issued outside this tool — resetting reuses their numbers (y/N): "
+        ).strip().lower()
     if answer != "y":
         print("Leaving counters as-is.")
         return
@@ -898,6 +958,20 @@ if __name__ == "__main__":
     parser.add_argument("--business-id", type=int, default=None,
                          help="Which business/location's billing counters to offer "
                               "resetting afterward, if this login has access to more than one")
+    parser.add_argument("--yes", action="store_true",
+                         help="Skip the interactive 'delete everything' confirmation for "
+                              "--mode clean (the caller has already confirmed — e.g. the "
+                              "web control panel, which gates it behind a typed phrase of "
+                              "its own)")
+    parser.add_argument("--clear-generated-data", action="store_true",
+                         help="After teardown, delete data/*.json (prebuild's plan files) "
+                              "without prompting")
+    parser.add_argument("--clear-csv-outputs", action="store_true",
+                         help="After teardown, delete output/*.csv (the exported per-entity "
+                              "CSVs) without prompting")
+    parser.add_argument("--reset-counters", action="store_true",
+                         help="After teardown, reset the business's Billing.Current* "
+                              "counters to 0 without prompting (uses --business-id)")
     args = parser.parse_args()
 
     if args.mode is not None:
@@ -923,12 +997,15 @@ if __name__ == "__main__":
         import nexudus_client as client
         from pipeline import _select_business, list_businesses
 
-        if mode == "clean":
-            confirm = input(
-                "\n'clean' mode deletes every live record on this account, ignoring local "
-                "tracking entirely — including anything this project didn't create. Type "
-                "'delete everything' to proceed: "
-            ).strip()
+        if mode == "clean" and not args.yes:
+            try:
+                confirm = input(
+                    "\n'clean' mode deletes every live record on this account, ignoring local "
+                    "tracking entirely — including anything this project didn't create. Type "
+                    "'delete everything' to proceed: "
+                ).strip()
+            except EOFError:
+                confirm = ""
             if confirm != "delete everything":
                 print("Aborted — no changes made.")
                 sys.exit(0)
@@ -947,11 +1024,16 @@ if __name__ == "__main__":
                   f"to pick up where it left off.")
 
         try:
-            maybe_clear_generated_data()
+            maybe_clear_generated_data(assume_yes=args.clear_generated_data)
         except EOFError:
             # No stdin to read from (piped/non-interactive run) — skip this
             # optional offer cleanly, same as the counter-reset one below.
             print("\n\nNo input available — skipping the generated-data cleanup offer.")
+
+        try:
+            maybe_clear_csv_outputs(assume_yes=args.clear_csv_outputs)
+        except EOFError:
+            print("\n\nNo input available — skipping the exported-CSV cleanup offer.")
 
         try:
             businesses = list_businesses()
@@ -962,6 +1044,7 @@ if __name__ == "__main__":
             maybe_reset_business_counters(
                 business["Id"], business.get("Name", "?"),
                 client.nexudus_list, client.nexudus_update,
+                assume_yes=args.reset_counters,
             )
         except EOFError:
             # No stdin to read from (piped/non-interactive run) — the

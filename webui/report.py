@@ -1,8 +1,9 @@
 """
 The Results pane's data — assembled entirely from local files, no network.
 
-`report_lib.report_lines()` is the same cumulative "what's in the account"
-table `scripts/verify.sh` prints; `last-run-report.txt` is what
+`report_lib.tracked_counts_detail()` is the same cumulative "what's in the
+account" tally `scripts/verify.sh` prints as text; `last-run-report.txt` (and
+its `last-run.json` sibling — see report_lib.write_run_json) is what
 `pipeline.run_up_to` writes at the end of a live run; `output/*.csv` is the
 per-entity export. Every read is guarded so a missing file yields an empty
 section rather than an error.
@@ -11,6 +12,7 @@ section rather than an error.
 from __future__ import annotations
 
 import json
+from collections import Counter
 
 import config
 import report_lib
@@ -55,13 +57,6 @@ def gather_plan() -> dict:
     }
 
 
-# last-run-report.txt ends with a full copy of report_lib.report_lines() under
-# this header (see report_lib.write_report). The panel already shows that live
-# table as the main "Results" block, so the last-run view is trimmed to just
-# the run-specific part above it: timestamp, layer failures, this-run reconciliation.
-_CUMULATIVE_MARKER = "=== What's in the account now (cumulative, all runs) ==="
-
-
 def _csv_rows(path) -> int:
     """Data rows in a CSV (line count minus the header), 0 if header-only/empty."""
     try:
@@ -79,37 +74,77 @@ def _first_iso(text) -> str | None:
 
 
 def gather_report() -> dict:
-    # --- cumulative "what's in the account" — structured, plus the raw text ---
+    # --- cumulative "what's in the account" — structured ---
     try:
-        raw_lines = report_lib.report_lines()
-        counts = report_lib.tracked_counts()
-    except Exception as e:  # noqa: BLE001
-        raw_lines, counts = [f"(could not read tracked records: {e})"], {}
+        counts, malformed_count = report_lib.tracked_counts_detail()
+    except Exception:  # noqa: BLE001
+        counts, malformed_count = {}, 0
+
+    # --- last live seeding run: structured (last-run.json), for the "last
+    # run" delta joined onto each row below, plus a summary for the status
+    # strip. Falls back to just a timestamp (scraped from the text report's
+    # first line) when the JSON sibling is missing — an older last-run-report.txt
+    # written before this file existed, or a JSON write that failed independently
+    # of the text one. No JSON at all just means every row's "last run" reads "—".
+    run_entities, run_summary = {}, None
+    try:
+        json_path = report_lib.REPORT_PATH.with_suffix(".json")
+        if json_path.exists():
+            run_data = json.loads(json_path.read_text(encoding="utf-8"))
+            run_entities = run_data.get("entities") or {}
+            reasons = Counter()
+            for c in run_entities.values():
+                reasons.update(c.get("failure_reasons") or {})
+            total_failed = sum(c.get("failed", 0) for c in run_entities.values())
+            run_summary = {
+                "generated_at": run_data.get("generated_at"),
+                "layer_failures": run_data.get("layer_failures") or [],
+                "total_created": sum(c.get("created", 0) for c in run_entities.values()),
+                "total_failed": total_failed,
+                "entities_failed": sum(1 for c in run_entities.values() if c.get("failed")),
+                # top 3 is plenty for a one-line status strip — the full
+                # breakdown is still in the raw report for anyone who needs it.
+                "top_failure_reasons": reasons.most_common(3),
+            }
+    except (OSError, ValueError):
+        pass
 
     rows = []
     for entity in sorted(counts):
         target = report_lib.target_for(entity)
+        run = run_entities.get(entity)
         rows.append({
             "entity": entity,
+            # The config.VOLUMES key this entity is tracked under, so the
+            # frontend can join these rows against gather_plan()'s per-key
+            # generated/seeded counts. None for entities with no volume key.
+            "key": report_lib.TARGET_KEY_BY_ENTITY.get(entity),
             "created": counts[entity],
             "target": target,
             "short": target is not None and counts[entity] < target,
+            # This run's delta for this entity, or None if the last run
+            # never touched it (a skipped layer, or an entity another
+            # layer owns). Distinct from "short" above, which is lifetime.
+            "last_run": {"created": run.get("created", 0), "failed": run.get("failed", 0)} if run else None,
         })
     with_target = [r for r in rows if r["target"] is not None]
     summary = {
         "total": sum(counts.values()),
         "entities": len(with_target),
         "below_target": sum(1 for r in with_target if r["short"]),
+        "malformed": malformed_count,
     }
 
-    # --- last live seeding run (run-specific part only) ---
-    last_run = {"generated_at": None, "text": None}
+    # --- last live seeding run: the raw file, verbatim, for the "raw report"
+    # viewer — a QA person opening exactly what write_report() saved to disk.
+    last_run = {"generated_at": run_summary["generated_at"] if run_summary else None, "text": None}
     try:
         path = report_lib.REPORT_PATH
         if path.exists():
             text = path.read_text(encoding="utf-8")
-            head = text.split(_CUMULATIVE_MARKER, 1)[0].rstrip()
-            last_run = {"generated_at": _first_iso(text), "text": head or text}
+            last_run["text"] = text
+            if last_run["generated_at"] is None:
+                last_run["generated_at"] = _first_iso(text)
     except OSError:
         pass
 
@@ -130,11 +165,8 @@ def gather_report() -> dict:
     return {
         "report": rows,
         "summary": summary,
-        "report_text": "\n".join(raw_lines),
+        "run_summary": run_summary,
         "last_run": last_run,
         "outputs": outputs,
         "outputs_summary": outputs_summary,
-        # kept for anything still reading the old shape
-        "report_lines": raw_lines,
-        "last_run_report": last_run["text"],
     }

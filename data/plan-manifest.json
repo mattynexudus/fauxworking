@@ -1,0 +1,17 @@
+{
+  "seed": 42,
+  "generated_at": "2026-09-01T22:27:44.142066+00:00",
+  "counts": {
+    "coworkers": 50,
+    "visitors": 60,
+    "bookings_total": 240,
+    "check_ins": 300,
+    "crm_opportunities": 30,
+    "proposals": 15,
+    "help_desk_messages": 25,
+    "community_threads": 15,
+    "coworker_tasks": 20,
+    "coworker_time_passes": 40,
+    "coworker_products": 20
+  }
+}

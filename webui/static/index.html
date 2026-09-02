@@ -4,25 +4,53 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fauxworking control panel</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Crect width='20' height='20' rx='5' fill='%23FE4D00'/%3E%3Cpath d='M6 14V6h5.2M6 10h4.4' stroke='%23fff' stroke-width='1.9' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <!-- Icon sprite. Replaces a whole icon library: referenced as
+       <svg class="i"><use href="#i-play"></use></svg>, inheriting currentColor. -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="i-logo" viewBox="0 0 20 20">
+      <rect x="1" y="1" width="18" height="18" rx="5" fill="var(--brand)"></rect>
+      <path d="M6 14V6h5.2M6 10h4.4" stroke="var(--brand-ink)" stroke-width="1.9"
+            stroke-linecap="round" fill="none"></path>
+    </symbol>
+    <g fill="none" stroke="currentColor" stroke-width="1.8"
+       stroke-linecap="round" stroke-linejoin="round">
+      <symbol id="i-play" viewBox="0 0 16 16"><path d="M4.5 3.2v9.6l8-4.8z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3.2L13 4.8"/></symbol>
+      <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13.5 7a5.5 5.5 0 1 0-1.2 4.2"/><path d="M13.6 3v4h-4"/></symbol>
+      <symbol id="i-terminal" viewBox="0 0 16 16"><path d="M3 4l3.5 4L3 12M8.5 12.2H13"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.8l5 2v4c0 3-2.2 5.3-5 6.4-2.8-1.1-5-3.4-5-6.4v-4z"/></symbol>
+      <symbol id="i-dot" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 16 16"><path d="M4 8h8"/></symbol>
+      <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2.5v7.5M4.8 7.2L8 10.4l3.2-3.2M2.8 12.8h10.4"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 16 16"><path d="M5.5 3.5L10 8l-4.5 4.5"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 16 16"><path d="M8 2.6l6 10.8H2z"/><path d="M8 6.6v3.1M8 11.6v.1"/></symbol>
+    </g>
+  </svg>
+
   <header>
     <span class="brand">
-      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-        <rect x="1" y="1" width="18" height="18" rx="5" fill="var(--brand)"></rect>
-        <path d="M6 14V6h5.2M6 10h4.4" stroke="var(--brand-ink)" stroke-width="1.9"
-              stroke-linecap="round" fill="none"></path>
-      </svg>
+      <svg class="i i-brand" aria-hidden="true"><use href="#i-logo"></use></svg>
       Fauxworking
     </span>
     <span class="header-spacer"></span>
-    <span id="auth-pill" class="pill"><span class="dot"></span><span id="auth-text">checking…</span></span>
     <span id="loc" class="loc" hidden></span>
+    <button id="global-refresh" class="btn small" aria-label="Refresh from disk" hidden>
+      <svg class="i" aria-hidden="true"><use href="#i-refresh"></use></svg> Refresh
+    </button>
+    <span id="auth-pill" class="pill"><span class="dot"></span><span id="auth-text">checking…</span></span>
     <button id="signout-btn" class="btn small" hidden>Sign out</button>
   </header>
 
   <div id="conn-banner" class="conn-banner" hidden>
+    <svg class="i" aria-hidden="true"><use href="#i-alert"></use></svg>
     Can’t reach the control panel server — retrying…
   </div>
 
@@ -40,73 +68,164 @@
 
   <main id="main" hidden>
     <div id="left">
-      <section class="panel" id="volumes-panel" aria-label="Data volumes">
-        <div class="panel-head"><h2>Data volumes</h2></div>
-        <div id="volumes-body"></div>
+      <!-- Sits above Data targets, but only once there's data live to keep
+           fresh — hidden until the first real seed run (see syncDailyVisibility). -->
+      <section class="card-panel" id="daily" aria-labelledby="daily-h" hidden>
+        <div class="cp-head">
+          <div>
+            <h2 id="daily-h">Daily update</h2>
+            <p class="cp-sub">Create today’s fresh check-ins, bookings, visitors and
+              deliveries — and close yesterday’s open ones.</p>
+          </div>
+        </div>
+        <div class="daily-body">
+          <div id="daily-fields" class="fields"></div>
+          <div class="run-actions">
+            <label class="opt"><input type="checkbox" id="daily-dry" checked> Dry run only</label>
+            <span id="daily-reason" class="run-reason"></span>
+            <span class="spacer"></span>
+            <button id="btn-daily" class="btn primary">
+              <svg class="i" aria-hidden="true"><use href="#i-play"></use></svg>
+              <span id="btn-daily-label">Preview</span>
+            </button>
+          </div>
+          <div class="card-err" id="daily-err"></div>
+        </div>
       </section>
 
-      <section class="guided" id="guided" aria-label="Set up demo data">
-        <h2>Set up demo data</h2>
-        <div class="step-body" id="step-body"></div>
-      </section>
+      <section class="card-panel" id="entities" aria-labelledby="entities-h">
+        <div class="cp-head">
+          <div>
+            <h2 id="entities-h">Data targets</h2>
+            <p class="cp-sub" id="entities-sub"></p>
+          </div>
+        </div>
 
-      <details id="commands-wrap">
-        <summary>Individual commands</summary>
-        <div id="groups"></div>
-      </details>
+        <div id="entity-groups" class="entity-groups"></div>
+
+        <div class="action-bar">
+          <div class="opts">
+            <label class="opt"><input type="checkbox" id="opt-dryrun" checked> Dry run only</label>
+            <label class="opt"><input type="checkbox" id="opt-export" checked> Export CSVs</label>
+            <label class="opt"><input type="checkbox" id="opt-fresh"> Start data fresh</label>
+          </div>
+          <div class="warn-hint" id="fresh-warn" hidden></div>
+          <p class="cp-sub" id="run-echo"></p>
+          <pre class="review-cmd" id="cli-preview">…</pre>
+          <div class="card-err" id="run-err"></div>
+          <div class="run-actions">
+            <span id="run-reason" class="run-reason"></span>
+            <span class="spacer"></span>
+            <button id="btn-verify" class="btn small">
+              <svg class="i" aria-hidden="true"><use href="#i-shield"></use></svg> Verify
+            </button>
+            <button id="btn-teardown" class="btn small danger">Teardown…</button>
+            <button id="btn-run" class="btn primary">
+              <svg class="i" aria-hidden="true"><use href="#i-play"></use></svg>
+              <span id="btn-run-label">Preview run</span>
+            </button>
+          </div>
+          <div class="go-live-prompt" id="golive" hidden></div>
+        </div>
+      </section>
     </div>
 
     <div id="right">
-      <section class="panel console-wrap" aria-label="Console">
-        <div class="panel-head">
-          <h2>Console</h2>
+      <section class="card-panel" id="active-run-card" aria-labelledby="run-h">
+        <div class="cp-head">
+          <div>
+            <h2 id="run-h">Run progress</h2>
+            <p class="cp-sub" id="run-sub">No run yet.</p>
+          </div>
+          <span class="spacer"></span>
           <span id="status-badge" class="status-badge" hidden></span>
-          <label class="follow"><input type="checkbox" id="follow" checked> follow</label>
         </div>
-        <pre id="console" class="console" data-empty="No run yet — start one from the left."></pre>
-        <div id="active-run" class="active-run" hidden>
-          <span id="active-run-text"></span>
-          <button id="cancel-btn" class="btn small danger">Cancel</button>
+        <ol id="layer-list" class="layer-list"></ol>
+        <div class="run-foot" id="run-foot" hidden>
+          <span id="run-elapsed" class="run-elapsed mono"></span>
+          <span class="spacer"></span>
+          <button id="cancel-btn" class="btn small danger" hidden>
+            <svg class="i" aria-hidden="true"><use href="#i-x"></use></svg> Cancel run
+          </button>
         </div>
         <div id="run-hint" class="run-hint" hidden></div>
       </section>
 
-      <section class="panel" aria-label="Results">
-        <div class="panel-head">
-          <h2>Results</h2><span class="spacer"></span>
-          <button id="results-refresh" class="btn small">Refresh</button>
+      <section class="card-panel console-wrap" aria-labelledby="console-h">
+        <div class="cp-head">
+          <h2 id="console-h">
+            <svg class="i" aria-hidden="true"><use href="#i-terminal"></use></svg> Console
+          </h2>
+          <span class="spacer"></span>
+          <label class="follow"><input type="checkbox" id="follow" checked> follow</label>
+        </div>
+        <pre id="console" class="console" data-empty="No run yet — start one from the left."></pre>
+      </section>
+
+      <section class="card-panel" aria-labelledby="results-h">
+        <div class="cp-head">
+          <div>
+            <h2 id="results-h">Results</h2>
+            <p class="cp-sub" id="resync-note">Re-sync pulls in any invoices Nexudus
+              raised on its own and re-exports every CSV. Read-only, but slow — one call per invoice.</p>
+          </div>
+          <span class="spacer"></span>
+          <button id="btn-resync" class="btn small">
+            <svg class="i" aria-hidden="true"><use href="#i-refresh"></use></svg> Re-sync
+          </button>
+          <a id="outputs-zip" class="btn small" href="/api/output.zip">
+            <svg class="i" aria-hidden="true"><use href="#i-download"></use></svg> Download all
+          </a>
         </div>
 
         <p id="report-summary" class="report-summary"></p>
-        <div class="rtab-wrap"><table id="report-table" class="rtab"></table></div>
-        <details class="raw">
-          <summary>raw <code>verify</code> output</summary>
-          <pre id="report" class="report"></pre>
-        </details>
 
-        <details class="lastrun">
-          <summary id="lastrun-summary">Last seeding run</summary>
-          <pre id="last-run" class="report"></pre>
-        </details>
+        <!-- What the last live seeding run specifically did — layer failures,
+             failure counts. Per-entity numbers live as a "last run" column on
+             the Data targets table instead of a second table here (see
+             renderRunStatus). Hidden entirely when no run has ever recorded
+             one (data/created-ids/ has records, e.g. from a fresh clone, but
+             last-run.json doesn't exist yet). -->
+        <div id="run-status" class="run-status" hidden></div>
 
         <div class="outputs-head">
           <span id="outputs-summary" class="muted small"></span>
           <span class="spacer"></span>
-          <label class="small mono-off"><input type="checkbox" id="outputs-empty"> show empty</label>
-          <a id="outputs-zip" class="btn small" href="/api/output.zip">Download all</a>
+          <label class="small"><input type="checkbox" id="outputs-empty"> show empty</label>
         </div>
         <div class="otab-wrap"><table id="outputs" class="otab"></table></div>
+
+        <details class="raw">
+          <summary id="raw-report-summary">Raw report</summary>
+          <pre id="report" class="report"></pre>
+        </details>
       </section>
 
-      <section class="panel" aria-label="Runs">
-        <div class="panel-head">
-          <h2>Runs</h2><span class="spacer"></span>
-          <button id="runs-refresh" class="btn small">Refresh</button>
+      <section class="card-panel" aria-labelledby="runs-h">
+        <div class="cp-head">
+          <h2 id="runs-h">Run history</h2><span class="spacer"></span>
         </div>
-        <table class="runs"><tbody id="runs-body"></tbody></table>
+        <div class="runs-wrap"><table class="runs"><tbody id="runs-body"></tbody></table></div>
       </section>
     </div>
   </main>
+
+  <dialog id="confirm-modal">
+    <form method="dialog" id="confirm-form">
+      <h2 id="confirm-title"></h2>
+      <div id="confirm-body"></div>
+      <label id="confirm-phrase-wrap" hidden>
+        <span id="confirm-phrase-label"></span>
+        <input id="confirm-phrase" autocomplete="off" spellcheck="false">
+      </label>
+      <div class="modal-actions">
+        <button type="button" id="confirm-cancel" class="btn small">Cancel</button>
+        <button type="button" id="confirm-ok" class="btn small danger">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="/static/app.js"></script>
 </body>

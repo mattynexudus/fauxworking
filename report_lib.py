@@ -4,15 +4,17 @@ scripts/verify.sh (a standalone check-anytime command) and pipeline.py
 (printed automatically at the end of a live run). Kept as one implementation
 so the two never drift apart.
 
-For the entities in config.CONFIGURABLE_VOLUME_KEYS, the "target" reported
-is the actual count in the corresponding data/*.json file — i.e. whatever
-this account was actually configured to generate via prebuild.py/wizard.py —
-not config.VOLUMES' fixed default. Everything else still compares against
-VOLUMES, since those entities have no per-run override.
+target_for() prefers the real, live-computed target from real_targets() —
+literally what a run's own generators call set_target() with, for every
+entity that's ever created — falling back to config.VOLUMES only for the
+handful of entities no generator sets a target for at all. See
+real_targets()'s docstring for why VOLUMES alone was never reliable here.
 """
 
 import csv
+import importlib
 import json
+import threading
 from collections import Counter
 from pathlib import Path
 
@@ -92,14 +94,136 @@ def _grouped_records():
     return by_entity, malformed_count
 
 
+def tracked_counts_detail():
+    """({entity: count}, malformed_count) — tracked_counts() plus the stray-record
+    tally report_lines() otherwise only mentions in its trailing WARNING text.
+    Split out for callers that render that warning themselves (the web control
+    panel) rather than showing the raw text block it's embedded in."""
+    by_entity, malformed_count = _grouped_records()
+    return {entity: len(records) for entity, records in by_entity.items()}, malformed_count
+
+
 def tracked_counts():
     """{entity: count}, tallied from every data/created-ids/*.json record."""
-    by_entity, _malformed_count = _grouped_records()
-    return {entity: len(records) for entity, records in by_entity.items()}
+    counts, _malformed_count = tracked_counts_detail()
+    return counts
+
+
+# (module, class) pairs for every generator layer, in the order pipeline.py
+# actually runs them. Owned here rather than in pipeline.py: pipeline.py
+# already does `import report_lib` at module scope, so the reverse would be
+# circular — pipeline.LAYERS is just `LAYERS = report_lib.LAYERS`, kept as a
+# plain re-exported attribute so `pipeline.LAYERS = [...]` (tests swap it
+# out for fakes) still works exactly as before.
+LAYERS = [
+    ("generators.00_reference", "ReferenceGenerator"),
+    ("generators.01_structural", "StructuralGenerator"),
+    ("generators.02_people", "PeopleGenerator"),
+    ("generators.03_contracts", "ContractsGenerator"),
+    ("generators.04_activity", "ActivityGenerator"),
+    ("generators.05_community", "CommunityGenerator"),
+    ("generators.06_financial", "FinancialGenerator"),
+    ("generators.07_crm_proposals", "CrmProposalsGenerator"),
+]
+
+# coworkerinvoices is the one entity a generator does call set_target() for
+# (FinancialGenerator.INVOICE_TARGET) where the result still shouldn't be
+# shown as a target: Nexudus raises invoices on its own over time (rule 49),
+# so the live count isn't purely a function of what this project created —
+# "46 of 220" would misrepresent that as a shortfall this project could ever
+# close by itself.
+_NO_REAL_TARGET = {"coworkerinvoices"}
+
+_real_targets_lock = threading.Lock()
+_real_targets_cache = {"fingerprint": None, "value": {}}
+
+
+def _data_dir_fingerprint():
+    """Cheap cache key for real_targets(): the newest mtime across every
+    data/*.json plan file. Changes exactly when a prebuild/regenerate would
+    change what real_targets() computes, so the cache doesn't need explicit
+    invalidation calls scattered through prebuild.py/wizard.py."""
+    try:
+        return max((f.stat().st_mtime for f in DATA_DIR.glob("*.json")), default=0)
+    except OSError:
+        return 0
+
+
+def real_targets():
+    """{entity: target}, computed by actually instantiating every generator
+    in LAYERS and reading back what its own __init__ calls set_target()
+    with — the literal thing a live run uses, per BaseGenerator.set_target's
+    own docstring ("computed from the loaded data/*.json plan, not a
+    config.VOLUMES default"). Every generator computes every target purely
+    inside __init__, from either a hand-authored module-level constant or a
+    data/*.json plan file already on disk — no network call, no live
+    business context needed (confirmed by inspection of every
+    generators/0N_*.py __init__ — none of them takes prev_output; that's a
+    separate argument to run(), called nowhere here).
+
+    This exists because VOLUMES is "descriptive, not load-bearing" for
+    anything outside CONFIGURABLE_VOLUME_KEYS (see config.py) — using it as
+    a stand-in target for other entities was only ever a guess that happened
+    to hold when a hand-authored list's length was last kept in sync with
+    its VOLUMES entry by hand, and silently drifts the moment either one
+    changes without the other. Confirmed live and not hypothetical: at this
+    repo's current plan data, VOLUMES says extraservices=6 but 7 are
+    actually defined, products=15 vs 12 actually defined, floorplandesks=40
+    vs 68 (the desk catalog plus per-contract occupancy assignment both
+    contribute — see the merge note below), communitymessages=40 vs 46
+    (scales per-thread, not to a flat count) — none of that visible from
+    VOLUMES alone.
+
+    An entity more than one generator contributes to (e.g. floorplandesks:
+    the desk catalog in 01_structural.py, plus per-contract occupancy
+    assignment in 03_contracts.py) gets its contributions summed, the same
+    rule a real run's own reconciliation uses (merge_entity_counts).
+
+    Never raises: a generator whose plan data hasn't been prebuilt yet
+    (_load_data raises FileNotFoundError) is skipped for this call only —
+    its entities simply aren't in the returned dict, so target_for() falls
+    back to its old VOLUMES-based guess for exactly those, same as every
+    entity behaved before this function existed. Cached against
+    _data_dir_fingerprint() so repeated calls (target_for() is called once
+    per tracked entity, dozens of times per report) don't re-instantiate
+    every generator each time, and the cache auto-invalidates the moment a
+    regenerate actually changes data/*.json."""
+    fingerprint = _data_dir_fingerprint()
+    with _real_targets_lock:
+        if fingerprint == _real_targets_cache["fingerprint"]:
+            return _real_targets_cache["value"]
+
+    combined = {}
+    for module_name, class_name in LAYERS:
+        try:
+            module = importlib.import_module(module_name)
+            gen = getattr(module, class_name)()
+        except Exception:  # noqa: BLE001 — plan not prebuilt yet, or similar
+            continue
+        merge_entity_counts(combined, gen.entity_counts)
+    value = {entity: c["target"] for entity, c in combined.items()
+             if entity not in _NO_REAL_TARGET}
+
+    with _real_targets_lock:
+        _real_targets_cache["fingerprint"] = fingerprint
+        _real_targets_cache["value"] = value
+    return value
 
 
 def target_for(entity):
-    """Expected count for an entity, or None if it has no known target."""
+    """Expected count for an entity, or None if it has no known target.
+
+    Prefers the real, live-computed target from real_targets(). Only
+    entities real_targets() doesn't cover (no generator sets a target for
+    it at all — a handful of supplements like coworkerledgerentries — or
+    its plan data isn't prebuilt yet) fall back to the old estimate: the
+    actual data/*.json plan file length for a CONFIGURABLE_VOLUME_KEYS
+    entity (still exactly right, since prebuild.py is what writes both), or
+    the static config.VOLUMES entry for anything else — descriptive, not
+    load-bearing (see config.py), so only ever a guess for those."""
+    real = real_targets().get(entity)
+    if real is not None:
+        return real
     target_key = TARGET_KEY_BY_ENTITY.get(entity)
     if target_key is None:
         return None
@@ -238,9 +362,15 @@ def write_report(path, reconciliation_entity_counts=None, layer_failures=None):
     layer-level failure is never silently swept away by a report that
     otherwise looks clean (a layer that dies before creating anything
     leaves no trace in the reconciliation table below — there's nothing to
-    compare a target against)."""
+    compare a target against).
+
+    A machine-readable sibling (`<path>.json`, see write_run_json) is written
+    alongside whenever there's run-specific data to put in it. The text file
+    stays exactly as it was — it's what a person opens, and teardown.py's
+    _last_generation_run_incomplete() greps it for literal marker strings."""
     from datetime import datetime, timezone
-    lines = [f"Report generated {datetime.now(timezone.utc).isoformat()}", ""]
+    generated_at = datetime.now(timezone.utc).isoformat()
+    lines = [f"Report generated {generated_at}", ""]
     if layer_failures:
         lines.append(f"=== Layers that failed entirely this run ({len(layer_failures)}) ===")
         lines += [f"  - {lf}" for lf in layer_failures]
@@ -252,3 +382,33 @@ def write_report(path, reconciliation_entity_counts=None, layer_failures=None):
         lines.append("=== What's in the account now (cumulative, all runs) ===")
     lines += report_lines()
     Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if reconciliation_entity_counts is not None:
+        write_run_json(Path(path).with_suffix(".json"), generated_at,
+                       reconciliation_entity_counts, layer_failures)
+
+
+def write_run_json(path, generated_at, entity_counts, layer_failures=None):
+    """The same "this run: target vs. actual" data as write_report's text
+    section, as JSON — so a consumer can join it onto its own per-entity view
+    instead of showing a second table (the web control panel hangs a "last run"
+    delta column off the entity rows it already renders).
+
+    Deliberately run-scoped only: the cumulative half of the text report is
+    re-derivable at any time from data/created-ids/ via tracked_counts(), but
+    what a *particular* run created/failed exists nowhere else once the process
+    exits. Never written for a cumulative-only report (scripts/verify.sh), which
+    would otherwise clobber a real run's numbers with an empty object."""
+    payload = {
+        "generated_at": generated_at,
+        "layer_failures": list(layer_failures or []),
+        "entities": {
+            entity: {
+                "target": c["target"], "created": c["created"],
+                "skipped": c["skipped"], "failed": c["failed"],
+                # a Counter isn't JSON-serialisable as-is
+                "failure_reasons": dict(c["failure_reasons"]),
+            }
+            for entity, c in entity_counts.items()
+        },
+    }
+    Path(path).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

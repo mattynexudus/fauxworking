@@ -610,5 +610,49 @@ class TestPreflightIncompleteRunNotice(unittest.TestCase):
             self.assertFalse(teardown._last_generation_run_incomplete())
 
 
+class TestPostTeardownCleanups(unittest.TestCase):
+    """The optional post-teardown offers — deleting data/*.json plan files
+    and output/*.csv exports — driven non-interactively by assume_yes so the
+    web control panel can run them without a stdin prompt (mirrors how the
+    --clear-generated-data / --clear-csv-outputs flags feed in)."""
+
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmpdir.cleanup)
+        self.root = Path(self._tmpdir.name)
+        self.data = self.root / "data"
+        self.output = self.root / "output"
+        self.data.mkdir()
+        self.output.mkdir()
+        for p in (patch.object(teardown, "DATA_DIR", self.data),
+                  patch.object(teardown, "OUTPUT_DIR", self.output)):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_assume_yes_deletes_generated_data_without_prompting(self):
+        (self.data / "coworkers.json").write_text("[]")
+        (self.data / "plan-manifest.json").write_text("{}")
+        teardown.maybe_clear_generated_data(assume_yes=True)
+        self.assertEqual(list(self.data.glob("*.json")), [])
+
+    def test_assume_yes_deletes_csv_outputs_without_prompting(self):
+        (self.output / "coworkers.csv").write_text("Id\n1\n")
+        (self.output / "visitors.csv").write_text("Id\n")
+        teardown.maybe_clear_csv_outputs(assume_yes=True)
+        self.assertEqual(list(self.output.glob("*.csv")), [])
+
+    def test_no_csv_files_is_a_quiet_no_op(self):
+        # nothing to delete, and (crucially) no input() call to hang a
+        # non-interactive run
+        teardown.maybe_clear_csv_outputs(assume_yes=False)
+
+    def test_default_path_still_prompts(self):
+        (self.output / "coworkers.csv").write_text("Id\n1\n")
+        with patch("builtins.input", return_value="n") as inp:
+            teardown.maybe_clear_csv_outputs(assume_yes=False)
+        inp.assert_called_once()
+        self.assertTrue((self.output / "coworkers.csv").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

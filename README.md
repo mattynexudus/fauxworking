@@ -118,7 +118,7 @@ What it does:
 - **A location selector in the header** that every command which takes one is run against, so the target is never ambiguous. Live commands stay disabled until you pick one on a multi-location login.
 - **Live output**, streamed as it happens, plus a durable log per run under `logs/` (gitignored) — a browser refresh or reopening the tab doesn't lose it.
 - **One run at a time** — a second command while one is active is refused, not queued.
-- **Safety by default.** Dry-run is pre-checked wherever it applies; a live write needs a second confirming click; teardown's live delete needs its exact confirmation phrase typed. Clean-mode teardown (ignore tracking, delete everything found live) is intentionally terminal-only.
+- **Safety by default.** Dry-run is pre-checked wherever it applies; a live write needs a second confirming click; teardown's live delete needs its exact confirmation phrase typed. Clean-mode teardown (ignore tracking, delete everything found live) demands a stronger phrase again (`delete everything`). A real teardown also offers, in the same dialog, to delete `data/*.json` plan files, delete `output/*.csv` exports, and reset this location's billing counters — all off by default.
 - **Results after every run** — the same "what's in the account now" table `./fauxworking verify` prints, the full `last-run-report.txt`, and `output/*.csv` download links.
 
 `scripts/ui.sh --host 0.0.0.0` (or `$FAUXWORKING_UI_PORT`/`$FAUXWORKING_UI_HOST`) exists if you really want it reachable from another machine on your network, but there's no login wall beyond the Nexudus one — only do that on a network you trust.

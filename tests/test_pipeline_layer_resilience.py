@@ -57,6 +57,8 @@ class TestLayerFailureIsolation(unittest.TestCase):
     def setUp(self):
         self._orig_layers = pipeline.LAYERS
         self._orig_hard_count = pipeline.HARD_DEPENDENCY_LAYER_COUNT
+        self._orig_report_lib_layers = report_lib.LAYERS
+        self._orig_real_targets_cache = report_lib._real_targets_cache
         self._tmpdir = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmpdir.cleanup)
         self.addCleanup(self._restore)
@@ -64,8 +66,10 @@ class TestLayerFailureIsolation(unittest.TestCase):
     def _restore(self):
         pipeline.LAYERS = self._orig_layers
         pipeline.HARD_DEPENDENCY_LAYER_COUNT = self._orig_hard_count
+        report_lib.LAYERS = self._orig_report_lib_layers
+        report_lib._real_targets_cache = self._orig_real_targets_cache
 
-    def _run_with_layers(self, layer_specs, hard_count):
+    def _run_with_layers(self, layer_specs, hard_count, skip_layers=None):
         """layer_specs: list of (name, should_fail) pairs, run in order as
         fake layers 0..N. Returns (prev_output_or_None, exception_or_None)."""
         layers = []
@@ -78,13 +82,21 @@ class TestLayerFailureIsolation(unittest.TestCase):
 
         pipeline.LAYERS = layers
         pipeline.HARD_DEPENDENCY_LAYER_COUNT = hard_count
+        # write_report() (via report_lines() -> target_for() -> real_targets())
+        # would otherwise instantiate the *real* generators/0N_*.py classes
+        # against this repo's actual data/ — reusing these fakes keeps the
+        # test isolated (their entity_counts is always {}, so this just
+        # makes real_targets() harmlessly empty rather than a no-op skip).
+        report_lib.LAYERS = layers
+        report_lib._real_targets_cache = {"fingerprint": None, "value": {}}
         scratch_report = Path(self._tmpdir.name) / "last-run-report.txt"
 
         with patch("pipeline.importlib.import_module", side_effect=lambda m: modules[m]), \
              patch("pipeline._whoami", return_value={}), \
              patch.object(report_lib, "REPORT_PATH", scratch_report):
             try:
-                result = pipeline.run_up_to(len(layers) - 1, dry_run=False, write_csvs=False)
+                result = pipeline.run_up_to(len(layers) - 1, dry_run=False, write_csvs=False,
+                                            skip_layers=skip_layers)
                 return result, None
             except Exception as e:  # noqa: BLE001
                 return None, e
@@ -135,6 +147,53 @@ class TestLayerFailureIsolation(unittest.TestCase):
         )
         self.assertIsNone(exc)
         self.assertEqual(len(pipeline.LAST_RUN_LAYER_FAILURES), 2)
+
+    # -- skip_layers -------------------------------------------------------
+    # Skipping reuses the same tiering: only the independent tier can be
+    # omitted, because that's the same property (no layer reads another's
+    # prev_output key) that makes a *failure* there survivable.
+
+    def test_skipped_layer_never_runs_and_others_still_do(self):
+        result, exc = self._run_with_layers(
+            [("LayerA", False), ("LayerB", False), ("LayerC", False)],
+            hard_count=1, skip_layers=[1],
+        )
+        self.assertIsNone(exc)
+        # Same shape as an independent-tier failure: the skipped layer's key
+        # is simply absent, and prev_output passed through it untouched.
+        self.assertTrue(result["LayerA"])
+        self.assertTrue(result["LayerC"])
+        self.assertNotIn("LayerB", result)
+        # A skip is not a failure — it's requested, so it isn't reported as one.
+        self.assertEqual(pipeline.LAST_RUN_LAYER_FAILURES, [])
+
+    def test_skipping_hard_tier_layer_is_rejected(self):
+        result, exc = self._run_with_layers(
+            [("LayerA", False), ("LayerB", False), ("LayerC", False)],
+            hard_count=2, skip_layers=[1],
+        )
+        self.assertIsInstance(exc, pipeline.SkipLayerError)
+        self.assertIn("hard dependency chain", str(exc))
+
+    def test_skipping_out_of_range_layer_is_rejected(self):
+        result, exc = self._run_with_layers(
+            [("LayerA", False), ("LayerB", False)],
+            hard_count=1, skip_layers=[9],
+        )
+        self.assertIsInstance(exc, pipeline.SkipLayerError)
+        self.assertIn("No such layer", str(exc))
+
+    def test_skip_above_ceiling_is_a_no_op(self):
+        # Layer 2 is already outside a `run_up_to(1)` range; naming it in
+        # skip_layers shouldn't error, it's just already not running.
+        pipeline.HARD_DEPENDENCY_LAYER_COUNT = 1
+        self.assertEqual(pipeline._validate_skip_layers([2], layer_index=1), set())
+
+    def test_validate_accepts_none_and_iterables(self):
+        pipeline.HARD_DEPENDENCY_LAYER_COUNT = 1
+        self.assertEqual(pipeline._validate_skip_layers(None, 3), set())
+        self.assertEqual(pipeline._validate_skip_layers([2, 2, 3], 3), {2, 3})
+        self.assertEqual(pipeline._validate_skip_layers(("2",), 3), {2})
 
 
 if __name__ == "__main__":
