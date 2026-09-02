@@ -180,18 +180,21 @@ class CrmProposalsGenerator(BaseGenerator):
                 "Status": 1,
                 "Value": defn["Value"],
                 "LeadSource": defn["LeadSource"],
-                # Confirmed live: Nexudus auto-normalizes Position to spaced
-                # multiples of 100 (1, 200, 300, ...) regardless of what's
-                # sent — it's just a display-order hint, not meaningful
-                # data. Sending our pre-generated sequential values (9, 10,
-                # 11, ...) collides with its internal resequencing and
-                # fails with a generic 500; isolated bisection (varying one
-                # field at a time against otherwise-identical bodies) showed
-                # Position was the actual cause, not rate limiting or a
-                # coworker/type issue as first suspected. Always sending 1
-                # avoids it entirely and was confirmed live to succeed
-                # repeatedly with no failures.
-                "Position": 1,
+                # Position is deliberately NOT sent. It behaves as an
+                # insertion index within the target column, not a display
+                # weight: a value has to be inside the range of what's
+                # already in that column, and Nexudus then resequences
+                # everything to spaced multiples of 100 (1, 100, 200, ...).
+                # So any fixed value is wrong somewhere — the previous
+                # "always send 1" fails with the generic 500 on an *empty*
+                # column, which is exactly the state a fresh seed (or a
+                # post-teardown reseed) starts from, and is why all 30
+                # opportunities failed in a real run. Omitting it lets
+                # Nexudus place the record at the end, which works whether
+                # the column is empty or not. All confirmed live by
+                # bisection against an otherwise-identical body: omitted ->
+                # ok on an empty and a populated column; 1 -> 500 on empty,
+                # ok once populated; 100/200 -> 500. See CLAUDE.md rule 57.
                 "DueDate": self._at(defn["DueDayOffset"]),
             }
 
@@ -218,7 +221,7 @@ class CrmProposalsGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping opportunity creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="crmopportunities", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping opportunity #%d — create failed: %s", idx, e,
@@ -302,7 +305,7 @@ class CrmProposalsGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping opportunity history creation — this error has "
-                        "repeated several times in a row, likely an account-wide "
+                        "repeated several times in a row, skipping the rest of them rather than "
                         "condition: %s", e,
                         skip=True, entity="crmopportunityhistories", reason="systemic_rate_limit")
                     break
@@ -374,7 +377,7 @@ class CrmProposalsGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping proposal creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="proposals", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping proposal #%d — create failed: %s", idx, e,
@@ -475,7 +478,7 @@ class CrmProposalsGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping data file creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkerdatafiles", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping data file #%d — create failed: %s", defn["index"], e,

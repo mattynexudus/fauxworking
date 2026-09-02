@@ -1599,6 +1599,10 @@ def generate_crm_opportunities(rng, coworkers, count=None):
                 "Stage": stage,
                 "Value": round(base_value * rng.uniform(0.8, 1.2), 2),
                 "LeadSource": rng.choice(CRM_LEAD_SOURCES),
+                # Kept for plan-file compatibility only — 07_crm_proposals.py
+                # no longer sends Position, because Nexudus treats it as an
+                # insertion index and rejects an out-of-range value with a
+                # generic 500 (CLAUDE.md rule 57). Don't re-wire it.
                 "Position": idx,
                 "DueDayOffset": (rng.randint(5, 60) if stage not in ("Won", "Lost")
                                   else -rng.randint(1, 30)),
