@@ -34,7 +34,8 @@ from dateutil.relativedelta import relativedelta
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from generators.base import BaseGenerator, parse_args
-from config import DATA_DIR, TODAY, to_utc_str
+from config import (DATA_DIR, DESK_ITEM_TYPE_PLAN_BUCKET, DESK_PLAN_TYPES,
+                    TEST_NAME_PREFIX, TODAY, to_utc_str)
 
 
 class ContractsGenerator(BaseGenerator):
@@ -43,6 +44,11 @@ class ContractsGenerator(BaseGenerator):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.contract_ids = {}  # ContractIndex -> Id
+        self._desk_item_types_cache = None
+        # Which field shape carries a unit's contract link — discovered on
+        # the first assignment of the run, see _link_desk_to_contract.
+        self._desk_link_shape = None
+        self.coworker_ids_for_desks = {}
 
         self.contract_defs = self._load_data("contracts.json")
         self.contract_product_defs = self._load_data("contract_products.json")
@@ -71,7 +77,7 @@ class ContractsGenerator(BaseGenerator):
             raise FileNotFoundError(f"{path} not found. Run 'python prebuild.py' first.")
         return json.loads(path.read_text(encoding="utf-8"))
 
-    def run(self, nexudus_list, nexudus_create, nexudus_update, prev_output):
+    def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_get, prev_output):
         biz = prev_output["business_id"]
         coworker_ids = prev_output["coworker_ids"]
         tariff_ids = prev_output["tariff_ids"]
@@ -84,7 +90,7 @@ class ContractsGenerator(BaseGenerator):
         self._create_contract_paused_periods(nexudus_create)
         self._create_contract_deposits(product_ids, nexudus_create)
         self._create_inventory_assignments(biz, coworker_ids, inventory_asset_ids, nexudus_create)
-        self._assign_desks(coworker_ids, floor_plan_desk_ids, nexudus_update)
+        self._assign_desks(coworker_ids, floor_plan_desk_ids, nexudus_update, nexudus_get)
 
         self.log.info("Layer 3 complete. Contracts: %d", len(self.contract_ids))
 
@@ -400,51 +406,230 @@ class ContractsGenerator(BaseGenerator):
                           defn["AssetName"], defn["CoworkerIndex"], result["Id"])
 
     # ------------------------------------------------------------------
-    # FloorPlanDesk.CoworkerId occupancy
+    # Floor plan unit occupancy — linked to the contract, not the person
+    #
+    # A unit used to be occupied by writing FloorPlanDesk.CoworkerId. That
+    # models occupancy on the wrong record: what actually occupies an
+    # office is the office *contract*, and the unit type has to match the
+    # plan type (office unit <-> office plan, hot desk <-> hot desk/flex).
+    # prebuild.py::generate_desk_assignments already pairs them that way and
+    # now emits the ContractIndex to prove it; this writes the link and
+    # clears any CoworkerId left over from the old behaviour.
+    #
+    # WHICH FIELD carries that link is not settled: the live record exposes
+    # CoworkerContractIds (plural) next to CoworkerContractFullNames and
+    # CoworkerContractStartDates, plus a separate Contracts field, all null
+    # on a fresh unit, and this repo's history with Nexudus schemas (rules
+    # 27/34/39) says don't trust a field list to tell you what's writable.
+    # So rather than hardcoding a guess, the first assignment of a run
+    # tries each candidate shape and keeps the one that reads back — the
+    # same "probe it live, then trust what worked" approach used elsewhere,
+    # just done at run time instead of by hand.
     # ------------------------------------------------------------------
-    def _assign_desks(self, coworker_ids, floor_plan_desk_ids, nexudus_update):
+    DESK_CONTRACT_LINK_SHAPES = [
+        ("CoworkerContractIds-list", lambda cid: {"CoworkerContractIds": [cid]}),
+        ("CoworkerContractIds-string", lambda cid: {"CoworkerContractIds": str(cid)}),
+        ("Contracts-list", lambda cid: {"Contracts": [{"Id": cid}]}),
+        ("CoworkerContractId", lambda cid: {"CoworkerContractId": cid}),
+    ]
+
+    @staticmethod
+    def _contract_link_present(record, contract_id):
+        """True if `record` (as returned by the update) actually came back
+        carrying `contract_id` — the only proof a candidate shape stuck."""
+        if not isinstance(record, dict):
+            return False
+        wanted = str(contract_id)
+        for field in ("CoworkerContractIds", "Contracts", "CoworkerContractId"):
+            value = record.get(field)
+            if value is None:
+                continue
+            if isinstance(value, (list, tuple)):
+                for item in value:
+                    if isinstance(item, dict):
+                        if str(item.get("Id")) == wanted:
+                            return True
+                    elif str(item) == wanted:
+                        return True
+            elif wanted in str(value).split(","):
+                return True
+        return False
+
+    def _desk_item_types(self):
+        """DeskName -> eFloorPlanItemType, read from Layer 1's own desk
+        definitions so the two can't disagree about what a unit is."""
+        if self._desk_item_types_cache is None:
+            import importlib
+            struct = importlib.import_module("generators.01_structural")
+            self._desk_item_types_cache = {
+                d["Name"]: d["ItemType"] for d in struct.FLOOR_PLAN_DESKS
+            }
+        return self._desk_item_types_cache
+
+    def _contract_for_assignment(self, defn):
+        """The contract that occupies this unit.
+
+        Normally straight from the plan file's ContractIndex. Plan files
+        written before the contract link existed only carry CoworkerIndex
+        (prebuild is incremental and won't rewrite them — CLAUDE.md rule
+        50), so fall back to re-deriving it here: that coworker's active
+        contract whose plan type matches the unit type, or any active
+        contract of theirs for a storage unit or room, which have no plan
+        type of their own.
+        """
+        contract_index = defn.get("ContractIndex")
+        if contract_index is not None:
+            return contract_index
+
+        item_type = self._desk_item_types().get(defn["DeskName"])
+        bucket = DESK_ITEM_TYPE_PLAN_BUCKET.get(item_type)
+        wanted = DESK_PLAN_TYPES.get(bucket) if bucket else None
+
+        for c in self.contract_defs:
+            if c["CoworkerIndex"] != defn.get("CoworkerIndex"):
+                continue
+            cancelled = c.get("CancellationDayOffset")
+            if cancelled is not None and cancelled <= 0:
+                continue
+            if wanted is None:
+                return c["index"]
+            if c["TariffName"][len(TEST_NAME_PREFIX):] in wanted:
+                return c["index"]
+        return None
+
+    def _assign_desks(self, coworker_ids, floor_plan_desk_ids, nexudus_update, nexudus_get):
         self.log.info("--- Desk Assignments (%d) ---", len(self.desk_assignment_defs))
+        self.coworker_ids_for_desks = coworker_ids
 
         for defn in self.desk_assignment_defs:
             track_key = str(defn["index"])
-            if self.already_created("DeskAssignmentIndex", track_key, entity="floorplandesks"):
-                self.log.info("Desk assignment #%d already tracked", defn["index"])
-                continue
+            desk_name = defn["DeskName"]
 
-            if defn["CoworkerIndex"] not in coworker_ids:
-                self.log.warning("Skipping desk assignment #%d — coworker #%d was never created (seat limit?)",
-                                  defn["index"], defn["CoworkerIndex"],
+            desk_id = floor_plan_desk_ids.get(desk_name)
+            if desk_id is None:
+                self.log.warning("Skipping desk assignment #%d — unit '%s' was never created",
+                                  defn["index"], desk_name,
                                   skip=True, entity="floorplandesks", reason="parent_skipped")
                 continue
 
-            desk_id = floor_plan_desk_ids[defn["DeskName"]]
-            coworker_id = coworker_ids[defn["CoworkerIndex"]]
-            body = {"CoworkerId": coworker_id, "Available": False}
+            contract_index = self._contract_for_assignment(defn)
+            contract_id = self.contract_ids.get(contract_index) if contract_index else None
+            if contract_id is None:
+                self.log.warning("Skipping desk assignment #%d — no contract for unit '%s' "
+                                  "(coworker #%s); its contract was never created",
+                                  defn["index"], desk_name, defn.get("CoworkerIndex"),
+                                  skip=True, entity="floorplandesks", reason="parent_skipped")
+                continue
+
+            already = self.already_created("DeskAssignmentIndex", track_key, entity="floorplandesks")
+            if already and not self._needs_reassignment(desk_id, contract_id, nexudus_get):
+                self.log.info("Desk assignment #%d already tracked", defn["index"])
+                continue
+            if already:
+                self.log.info("Re-applying desk assignment #%d — unit '%s' is still linked to a "
+                              "coworker rather than its contract", defn["index"], desk_name)
+
+            result = self._link_desk_to_contract(desk_id, contract_id, defn, nexudus_update)
+            if result is None:
+                continue
+            if result == "systemic":
+                break
+
+            if not already:
+                self.track_id({
+                    "entity": "floorplandesks", **result,
+                    "DeskAssignmentIndex": track_key,
+                })
+            self.log.info("Linked unit '%s' to contract #%s (coworker #%s)",
+                          desk_name, contract_index, defn.get("CoworkerIndex"))
+
+    def _needs_reassignment(self, desk_id, contract_id, nexudus_get):
+        """Whether a unit assigned by an earlier run still needs fixing —
+        it predates the contract link, or kept its CoworkerId. Without this
+        every unit assigned before this change would keep its person link
+        forever, since already_created() would skip it every run."""
+        if self.dry_run:
+            return False
+        try:
+            current = nexudus_get("floorplandesks", desk_id)
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Could not re-check unit %s (%s) — leaving it as it is", desk_id, e)
+            return False
+        return bool(current.get("CoworkerId")) or not self._contract_link_present(current, contract_id)
+
+    def _link_desk_to_contract(self, desk_id, contract_id, defn, nexudus_update):
+        """Write the contract link, discovering which field shape the API
+        accepts on the first assignment of the run. Returns the updated
+        record, None to skip this unit, or "systemic" to stop."""
+        if self._desk_link_shape == "none":
+            return self._fallback_coworker_link(desk_id, defn, nexudus_update)
+
+        shapes = (self.DESK_CONTRACT_LINK_SHAPES if self._desk_link_shape is None
+                  else [self._desk_link_shape])
+        last_error = None
+
+        for label, build in shapes:
+            # CoworkerId is nulled explicitly: nexudus_update is a
+            # read-modify-write, so anything left out of the body is echoed
+            # back unchanged and the old person link would survive.
+            body = {**build(contract_id), "CoworkerId": None, "Available": False}
 
             if self.dry_run:
                 self.log.info("WOULD UPDATE floorplandesks %s: %s", desk_id, json.dumps(body))
-                continue
+                return {"Id": desk_id, **body}
 
             try:
                 result = nexudus_update("floorplandesks", desk_id, body)
             except Exception as e:  # noqa: BLE001
-                verdict = self.classify_failure("floorplandesks", e)
-                if verdict == "systemic":
-                    self.log.warning(
-                        "Stopping desk assignment — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
-                        skip=True, entity="floorplandesks", reason="systemic_rate_limit")
-                    break
-                self.log.warning("Skipping desk assignment #%d — update failed: %s", defn["index"], e,
-                                  skip=True, entity="floorplandesks", reason="unknown_error")
+                last_error = e
+                if self._desk_link_shape is not None:
+                    verdict = self.classify_failure("floorplandesks", e)
+                    if verdict == "systemic":
+                        self.log.warning(
+                            "Stopping desk assignment — this error has repeated several "
+                            "times in a row, likely an account-wide condition: %s", e,
+                            skip=True, entity="floorplandesks", reason="systemic_rate_limit")
+                        return "systemic"
+                    self.log.warning("Skipping desk assignment #%d — update failed: %s",
+                                      defn["index"], e,
+                                      skip=True, entity="floorplandesks", reason="unknown_error")
+                    return None
                 continue
 
-            self.track_id({
-                "entity": "floorplandesks", **result,
-                "DeskAssignmentIndex": track_key,
-            })
-            self.log.info("Assigned desk '%s' to coworker #%d",
-                          defn["DeskName"], defn["CoworkerIndex"])
+            if self._desk_link_shape is not None:
+                return result
+            if self._contract_link_present(result, contract_id):
+                self._desk_link_shape = (label, build)
+                self.log.info("Floor plan units link to a contract via %s — using it for the "
+                              "rest of this run", label)
+                return result
+            self.log.info("Contract link shape %s did not read back on unit %s — trying the next one",
+                          label, desk_id)
+
+        # Nothing stuck. Fall back to the old person link so occupancy is at
+        # least represented, and say loudly what needs capturing by hand.
+        # Decided once per run — don't re-probe all four shapes on every
+        # remaining unit.
+        self._desk_link_shape = "none"
+        self.log.warning(
+            "None of the contract-link field shapes (%s) took on unit %s%s. Falling back to the "
+            "CoworkerId link. Capture the admin UI's own request when assigning a unit to a "
+            "contract and add the field to DESK_CONTRACT_LINK_SHAPES (see CLAUDE.md rule 27).",
+            ", ".join(label for label, _ in self.DESK_CONTRACT_LINK_SHAPES), desk_id,
+            f" (last error: {last_error})" if last_error else "")
+        return self._fallback_coworker_link(desk_id, defn, nexudus_update)
+
+    def _fallback_coworker_link(self, desk_id, defn, nexudus_update):
+        coworker_id = self.coworker_ids_for_desks.get(defn.get("CoworkerIndex"))
+        if coworker_id is None:
+            return None
+        try:
+            return nexudus_update("floorplandesks", desk_id,
+                                  {"CoworkerId": coworker_id, "Available": False})
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Skipping desk assignment #%d — update failed: %s", defn["index"], e,
+                              skip=True, entity="floorplandesks", reason="unknown_error")
+            return None
 
 
 if __name__ == "__main__":
@@ -474,6 +659,7 @@ if __name__ == "__main__":
             nexudus_list=lambda entity, filters: [],
             nexudus_create=lambda entity, body: {"Id": f"DRY-{entity}-{body.get('CoworkerId', 'x')}-{body.get('TariffId', body.get('ProductId', 'x'))}"},
             nexudus_update=lambda entity, id, body: {"Id": id},
+            nexudus_get=lambda entity, id: {"Id": id},
             prev_output=mock_prev,
         )
     else:

@@ -32,6 +32,14 @@ DAYS_AHEAD_30 = TODAY + timedelta(days=30)
 DAYS_AHEAD_90 = TODAY + timedelta(days=90)
 
 
+# Days between an invoice's date and its due date, when the account's own
+# setting can't be read. Nexudus exposes this as a business setting
+# ("tariffDefaultDueDate" — the exact key is looked up case-/prefix-
+# insensitively at run time, see 06_financial.py::_default_due_days); 3 is
+# the platform's normal value and what this falls back to.
+DEFAULT_INVOICE_DUE_DAYS = 3
+
+
 def to_utc_str(d, hour=0, minute=0, second=0):
     """Convert a date (or datetime) to a UTC ISO string with Z suffix."""
     if isinstance(d, datetime):
@@ -134,6 +142,28 @@ CONFIGURABLE_VOLUME_KEYS = [
     "crm_opportunities", "proposals", "help_desk_messages", "community_threads",
     "coworker_tasks", "coworker_time_passes", "coworker_products",
 ]
+
+# ---------------------------------------------------------------------------
+# Floor plan unit type <-> plan type
+# ---------------------------------------------------------------------------
+# A floor plan unit is occupied by the *contract* whose plan matches the
+# unit's type — an office unit by an office plan, a hot desk by a hot desk
+# or flex plan. Kept here rather than in either of the two modules that
+# need it (prebuild.py plans the pairing, generators/03_contracts.py writes
+# it, and falls back to re-deriving it for plan files written before the
+# contract link existed) so the two can't drift apart.
+#
+# Keys are eFloorPlanItemType (1=Office, 2=DedicatedDesk, 3=HotDesk,
+# 4=Other/Storage, 5=Room — see reference/field-enums.md); values are base
+# tariff names with no TEST_NAME_PREFIX applied. Storage units and rooms
+# have no plan type of their own and so aren't listed.
+DESK_PLAN_TYPES = {
+    "office": ("Private Office Small", "Private Office Large", "Private Office Annual"),
+    "dedicated": ("Dedicated Desk Monthly",),
+    "hotdesk": ("Hot Desk Monthly", "Hot Desk Quarterly", "Flex Weekly", "Flex Fortnightly"),
+}
+
+DESK_ITEM_TYPE_PLAN_BUCKET = {1: "office", 2: "dedicated", 3: "hotdesk"}
 
 # ---------------------------------------------------------------------------
 # Test markers — used for idempotency and teardown

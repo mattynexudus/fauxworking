@@ -62,6 +62,7 @@ HARD_DEPENDENCY_LAYER_COUNT = 4
 # take nexudus_delete or nexudus_run_command, most don't) just works.
 CALLABLE_POOL = {
     "nexudus_list": client.nexudus_list,
+    "nexudus_get": client.nexudus_get,
     "nexudus_create": client.nexudus_create,
     "nexudus_update": client.nexudus_update,
     "nexudus_delete": client.nexudus_delete,
@@ -88,6 +89,7 @@ def _dry_run_create(entity, body):
 
 DRY_RUN_POOL = {
     "nexudus_list": lambda entity, filters=None: [],
+    "nexudus_get": lambda entity, id: {"Id": id},
     "nexudus_create": _dry_run_create,
     "nexudus_update": lambda entity, id, body: {"Id": id},
     "nexudus_delete": lambda entity, id: None,

@@ -44,7 +44,11 @@ Layer 3 — Contracts & Occupancy  ✅ (03_contracts.py)
 ├── ContractPausedPeriod × 12 (refs: CoworkerContract) — dates aligned to month boundaries
 ├── ContractDeposit × 10 (refs: CoworkerContract, Product)
 ├── CoworkerInventoryAsset × 12 (refs: Coworker, InventoryAsset)
-└── FloorPlanDesk.CoworkerId updates × 28 (refs: FloorPlanDesk, Coworker; also sets Available=false)
+└── FloorPlanDesk occupancy updates × 28 (refs: FloorPlanDesk, CoworkerContract; also sets
+    Available=false and clears CoworkerId) — a unit is occupied by the *contract* whose plan
+    type matches the unit type (office unit ↔ office plan, hot desk ↔ hot desk/flex; see
+    config.DESK_PLAN_TYPES), not by a person. Which field carries the link is discovered at
+    run time — see CLAUDE.md rule 53.
 
 Layer 4a — Activity  ✅ (04_activity.py)
 ├── Booking × 240 (refs: Coworker, Resource) — 10 recurring, includes BookingProducts inline (~36)
@@ -86,7 +90,12 @@ Layer 5 — Financial & CRM  ✅ (06_financial.py, 07_crm_proposals.py)
 │   neither of which supports commands at all. Sweeps in plan fee + any InvoiceThisCoworker=true
 │   item sales (bookings/extra services/products from Layer 4a). Invoice count is server-determined,
 │   discovered live via nexudus_list rather than planned in data/*.json.
-├── Pay ~60% of raised invoices → CoworkerLedgerEntry (CoworkerInvoiceId + Credit=amount)
+├── Give every discovered invoice a constructed date schedule (CreatedOn/SentOn/DueDate/
+│   InvoiceFromDate/InvoiceToDate): issued late in some month inside the window, due
+│   tariffDefaultDueDate days later, period covering the month that follows. Runs before
+│   the actions below, which each date themselves off it — see CLAUDE.md rule 51.
+├── Pay ~60% of raised invoices → CoworkerLedgerEntry (CoworkerInvoiceId + Credit=amount +
+│   TransactionDate drawn around that invoice's due date), then correct the invoice's PaidOn
 ├── Void 5 + credit-note 10 more → CoworkerInvoiceHistory (audit-trail action against the
 │   invoice, since Void/CreditNote/Paid are read-only on coworkerinvoices itself) + an
 │   offsetting CoworkerLedgerEntry for the balance impact

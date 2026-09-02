@@ -25,6 +25,7 @@ Usage:
     python generators/01_structural.py --dry-run     # Log only
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -194,6 +195,18 @@ FLOOR_PLANS = [
 
 # FloorPlanDesks — §4d distribution
 # ItemType: 1=Office, 2=DedicatedDesk, 3=HotDesk, 4=Other(Storage), 5=Room
+#
+# Every unit carries all four of the figures occupancy reporting works off:
+# Area (which part of the building it's in), Size (its floor area), Capacity
+# (how many people it seats) and Price — the unit's target value, i.e. what
+# it should bring in per month when let. `Price` is the only value field on
+# the entity (a full live record was dumped and checked: there is no
+# separate Target* field), and §4d of the strategy doc already calls it
+# "Price (Target)".
+#
+# Capacity is never 0 — a storage unit seats nobody in real life, but a 0
+# reads as an empty cell in every report that shows the column, so storage
+# is given 1 rather than left looking unfilled.
 def _generate_floor_plan_desks():
     desks = []
     idx = 0
@@ -231,7 +244,7 @@ def _generate_floor_plan_desks():
         idx += 1
         desks.append({
             "Name": f"{TEST_NAME_PREFIX}Storage {idx:02d}",
-            "ItemType": 4, "Size": 10 + i * 3, "Capacity": 0,
+            "ItemType": 4, "Size": 10 + i * 3, "Capacity": 1,
             "Price": 50 + i * 15, "Area": areas[i % 3],
             "FloorPlan": areas[i % 3],
         })
@@ -370,13 +383,14 @@ class StructuralGenerator(BaseGenerator):
             for b in TARIFF_BENEFITS.values()
         ))
 
-    def run(self, nexudus_list, nexudus_create, layer0_output):
+    def run(self, nexudus_list, nexudus_create, nexudus_update, layer0_output):
         """
         Execute Layer 1 creation.
 
         Args:
             nexudus_list: callable(entity, filters) -> list of records
             nexudus_create: callable(entity, body) -> created record
+            nexudus_update: callable(entity, id, body) -> updated record
             layer0_output: dict from ReferenceGenerator.run()
         """
         biz = layer0_output["business_id"]
@@ -412,7 +426,7 @@ class StructuralGenerator(BaseGenerator):
         self._create_floor_plans(biz, nexudus_list, nexudus_create)
 
         # FloorPlanDesks
-        self._create_floor_plan_desks(nexudus_list, nexudus_create)
+        self._create_floor_plan_desks(nexudus_list, nexudus_create, nexudus_update)
 
         # InventoryAssets
         self._create_inventory_assets(biz, nexudus_list, nexudus_create)
@@ -941,16 +955,18 @@ class StructuralGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     # FloorPlanDesks
     # ------------------------------------------------------------------
-    def _create_floor_plan_desks(self, nexudus_list, nexudus_create):
+    def _create_floor_plan_desks(self, nexudus_list, nexudus_create, nexudus_update):
         self.log.info("--- Floor Plan Desks ---")
 
         for idx, defn in enumerate(FLOOR_PLAN_DESKS):
             name = defn["Name"]
-            if self.already_created("Name", name, entity="floorplandesks"):
+            already = self.already_created("Name", name, entity="floorplandesks")
+            if already:
                 existing = next(r for r in self.get_tracked_ids()
                                  if r.get("entity") == "floorplandesks" and r.get("Name") == name)
                 self.floor_plan_desk_ids[name] = existing["Id"]
                 self.log.info("Desk '%s' already tracked (id=%s)", name, existing["Id"])
+                self._backfill_desk_figures(existing, defn, nexudus_update)
                 continue
 
             fp_name = f"{TEST_NAME_PREFIX}{defn['FloorPlan']}"
@@ -997,6 +1013,38 @@ class StructuralGenerator(BaseGenerator):
             self.floor_plan_desk_ids[name] = result["Id"]
             self.track_id({"entity": "floorplandesks", **result, "Name": name})
             self.log.info("Created desk '%s' (id=%s)", name, result["Id"])
+
+    def _backfill_desk_figures(self, existing, defn, nexudus_update):
+        """Bring a unit created by an earlier run up to the current figures.
+
+        Area / Size / Capacity / Price are set at create time, so a unit
+        already live keeps whatever it was born with — including the
+        Capacity 0 storage units used to get. Without this the
+        already_created() branch above would skip them forever.
+        """
+        drifted = {}
+        for field in ("Size", "Capacity", "Price"):
+            current = existing.get(field)
+            if current is None or float(current) != float(defn[field]):
+                drifted[field] = defn[field]
+        area = defn.get("Area", "")
+        if str(existing.get("Area") or "") != str(area):
+            drifted["Area"] = area
+        if not drifted:
+            return
+
+        if self.dry_run:
+            self.log.info("WOULD UPDATE floorplandesks %s: %s",
+                          existing["Id"], json.dumps(drifted))
+            return
+
+        try:
+            nexudus_update("floorplandesks", existing["Id"], drifted)
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Could not backfill figures on desk '%s': %s", defn["Name"], e,
+                              skip=True, entity="floorplandesks", reason="unknown_error")
+            return
+        self.log.info("Backfilled desk '%s': %s", defn["Name"], json.dumps(drifted))
 
     # ------------------------------------------------------------------
     # InventoryAssets
@@ -1224,6 +1272,7 @@ if __name__ == "__main__":
         gen.run(
             nexudus_list=lambda entity, filters: [],
             nexudus_create=lambda entity, body: {"Id": f"DRY-{entity}-{body.get('Name', body.get('Code', 'x'))}"},
+            nexudus_update=lambda entity, id, body: {"Id": id},
             layer0_output=mock_layer0,
         )
     else:

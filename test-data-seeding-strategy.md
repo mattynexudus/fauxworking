@@ -169,7 +169,8 @@ Layer 3 — Contracts & Occupancy  ✅ (03_contracts.py)
 ├── ContractPausedPeriod × 12 (refs: CoworkerContract) — dates aligned to month boundaries
 ├── ContractDeposit × 10 (refs: CoworkerContract, Product)
 ├── CoworkerInventoryAsset × 12 (refs: Coworker, InventoryAsset)
-└── FloorPlanDesk.CoworkerId updates × 28 (refs: FloorPlanDesk, Coworker; also sets Available=false)
+└── FloorPlanDesk occupancy updates × 28 (refs: FloorPlanDesk, CoworkerContract; also sets
+    Available=false and clears CoworkerId) — unit type matched to plan type, see §4d
 
 Layer 4a — Activity  ✅ (04_activity.py)
 ├── Booking × 240 (refs: Coworker, Resource) — 10 recurring, includes BookingProducts inline (~36)
@@ -269,8 +270,8 @@ Each tariff assigned:
 
 | Status | Count | How achieved |
 |--------|-------|-------------|
-| **Paid** | ~60% of raised invoices | `CoworkerLedgerEntry` with `CoworkerInvoiceId` set and `Credit` = invoice total, `Code="PAYM"`. |
-| **Unpaid / Overdue** | remainder | Left as-is after the billing command raises them — not individually engineered, since `DueDate` etc. are server-set from the contract's billing cycle. |
+| **Paid** | ~60% of raised invoices | `CoworkerLedgerEntry` with `CoworkerInvoiceId` set and `Credit` = invoice total, `Code="PAYM"`, plus an explicit `TransactionDate` drawn around that invoice's own due date — mostly on time, with a thinning tail of late payers. Without it the API stamps "now" and every payment lands at seed time (CLAUDE.md rule 52). |
+| **Unpaid / Overdue** | remainder | Left unpaid, but no longer left un-dated: every invoice gets a constructed schedule first (issued late in some month inside the window, due `tariffDefaultDueDate` days later, billed for the month that follows), so the overdue bucket is a real function of dates rather than an accident of when the seed ran. CLAUDE.md rule 51. |
 | **Void** | 5 | `CoworkerInvoiceHistory` (`Name="Invoice voided"`) + an offsetting `CoworkerLedgerEntry` (`Code="VOID"`). |
 | **Credit Note** | 10 | `CoworkerInvoiceHistory` (`Name="Credit note issued"`) + an offsetting `CoworkerLedgerEntry` (`Code="CRNT"`). |
 
@@ -285,10 +286,20 @@ See `06_financial.py` and CLAUDE.md rule 12 for the full picture of what the inv
 | Office (1) | 10 | 8 | 2 | 150–400 | 2–8 | £1,200–£2,500 |
 | Dedicated Desk (2) | 12 | 9 | 3 | 30–50 | 1 | £300–£400 |
 | Hot Desk (3) | 10 | 6 | 4 | 20–30 | 1 | £100–£180 |
-| Other (4) — Storage | 4 | 3 | 1 | 10–20 | 0 | £50–£100 |
+| Other (4) — Storage | 4 | 3 | 1 | 10–20 | 1 | £50–£100 |
 | Room (5) | 4 | 2 | 2 | 200–600 | 4–20 | £1,800–£3,000 |
 
-All units have `Area` set (e.g., "Ground Floor", "First Floor", "Mezzanine").
+All units have all four occupancy figures set at create time: `Area` (a zone label —
+"Ground Floor", "First Floor", "Mezzanine"), `Size`, `Capacity` and `Price`, which is the
+unit's target value — the entity has no separate `Target*` field (CLAUDE.md rule 54).
+Capacity is never 0, including for storage, so no report shows an empty cell.
+
+**Occupancy is a link to the contract, not to a person.** A unit is occupied by the
+contract whose plan type matches the unit type — office unit ↔ office plan, dedicated desk
+↔ Dedicated Desk Monthly, hot desk ↔ hot desk / flex plans (`config.DESK_PLAN_TYPES`).
+Storage units and rooms have no plan type of their own and take any active contract of the
+chosen coworker. `CoworkerId` is explicitly cleared. See CLAUDE.md rule 53 for how the
+link field itself is discovered.
 
 ### 4e. Credit & Pass Scenarios
 
@@ -703,7 +714,7 @@ What's worth keeping in this doc instead is the set of non-obvious Nexudus API b
 - **`CoworkerBookingCredit` has a literal typo baked into the API**: the field is `CaneBeUsedForBookings`, not `CanBeUsedForBookings`. Not a bug in generator code -- matches the live schema.
 - **`CoworkerExtraService` does not require a `BookingId`** -- time/printing credits are free-standing allowances (`TotalUses`, no booking link); `BookingId` is only set when the record represents a specific per-booking charge.
 - **Deleting a `Booking` to produce a `CancelledBooking`** (§4j) is asserted by house convention, not confirmed in the `bookings` entity guide text -- worth a spot-check on first live run.
-- **`FloorPlanDesk.CoworkerId`** is a plain writable field, settable via `nexudus_update`; there's no separate "occupied" boolean, so `Available=false` is set alongside it to represent occupancy.
+- **`FloorPlanDesk` occupancy is a link to the occupying *contract*, with `CoworkerId` explicitly cleared** — see §4d and CLAUDE.md rule 53. There's no "occupied" boolean, so `Available=false` is still set alongside it. `CoworkerId` is a plain writable field and was what this originally used; it models occupancy on the wrong record, since the unit type has to match the plan type.
 
 ---
 

@@ -30,6 +30,7 @@ from faker import Faker
 from config import (
     CONFIGURABLE_VOLUME_KEYS,
     DATA_DIR,
+    DESK_PLAN_TYPES,
     RANDOM_SEED,
     TEST_EMAIL_DOMAIN,
     TEST_EMAIL_PREFIX,
@@ -504,14 +505,26 @@ def generate_coworker_inventory_assets(rng, coworkers):
 
 
 def generate_desk_assignments(rng, contracts):
-    """~28 FloorPlanDesk.CoworkerId occupancy assignments — §4d."""
+    """~28 floor plan unit occupancy assignments — §4d.
+
+    A unit is occupied by a *contract*, not by a person: an office unit is
+    matched to an office plan's contract, a dedicated desk to a dedicated
+    desk plan, a hot desk to a hot desk / flex plan (DESK_PLAN_TYPES).
+    `CoworkerIndex` is still emitted alongside `ContractIndex` — it's what
+    the generator falls back to when an older plan file predates the
+    contract link, and it identifies the occupant for logging.
+
+    Storage units and rooms have no plan type of their own, so they get any
+    active contract belonging to the chosen coworker.
+    """
     active = [c for c in contracts if _is_active(c)]
 
-    office_contracts = [c for c in active if _base_tariff_name(c) in
-                         ("Private Office Small", "Private Office Large", "Private Office Annual")]
-    dedicated_contracts = [c for c in active if _base_tariff_name(c) == "Dedicated Desk Monthly"]
-    hotdesk_contracts = [c for c in active if _base_tariff_name(c) in
-                          ("Hot Desk Monthly", "Hot Desk Quarterly", "Flex Weekly", "Flex Fortnightly")]
+    office_contracts = [c for c in active
+                        if _base_tariff_name(c) in DESK_PLAN_TYPES["office"]]
+    dedicated_contracts = [c for c in active
+                           if _base_tariff_name(c) in DESK_PLAN_TYPES["dedicated"]]
+    hotdesk_contracts = [c for c in active
+                         if _base_tariff_name(c) in DESK_PLAN_TYPES["hotdesk"]]
     rng.shuffle(office_contracts)
     rng.shuffle(dedicated_contracts)
     rng.shuffle(hotdesk_contracts)
@@ -519,24 +532,39 @@ def generate_desk_assignments(rng, contracts):
     out = []
     idx = 0
 
-    def assign(desk_names, occupied_count, contract_pool):
+    def add(desk_name, contract):
         nonlocal idx
+        idx += 1
+        out.append({
+            "index": idx,
+            "DeskName": desk_name,
+            "ContractIndex": contract["index"],
+            "CoworkerIndex": contract["CoworkerIndex"],
+        })
+
+    def assign(desk_names, occupied_count, contract_pool):
         for name, c in zip(desk_names[:occupied_count], contract_pool):
-            idx += 1
-            out.append({"index": idx, "DeskName": name, "CoworkerIndex": c["CoworkerIndex"]})
+            add(name, c)
 
     assign(OFFICE_DESK_NAMES, 8, office_contracts)
     assign(DEDICATED_DESK_NAMES, 9, dedicated_contracts)
     assign(HOT_DESK_NAMES, 6, hotdesk_contracts)
 
-    active_coworker_ids = list({c["CoworkerIndex"] for c in active})
-    rng.shuffle(active_coworker_ids)
-    for name, cw_idx in zip(STORAGE_DESK_NAMES[:3], active_coworker_ids[:3]):
-        idx += 1
-        out.append({"index": idx, "DeskName": name, "CoworkerIndex": cw_idx})
-    for name, cw_idx in zip(ROOM_DESK_NAMES[:2], active_coworker_ids[3:5]):
-        idx += 1
-        out.append({"index": idx, "DeskName": name, "CoworkerIndex": cw_idx})
+    # Storage/rooms: any active contract, one per coworker so the same
+    # person doesn't end up holding several of them.
+    spare = []
+    seen_coworkers = set()
+    for c in active:
+        if c["CoworkerIndex"] in seen_coworkers:
+            continue
+        seen_coworkers.add(c["CoworkerIndex"])
+        spare.append(c)
+    rng.shuffle(spare)
+
+    for name, c in zip(STORAGE_DESK_NAMES[:3], spare[:3]):
+        add(name, c)
+    for name, c in zip(ROOM_DESK_NAMES[:2], spare[3:5]):
+        add(name, c)
 
     return out
 
