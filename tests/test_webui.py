@@ -8,6 +8,7 @@ or simply never reached. `report_lib`/`config` paths are redirected to temp
 dirs the same way `tests/test_teardown.py` does.
 """
 
+import contextlib
 import json
 import os
 import re
@@ -615,11 +616,14 @@ class TestReportSurface(unittest.TestCase):
         self.output = self.root / "output"
         self.output.mkdir()
         self.report_path = self.root / "last-run-report.txt"
+        self.teardown_report_path = self.root / "last-teardown-report.txt"
 
-    def _patches(self):
-        return (
+    @contextlib.contextmanager
+    def _patched(self):
+        patches = (
             patch.object(report_lib, "CREATED_IDS_DIR", self.created),
             patch.object(report_lib, "REPORT_PATH", self.report_path),
+            patch.object(report_lib, "TEARDOWN_REPORT_PATH", self.teardown_report_path),
             patch.object(config, "OUTPUT_DIR", self.output),
             # Without this, target_for() -> real_targets() would instantiate
             # the *real* generators/0N_*.py classes against this repo's
@@ -629,6 +633,10 @@ class TestReportSurface(unittest.TestCase):
             patch.object(report_lib, "LAYERS", []),
             patch.object(report_lib, "_real_targets_cache", {"fingerprint": None, "value": {}}),
         )
+        with contextlib.ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            yield
 
     def test_populated(self):
         (self.created / "reference.json").write_text(json.dumps([
@@ -652,8 +660,7 @@ class TestReportSurface(unittest.TestCase):
         }))
         (self.output / "coworkers.csv").write_text("Id,Name\n1,a\n2,b\n3,c\n")
         (self.output / "visitors.csv").write_text("Id,Name\n")  # header only
-        p1, p2, p3, p4, p5 = self._patches()
-        with p1, p2, p3, p4, p5:
+        with self._patched():
             out = report.gather_report()
 
         # structured cumulative rows
@@ -692,22 +699,71 @@ class TestReportSurface(unittest.TestCase):
         # still gives a timestamp (scraped from the text), just no per-entity
         # deltas or run_summary to join onto the table.
         self.report_path.write_text("Report generated 2026-08-27T09:08:24+00:00\n\nx\n")
-        p1, p2, p3, p4, p5 = self._patches()
-        with p1, p2, p3, p4, p5:
+        with self._patched():
             out = report.gather_report()
         self.assertEqual(out["last_run"]["generated_at"], "2026-08-27T09:08:24+00:00")
         self.assertIsNone(out["run_summary"])
 
     def test_all_absent(self):
-        p1, p2, p3, p4, p5 = self._patches()
-        with p1, p2, p3, p4, p5:
+        with self._patched():
             out = report.gather_report()
         self.assertIsNone(out["last_run"]["text"])
         self.assertIsNone(out["run_summary"])
+        self.assertIsNone(out["teardown_summary"])
+        self.assertIsNone(out["teardown_report"]["text"])
+        self.assertIsNone(out["latest_action"])
         self.assertEqual(out["outputs"], [])
         self.assertEqual(out["report"], [])
         self.assertEqual(out["outputs_summary"], {"files": 0, "with_rows": 0})
         self.assertEqual(out["summary"]["malformed"], 0)
+
+    def test_teardown_surfaced_and_wins_latest_when_newer(self):
+        (self.created / "reference.json").write_text(json.dumps([
+            {"entity": "taxrates", "Id": 1}, {"entity": "taxrates", "Id": 2},
+        ]))
+        # A seeding run, then a later teardown of it.
+        self.report_path.write_text("Report generated 2026-08-27T09:08:24+00:00\n\nx\n")
+        self.report_path.with_suffix(".json").write_text(json.dumps({
+            "generated_at": "2026-08-27T09:08:24+00:00", "layer_failures": [],
+            "entities": {"taxrates": {"target": 2, "created": 2, "skipped": 0,
+                                       "failed": 0, "failure_reasons": {}}},
+        }))
+        self.teardown_report_path.write_text(
+            "Teardown report generated 2026-08-27T11:00:00+00:00\nMode: tracked\n")
+        self.teardown_report_path.with_suffix(".json").write_text(json.dumps({
+            "generated_at": "2026-08-27T11:00:00+00:00", "mode": "tracked",
+            "totals": {"seen": 2, "deleted": 2, "marked_used": 0,
+                        "skipped_no_support": 0, "failed": 0, "malformed": 0},
+            "entities": {"taxrates": {"seen": 2, "deleted": 2, "marked_used": 0,
+                                       "skipped_no_support": 0, "failed": 0,
+                                       "failure_reasons": {}, "aborted": None}},
+        }))
+        with self._patched():
+            out = report.gather_report()
+
+        self.assertEqual(out["latest_action"], "teardown")
+        ts = out["teardown_summary"]
+        self.assertEqual(ts["total_deleted"], 2)
+        self.assertEqual(ts["mode"], "tracked")
+        tax = next(r for r in out["report"] if r["entity"] == "taxrates")
+        self.assertEqual(tax["last_teardown"], {"deleted": 2, "failed": 0, "marked_used": 0})
+        self.assertEqual(tax["last_run"], {"created": 2, "failed": 0})
+        self.assertIn("Teardown report generated", out["teardown_report"]["text"])
+
+    def test_older_teardown_does_not_win_latest_action(self):
+        self.report_path.write_text("Report generated 2026-08-27T12:00:00+00:00\n\nx\n")
+        self.teardown_report_path.write_text(
+            "Teardown report generated 2026-08-27T09:00:00+00:00\nMode: tracked\n")
+        self.teardown_report_path.with_suffix(".json").write_text(json.dumps({
+            "generated_at": "2026-08-27T09:00:00+00:00", "mode": "tracked",
+            "totals": {"deleted": 1, "failed": 0, "marked_used": 0,
+                        "skipped_no_support": 0, "seen": 1, "malformed": 0},
+            "entities": {},
+        }))
+        with self._patched():
+            out = report.gather_report()
+        self.assertEqual(out["latest_action"], "run")
+        self.assertIsNotNone(out["teardown_summary"])  # still surfaced, just not latest
 
 
 # --------------------------------------------------------------------------

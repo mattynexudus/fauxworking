@@ -43,13 +43,21 @@ class _TeardownTestBase(unittest.TestCase):
         self._tmpdir = tempfile.TemporaryDirectory()
         self._orig_dir = teardown.CREATED_IDS_DIR
         teardown.CREATED_IDS_DIR = Path(self._tmpdir.name)
-        self._report_patcher = patch.object(
-            report_lib, "REPORT_PATH", Path(self._tmpdir.name) / "no-report-here.txt")
-        self._report_patcher.start()
+        self._patchers = [
+            patch.object(report_lib, "REPORT_PATH",
+                         Path(self._tmpdir.name) / "no-report-here.txt"),
+            # In a subdir so it stays clear of the tmpdir-root "*.json" globs
+            # a couple of these tests use to assert no survivor file was written.
+            patch.object(report_lib, "TEARDOWN_REPORT_PATH",
+                         Path(self._tmpdir.name) / "reports" / "last-teardown-report.txt"),
+        ]
+        for p in self._patchers:
+            p.start()
         self.addCleanup(self._restore)
 
     def _restore(self):
-        self._report_patcher.stop()
+        for p in self._patchers:
+            p.stop()
         teardown.CREATED_IDS_DIR = self._orig_dir
         self._tmpdir.cleanup()
 
@@ -652,6 +660,70 @@ class TestPostTeardownCleanups(unittest.TestCase):
             teardown.maybe_clear_csv_outputs(assume_yes=False)
         inp.assert_called_once()
         self.assertTrue((self.output / "coworkers.csv").exists())
+
+
+class TestTeardownReport(_TeardownTestBase):
+    """write_teardown_report — the last-teardown-report.txt / .json pair a
+    live run leaves behind, mirroring pipeline.run_up_to's last-run-report.txt
+    for the web control panel."""
+
+    def _json(self):
+        return json.loads(report_lib.TEARDOWN_REPORT_PATH.with_suffix(".json")
+                          .read_text(encoding="utf-8"))
+
+    def test_live_run_writes_txt_and_json(self):
+        _write_tracked_file(self._tmpdir.name, "gen.json", [
+            {"Id": 1, "entity": "taxrates"},
+            {"Id": 2, "entity": "taxrates"},
+        ])
+        teardown.run_teardown(nexudus_delete=lambda *a: None, dry_run=False,
+                               nexudus_run_command=lambda *a, **k: None,
+                               nexudus_list=lambda *a, **k: [])
+
+        self.assertTrue(report_lib.TEARDOWN_REPORT_PATH.exists())
+        payload = self._json()
+        self.assertEqual(payload["mode"], "tracked")
+        self.assertEqual(payload["totals"]["deleted"], 2)
+        self.assertEqual(payload["entities"]["taxrates"]["deleted"], 2)
+        self.assertIn("Teardown report generated",
+                      report_lib.TEARDOWN_REPORT_PATH.read_text(encoding="utf-8"))
+
+    def test_dry_run_writes_no_report(self):
+        _write_tracked_file(self._tmpdir.name, "gen.json", [{"Id": 1, "entity": "taxrates"}])
+        teardown.run_teardown(nexudus_delete=lambda *a: None, dry_run=True)
+        self.assertFalse(report_lib.TEARDOWN_REPORT_PATH.exists())
+        self.assertFalse(report_lib.TEARDOWN_REPORT_PATH.with_suffix(".json").exists())
+
+    def test_failure_reasons_and_mode_are_recorded(self):
+        _write_tracked_file(self._tmpdir.name, "gen.json", [{"Id": 1, "entity": "taxrates"}])
+
+        def always_fail(entity, record_id):
+            raise RuntimeError("nope")
+
+        teardown.run_teardown(nexudus_delete=always_fail, dry_run=False,
+                               nexudus_run_command=lambda *a, **k: None,
+                               nexudus_list=lambda *a, **k: [])
+        payload = self._json()
+        self.assertEqual(payload["totals"]["failed"], 1)
+        self.assertEqual(payload["totals"]["deleted"], 0)
+        self.assertTrue(payload["entities"]["taxrates"]["failure_reasons"])
+
+    def test_nothing_to_tear_down_still_writes_a_zeroed_report(self):
+        # No tracked files at all — the early-return path must still leave a
+        # fresh report so the panel doesn't keep showing a stale teardown.
+        teardown.run_teardown(nexudus_delete=lambda *a: None, dry_run=False)
+        payload = self._json()
+        self.assertEqual(payload["totals"]["deleted"], 0)
+        self.assertEqual(payload["entities"], {})
+
+    def test_clean_mode_is_labelled_in_the_report(self):
+        teardown.run_teardown(
+            nexudus_delete=lambda *a: None, dry_run=False,
+            nexudus_run_command=lambda *a, **k: None,
+            nexudus_list=lambda entity, filters: [{"Id": 5}] if entity == "taxrates" else [],
+            mode="clean",
+        )
+        self.assertEqual(self._json()["mode"], "clean")
 
 
 if __name__ == "__main__":

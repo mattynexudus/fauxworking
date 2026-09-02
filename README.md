@@ -4,20 +4,24 @@ This tool fills a Nexudus account with realistic-looking test data — customers
 
 It talks directly to Nexudus over the internet; you don't need any AI tool running to use it.
 
+**The browser control panel is the main way to use this.** It handles login, lets you dial in how much data you want, runs the seed, keeps the export in sync, and tears everything down again — all from one local web page. The command line still does everything the panel does (and a bit more) if you prefer it — see [Command line](#command-line-alternative) further down — but you don't need it.
+
 ## A note for Windows users
 
-Everything below is written for a terminal (macOS Terminal, or Windows PowerShell/Command Prompt). Two things differ on Windows:
+The `./fauxworking` wrapper is a bash script, which plain PowerShell/Command Prompt can't run directly. You have two options:
 
-- **`python3` → `python`.** Windows installs Python as `python`, not `python3`. Every command below that starts with `python3` should be typed as `python` instead. (If `python` doesn't work either, try `py`.)
-- **`./fauxworking` needs a bash shell.** The `fauxworking` wrapper is a bash script, which plain PowerShell/Command Prompt can't run directly. You have two options:
-  - Use **Git Bash** (installed alongside [Git for Windows](https://git-scm.com/downloads/win)) or **WSL** — either lets you run `./fauxworking ...` exactly as written throughout this README.
-  - Or skip the wrapper entirely and run the underlying Python commands directly (see "Getting more control" below) — every one of those works fine in plain PowerShell/Command Prompt with `python` instead of `python3`.
+- Use **Git Bash** (installed alongside [Git for Windows](https://git-scm.com/downloads/win)) or **WSL** — either lets you run `./fauxworking ...` exactly as written below.
+- Or run the underlying Python directly. Everywhere this README says `./fauxworking ui`, you can instead run `python webui/server.py`; everywhere it says `python3`, type `python` (or `py` if that doesn't work). Windows installs Python as `python`, not `python3`.
 
-Everywhere else — `git`, `pip install`, `python3 nexudus_auth.py setup`, etc. — works the same on both, just swap `python3` for `python` on Windows.
+Everything else — `git`, `pip install` — works the same on both.
 
-## Before you start
+## Quick start
 
-**Work on your own branch, not the shared project.** This keeps your changes separate so you can't accidentally break the shared version everyone else uses. If you're not familiar with this, just copy and run:
+Four steps and you're in the control panel. Everything after that happens in the browser.
+
+### 1. Create your own branch
+
+**Work on your own branch, not the shared project.** This keeps your changes separate so you can't accidentally break the shared version everyone else uses. Copy and run:
 
 ```bash
 git checkout -b my-name-test-run
@@ -25,83 +29,34 @@ git checkout -b my-name-test-run
 
 (Replace `my-name-test-run` with anything you like — e.g. `sarah-qa-run`.) You only need to do this once per copy of the project you're working in.
 
-## Setting up (one-time)
+### 2. Make sure Python is installed
 
-1. **Make sure Python is installed** (version 3.9 or newer). In your terminal, check with:
-
-   ```bash
-   python3 --version
-   ```
-
-   If you see something like `Python 3.11.4`, you're set — skip to step 2.
-
-   If instead you get an error like "command not found":
-   - **Mac**: download and install Python from [python.org/downloads](https://www.python.org/downloads/) (or, if you use Homebrew, `brew install python3`).
-   - **Windows**: download and install Python from [python.org/downloads](https://www.python.org/downloads/) — make sure to tick **"Add Python to PATH"** during setup.
-
-   Close and reopen your terminal afterwards, then run `python3 --version` again to confirm it worked.
-
-2. **Install the required packages.** In your terminal, from the project folder:
-
-   ```bash
-   python3 -m pip install -r requirements.txt
-   ```
-
-   This installs the small set of tools the generator needs to run. (Using `python3 -m pip` instead of just `pip` avoids a common "command not found" error on some setups.)
-
-3. **Log in to Nexudus.**
-
-   ```bash
-   python3 nexudus_auth.py setup
-   ```
-
-   It'll ask for your Nexudus email and password, right there in your terminal. Your password is never saved or sent anywhere except to Nexudus itself, and isn't shown on screen as you type it. What *does* get saved (in a file called `.env`, on your own computer only) is a login token — similar to staying logged into a website — so you won't have to log in again for a while.
-
-   Your Nexudus account needs to be an **admin account with API access turned on**. If it isn't, this step will tell you clearly instead of letting things fail partway through later.
-
-## Running it
-
-The easiest way is the interactive wizard — it walks you through everything:
+Version 3.9 or newer. Check with:
 
 ```bash
-./fauxworking
+python3 --version
 ```
 
-It will:
+If you see something like `Python 3.11.4`, you're set — skip to step 3.
 
-1. Confirm you're logged in (or prompt you to log in, if you skipped the step above).
-2. Ask how much data you want — e.g. how many customers, bookings, etc. You can just press Enter to accept the suggested amount for each one.
-3. Ask whether to do a **practice run** (nothing actually created, just shows you what *would* happen) or a **real run** (creates real records in Nexudus). Real runs ask you to type "yes" to confirm before doing anything, since this affects a live account.
-4. If your login has access to more than one business/location, ask which one this run should use — this only comes up if there's actually a choice to make.
-5. Generate the data and show you progress as it goes.
+If instead you get an error like "command not found":
 
-At the end, it prints a summary — how many records were created, how many already existed and were skipped, and how many failed — plus a full account report (also saved to `last-run-report.txt` in the project folder) so you always have a record of exactly what's in the account.
+- **Mac**: download and install Python from [python.org/downloads](https://www.python.org/downloads/) (or, if you use Homebrew, `brew install python3`).
+- **Windows**: download and install Python from [python.org/downloads](https://www.python.org/downloads/) — make sure to tick **"Add Python to PATH"** during setup.
 
-**Running it again is safe.** If you run it a second time, it checks what's already there and only adds what's missing — it won't create duplicates.
+Close and reopen your terminal afterwards, then run `python3 --version` again to confirm it worked.
 
-## Keeping the export in sync
+### 3. Install the required packages
 
-One thing keeps changing on its own after a run: Nexudus raises new invoices for active contracts over time, on its own schedule — independent of anything this tool does. If it's been a while since your last run, the `output/coworkerinvoices.csv` file can go stale.
+From the project folder:
 
 ```bash
-./fauxworking refresh
+python3 -m pip install -r requirements.txt
 ```
 
-This pulls in any invoices Nexudus generated on its own since your last run, re-exports every CSV in `output/` from the refreshed data, and also produces `output/coworkerinvoicelines.csv` — a line-by-line breakdown of every invoice (not available in `coworkerinvoices.csv` itself). It's read-only aside from noting the new invoices it finds — it never creates, changes, or deletes anything in the account.
+This installs the small set of tools the generator needs to run. (Using `python3 -m pip` instead of just `pip` avoids a common "command not found" error on some setups.)
 
-## Undoing it
-
-If you want to remove everything this tool created:
-
-```bash
-./fauxworking teardown
-```
-
-It'll show you what it's about to delete and ask you to type "yes" first. This only ever deletes records it created and tracked itself — never anything else in the account, and never by guessing based on names.
-
-## The control panel (browser UI)
-
-If you'd rather click buttons than remember flags, there's a small local web page that runs all of the above for you:
+### 4. Launch the control panel
 
 ```bash
 ./fauxworking ui
@@ -109,30 +64,55 @@ If you'd rather click buttons than remember flags, there's a small local web pag
 
 Then open **<http://127.0.0.1:8765>**. It's bound to your machine only, on purpose — the panel can trigger teardown and the process holds your Nexudus login tokens, so it's not meant to be reachable from anywhere else.
 
-What it does:
+**Log in from the browser.** The panel opens with a login form if you're not signed in yet — enter your Nexudus email and password there. Your password is never saved or sent anywhere except to Nexudus itself. What *does* get saved (in a file called `.env`, on your own computer only) is a login token — similar to staying logged into a website — so you won't have to log in again for a while. The header shows whether you're signed in, and **Sign out** clears the token.
 
-- **Log in / sign out from the browser.** If `.env` has no valid token yet you get a login form (the same one-time exchange as `python3 nexudus_auth.py setup`); the header shows whether you're signed in, and **Sign out** clears the token — for the CLI too, since they share `.env`.
-- **A standalone "Data volumes" panel** — one persistent control for how much of each entity you want: *seeded* (what's live) and an editable *target* per row. Raising a target **adds** that many on the next run; it never rewrites or removes what's there (that's `prebuild`'s incremental default). Over-large values and a changed seed warn you. You tune it here, not inside the run flow.
-- **A guided "Set up demo data" card** — one screen: through-which-layer (a descriptive dropdown), export CSV, "start data fresh", a plain-English summary of the delta, the exact equivalent `python` command, then **Preview (dry run)** and — after a deliberate two-step confirm — **Run for real**. Amounts come from the Data volumes panel. It regenerates `data/*.json` only when a target actually grew (or you changed the seed / ticked "fresh"); when nothing changed it skips straight to seeding — so this one card covers both "regenerate + seed" and "just seed the current plan".
-- **The individual commands below that**, grouped and ordered — Keep it fresh · Check (read-only) · Danger zone — each card tagged with what it touches (offline / read-only / writes live / deletes). Dry-run/live is one toggle per card, not two cards. (There's no standalone "seed" card — the guided flow above is the one seeding path; `python3 pipeline.py` still works from the terminal.)
+Your Nexudus account needs to be an **admin account with API access turned on**. If it isn't, the panel will tell you clearly instead of letting things fail partway through later.
+
+## Using the control panel
+
+Everything below happens on that one page — no terminal needed after the four steps above.
+
+- **A "Data volumes" panel** — one persistent control for how much of each entity you want: *seeded* (what's live) and an editable *target* per row. Raising a target **adds** that many on the next run; it never rewrites or removes what's there. Over-large values and a changed seed warn you. You tune it here, not inside the run flow.
+- **A guided "Set up demo data" card** — one screen: through-which-layer (a descriptive dropdown), export CSV, "start data fresh", a plain-English summary of the delta, the exact equivalent `python` command, then **Preview (dry run)** and — after a deliberate two-step confirm — **Run for real**. Amounts come from the Data volumes panel. It regenerates the plan only when a target actually grew (or you changed the seed / ticked "fresh"); when nothing changed it skips straight to seeding — so this one card covers both "regenerate + seed" and "just seed the current plan".
+- **The individual commands below that**, grouped and ordered — Keep it fresh · Check (read-only) · Danger zone — each card tagged with what it touches (offline / read-only / writes live / deletes). Dry-run/live is one toggle per card, not two cards.
 - **A location selector in the header** that every command which takes one is run against, so the target is never ambiguous. Live commands stay disabled until you pick one on a multi-location login.
 - **Live output**, streamed as it happens, plus a durable log per run under `logs/` (gitignored) — a browser refresh or reopening the tab doesn't lose it.
 - **One run at a time** — a second command while one is active is refused, not queued.
 - **Safety by default.** Dry-run is pre-checked wherever it applies; a live write needs a second confirming click; teardown's live delete needs its exact confirmation phrase typed. Clean-mode teardown (ignore tracking, delete everything found live) demands a stronger phrase again (`delete everything`). A real teardown also offers, in the same dialog, to delete `data/*.json` plan files, delete `output/*.csv` exports, and reset this location's billing counters — all off by default.
-- **Results after every run** — the same "what's in the account now" table `./fauxworking verify` prints, the full `last-run-report.txt`, and `output/*.csv` download links.
+- **Results after every run** — a "what's in the account now" table, the full `last-run-report.txt`, and `output/*.csv` download links.
 
-`scripts/ui.sh --host 0.0.0.0` (or `$FAUXWORKING_UI_PORT`/`$FAUXWORKING_UI_HOST`) exists if you really want it reachable from another machine on your network, but there's no login wall beyond the Nexudus one — only do that on a network you trust.
+**Running it again is safe.** If you run a seed a second time, it checks what's already there and only adds what's missing — it won't create duplicates.
 
-## Getting more control (optional)
+### Keeping the export in sync
 
-`./fauxworking` also has a couple of other commands:
+One thing keeps changing on its own after a run: Nexudus raises new invoices for active contracts over time, on its own schedule — independent of anything this tool does. If it's been a while since your last run, the `output/coworkerinvoices.csv` file can go stale. The **refresh** command (in the panel's "Keep it fresh" group) pulls in any invoices Nexudus generated on its own since your last run, re-exports every CSV in `output/`, and also produces `output/coworkerinvoicelines.csv` — a line-by-line breakdown of every invoice. It's read-only aside from noting the new invoices it finds — it never creates, changes, or deletes anything in the account.
+
+### Undoing it
+
+The **teardown** command (in the panel's "Danger zone" group) removes everything this tool created. It shows you what it's about to delete and asks you to type a confirmation phrase first. This only ever deletes records it created and tracked itself — never anything else in the account, and never by guessing based on names.
+
+## Command line (alternative)
+
+Everything the panel does is also available from the terminal. The `./fauxworking` wrapper is the front door:
 
 ```bash
-./fauxworking daily     # Add a few fresh records "for today" (handy to run daily)
-./fauxworking verify    # Check what's in the account against expected counts
-./fauxworking refresh   # Pull in invoices Nexudus raised on its own, re-export output/
-./fauxworking ui        # Open the browser control panel (see above)
+./fauxworking            # Interactive wizard — guided setup + run
+./fauxworking daily      # Add a few fresh records "for today" (handy to run daily)
+./fauxworking verify     # Check what's in the account against expected counts
+./fauxworking refresh    # Pull in invoices Nexudus raised on its own, re-export output/
+./fauxworking teardown   # Remove everything this tool created (asks to confirm first)
+./fauxworking ui         # Open the browser control panel (see above)
 ```
+
+The wizard walks you through the same things the panel does: it confirms you're logged in (or prompts you to log in), asks how much data you want, asks whether to do a practice run or a real one, asks which business/location to use if your login has access to more than one, then generates and shows progress. At the end it prints a summary plus a full account report (also saved to `last-run-report.txt`).
+
+If you haven't logged in through the browser panel yet, you can log in from the terminal instead:
+
+```bash
+python3 nexudus_auth.py setup
+```
+
+It asks for your Nexudus email and password right there in your terminal (the password isn't shown as you type, and is only ever sent to Nexudus). This writes the same `.env` token the panel uses — they share it, so you only need to log in one way.
 
 If you don't want to use the wrapper at all, you can run the same steps yourself directly:
 
@@ -154,9 +134,11 @@ python3 prebuild.py --coworkers 10 --bookings 20
 
 Run `python3 prebuild.py --help` to see every option.
 
-If your login has access to more than one business/location, pass `--business-id <id>` to `seed_all.sh`, `seed_layer.sh`, `daily.sh`/`generators/daily_update.py`, or any `generators/0N_*.py` directly — otherwise it'll list the options and stop rather than guessing. (`daily_update.py` used to silently use the first business; it now follows the same rule as everything else.)
+If your login has access to more than one business/location, pass `--business-id <id>` to `seed_all.sh`, `seed_layer.sh`, `daily.sh`/`generators/daily_update.py`, or any `generators/0N_*.py` directly — otherwise it'll list the options and stop rather than guessing.
 
 Every command above also supports `--dry-run` if you want to preview without creating anything.
+
+`scripts/ui.sh --host 0.0.0.0` (or `$FAUXWORKING_UI_PORT`/`$FAUXWORKING_UI_HOST`) exists if you really want the control panel reachable from another machine on your network, but there's no login wall beyond the Nexudus one — only do that on a network you trust.
 
 ---
 
@@ -199,6 +181,7 @@ All dates are **relative to the run date** — the data spans 24 months back fro
 
 | Path | Purpose |
 |-----------|---------|
+| `webui/` | The browser control panel — server, static assets, command registry |
 | `wizard.py` | Interactive setup + run: auth, data volumes, dry-run/live |
 | `nexudus_auth.py` | One-time login, token storage/refresh |
 | `nexudus_client.py` | REST API wrapper (list/create/update/delete/run_command) |
@@ -210,7 +193,7 @@ All dates are **relative to the run date** — the data spans 24 months back fro
 | `generators/base.py` | Shared base class: idempotency, ID tracking, dry-run, run-summary counting |
 | `teardown.py` | Deletes every tracked record, reverse dependency order |
 | `refresh_output.py` | Discovers invoices Nexudus raised on its own since the last run, re-exports `output/*.csv`, and exports `output/coworkerinvoicelines.csv` |
-| `scripts/` | Shell wrappers: seed_all, seed_layer, daily, teardown, verify, refresh |
+| `scripts/` | Shell wrappers: seed_all, seed_layer, daily, teardown, verify, refresh, ui |
 | `reference/` | Entity dependency graph, API module map, enum values, extending-the-model guide |
 | `tests/` | Unit tests for the pure-logic pieces (volume rescaling, run-summary counting) — `python -m unittest discover tests` |
 | `data/created-ids/` | Runtime: JSON files tracking IDs of records created per generator (gitignored) |
@@ -234,7 +217,7 @@ Each generator also runs standalone — `python3 generators/03_contracts.py` re-
 
 ### Configuring data volumes
 
-The headline counts that matter for a demo — coworkers, visitors, bookings, check-ins, CRM opportunities, proposals, help desk messages, community threads, coworker tasks/time-passes/products — are configurable per run, via `wizard.py`'s prompts or flags directly on `prebuild.py`. See `config.CONFIGURABLE_VOLUME_KEYS` for the full list, and `reference/extending-the-model.md` for why the rest of the ~50 entity types (resources, teams, calendar events, ...) aren't included — they're hand-authored content, not just a number to scale.
+The headline counts that matter for a demo — coworkers, visitors, bookings, check-ins, CRM opportunities, proposals, help desk messages, community threads, coworker tasks/time-passes/products — are configurable per run, via the control panel's Data volumes panel, `wizard.py`'s prompts, or flags directly on `prebuild.py`. See `config.CONFIGURABLE_VOLUME_KEYS` for the full list, and `reference/extending-the-model.md` for why the rest of the ~50 entity types (resources, teams, calendar events, ...) aren't included — they're hand-authored content, not just a number to scale.
 
 ### Test markers
 

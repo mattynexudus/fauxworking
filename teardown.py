@@ -58,6 +58,15 @@ complete, a one-line heads-up prints before teardown starts — purely
 informational, it can't change what gets deleted (still strictly by
 tracked ID, per rule 6/7).
 
+At the end of a live run, write_teardown_report() persists this run's
+outcome to last-teardown-report.txt (+ a last-teardown.json sibling),
+the mirror of what pipeline.run_up_to writes for a generation run. It's
+a deliberately separate file from last-run-report.txt (see
+report_lib.TEARDOWN_REPORT_PATH) — the web control panel reads the JSON
+to hang a "last teardown" delta column off its entity table and render
+its own status strip, and shows the text verbatim in the raw-report
+viewer. Skipped for a dry run.
+
 After a live teardown finishes, it also offers to delete data/*.json — the
 pre-generated test data plan files prebuild.py writes and the generators
 read from (coworkers.json, bookings.json, ...) — and, separately,
@@ -118,6 +127,7 @@ import argparse
 import json
 import sys
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -636,6 +646,65 @@ def teardown_summary_lines(entity_outcomes):
     return lines
 
 
+def write_teardown_report(summary, mode):
+    """Persist this teardown run to last-teardown-report.txt (+ a .json
+    sibling for the web control panel), mirroring
+    report_lib.write_report / write_run_json for generation runs.
+
+    A separate file from last-run-report.txt by design — see
+    report_lib.TEARDOWN_REPORT_PATH. The text half is the same aggregate
+    line and per-entity breakdown printed to the console
+    (teardown_summary_lines); the JSON half is what webui/report.py joins
+    onto the entity table (a "last teardown" delta column) and renders as
+    its own status strip, the mirror of write_run_json's role for a seed.
+
+    Never called for a dry run — nothing was deleted, and it must not
+    masquerade as the last real teardown in the panel."""
+    from report_lib import TEARDOWN_REPORT_PATH
+
+    generated_at = datetime.now(timezone.utc).isoformat()
+    entity_outcomes = summary.get("entity_outcomes") or {}
+
+    agg = (f"Seen: {summary['seen']}  Deleted: {summary['deleted']}  "
+           f"Marked used: {summary['marked_used']}  "
+           f"Skipped (unsupported): {summary['skipped_no_support']}  "
+           f"Failed: {summary['failed']}")
+    if summary.get("malformed"):
+        agg += f"  Malformed (no entity tag): {summary['malformed']}"
+
+    lines = [f"Teardown report generated {generated_at}", f"Mode: {mode}", "", agg, ""]
+    lines += teardown_summary_lines(entity_outcomes) or ["(no entities processed this run)"]
+
+    path = Path(TEARDOWN_REPORT_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    payload = {
+        "generated_at": generated_at,
+        "mode": mode,
+        "totals": {
+            "seen": summary["seen"], "deleted": summary["deleted"],
+            "marked_used": summary["marked_used"],
+            "skipped_no_support": summary["skipped_no_support"],
+            "failed": summary["failed"], "malformed": summary.get("malformed", 0),
+        },
+        "entities": {
+            entity: {
+                "seen": b["seen"], "deleted": b["deleted"],
+                "marked_used": b.get("marked_used", 0),
+                "skipped_no_support": b["skipped_no_support"],
+                "failed": b["failed"],
+                # a Counter isn't JSON-serialisable as-is (same as write_run_json)
+                "failure_reasons": dict(b["failure_reasons"]),
+                "aborted": b["entity_aborted"],
+            }
+            for entity, b in entity_outcomes.items()
+        },
+    }
+    path.with_suffix(".json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"\n(teardown report saved to {path})")
+
+
 def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list=None, mode="tracked"):
     empty_summary = {"seen": 0, "deleted": 0, "marked_used": 0, "skipped_no_support": 0,
                       "failed": 0, "malformed": 0, "entity_outcomes": {}}
@@ -652,11 +721,15 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
         by_entity, pooled = _live_discover_all(nexudus_list)
         if not pooled:
             print("No live records found on this account — nothing to tear down.")
+            if not dry_run:
+                write_teardown_report(empty_summary, mode)
             return empty_summary
     else:
         files = load_tracked_records()
         if not files:
             print("No tracked records found in data/created-ids/ — nothing to tear down.")
+            if not dry_run:
+                write_teardown_report(empty_summary, mode)
             return empty_summary
 
         if _last_generation_run_incomplete():
@@ -763,11 +836,16 @@ def run_teardown(nexudus_delete, dry_run, nexudus_run_command=None, nexudus_list
                 path.write_text(json.dumps(survivors, indent=2) + "\n", encoding="utf-8")
             print("\nUpdated data/created-ids/*.json to remove deleted records.")
 
-    return {
+    summary = {
         "seen": total_seen, "deleted": total_deleted, "marked_used": total_marked_used,
         "skipped_no_support": total_skipped_no_support, "failed": total_failed,
         "malformed": malformed_count, "entity_outcomes": entity_outcomes,
     }
+    # Mirror pipeline.run_up_to writing last-run-report.txt at the end of a
+    # generation run — a dry run has nothing real to report on, same as there.
+    if not dry_run:
+        write_teardown_report(summary, mode)
+    return summary
 
 
 def maybe_clear_generated_data(assume_yes=False):

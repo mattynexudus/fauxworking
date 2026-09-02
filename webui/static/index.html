@@ -162,7 +162,10 @@
         <pre id="console" class="console" data-empty="No run yet — start one from the left."></pre>
       </section>
 
-      <section class="card-panel" aria-labelledby="results-h">
+      <!-- Hidden until there's something to show: a live run's report, a
+           teardown's, or an exported CSV (see loadReport). A fresh install
+           has none of the three, and an empty Results pane is just noise. -->
+      <section class="card-panel" id="results-panel" aria-labelledby="results-h" hidden>
         <div class="cp-head">
           <div>
             <h2 id="results-h">Results</h2>
@@ -187,6 +190,13 @@
              one (data/created-ids/ has records, e.g. from a fresh clone, but
              last-run.json doesn't exist yet). -->
         <div id="run-status" class="run-status" hidden></div>
+
+        <!-- The mirror of the above for the last live teardown (deleted /
+             failed / reasons, from last-teardown.json — see
+             renderTeardownStatus). Per-entity deltas show as "-N" in the
+             same "last run" column when a teardown was the most recent
+             action (latest_action). Hidden until a teardown has recorded one. -->
+        <div id="teardown-status" class="run-status" hidden></div>
 
         <div class="outputs-head">
           <span id="outputs-summary" class="muted small"></span>

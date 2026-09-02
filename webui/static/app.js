@@ -222,7 +222,8 @@ function showLoggedOut() {
     const n = document.getElementById(id);
     if (n) n.textContent = "";
   }
-  for (const id of ["status-badge", "run-hint", "loc", "cancel-btn", "run-status", "global-refresh"]) {
+  for (const id of ["status-badge", "run-hint", "loc", "cancel-btn", "run-status",
+                    "teardown-status", "global-refresh", "results-panel"]) {
     const n = document.getElementById(id);
     if (n) n.hidden = true;
   }
@@ -590,20 +591,41 @@ function entityRow(entity, entityVol, volParams, isEditable) {
   return row;
 }
 
-// "+7" (safe), "3 failed" (danger), "+7 · 2 failed" (danger — a partial run
-// still counts as a problem worth the warning colour), or an em dash when
-// the last run never touched this entity at all (skipped layer, or another
-// layer owns it) — distinct from "no change", which means it ran and
-// everything it needed was already there.
-function renderLastRun(cell, lastRun) {
+// Which delta to show in the "last run" column for an entity row: the
+// teardown's "-N" when a teardown was the most recent thing to touch the
+// account (report.latest_action), otherwise the seed's "+N". Returns the
+// chosen delta tagged with `kind` for renderLastRun, or null when whichever
+// action is current never touched this entity.
+function pickDelta(row) {
+  if (!row) return null;
+  const latest = state.lastReport && state.lastReport.latest_action;
+  if (latest === "teardown" && row.last_teardown)
+    return { ...row.last_teardown, kind: "teardown" };
+  return row.last_run ? { ...row.last_run, kind: "run" } : null;
+}
+
+// Seed: "+7" (safe), "3 failed" (danger), "+7 · 2 failed" (danger — a partial
+// run still counts as a problem worth the warning colour). Teardown: "-7",
+// "4 used", "2 failed" (danger). An em dash when the current action never
+// touched this entity at all (skipped layer, another layer/step owns it) —
+// distinct from "no change", which means it ran and there was nothing to do.
+function renderLastRun(cell, d) {
   cell.innerHTML = "";
   cell.classList.remove("good", "bad");
-  if (!lastRun) { cell.textContent = "—"; return; }
+  if (!d) { cell.textContent = "—"; return; }
   const parts = [];
-  if (lastRun.created) parts.push(`+${lastRun.created.toLocaleString()}`);
-  if (lastRun.failed) parts.push(`${lastRun.failed.toLocaleString()} failed`);
+  if (d.kind === "teardown") {
+    if (d.deleted) parts.push(`-${d.deleted.toLocaleString()}`);
+    if (d.marked_used) parts.push(`${d.marked_used.toLocaleString()} used`);
+    if (d.failed) parts.push(`${d.failed.toLocaleString()} failed`);
+    cell.textContent = parts.length ? parts.join(" · ") : "no change";
+    cell.classList.add(d.failed ? "bad" : "zero");
+    return;
+  }
+  if (d.created) parts.push(`+${d.created.toLocaleString()}`);
+  if (d.failed) parts.push(`${d.failed.toLocaleString()} failed`);
   cell.textContent = parts.length ? parts.join(" · ") : "no change";
-  cell.classList.add(lastRun.failed ? "bad" : (lastRun.created ? "good" : "zero"));
+  cell.classList.add(d.failed ? "bad" : (d.created ? "good" : "zero"));
 }
 
 // Colour the live count against its target: neutral until something's seeded,
@@ -626,7 +648,7 @@ function syncEntityTable() {
     // Target is whatever the user has typed — colour updates live as they edit.
     const val = c.input && c.input.value !== "" ? Number(c.input.value) : null;
     paintLive(c.live, seeded, val);
-    renderLastRun(c.lastRun, rep[c.entity] && rep[c.entity].last_run);
+    renderLastRun(c.lastRun, pickDelta(rep[c.entity]));
 
     if (c.input && c.p) {
       const over = val != null && ((c.p.max != null && val > c.p.max) ||
@@ -648,7 +670,7 @@ function syncEntityTable() {
     const tgt = r && r.target != null ? r.target : null;
     live.textContent = seeded.toLocaleString();
     paintLive(live, seeded, tgt);
-    renderLastRun(lastRun, r && r.last_run);
+    renderLastRun(lastRun, pickDelta(r));
     if (target) target.textContent = tgt != null ? tgt.toLocaleString() : "—";
   }
 
@@ -1300,6 +1322,16 @@ async function loadReport() {
   try { r = await api("/api/report"); } catch (_) { return; }
   state.lastReport = r;
 
+  // Nothing generated yet — no seeding run, no teardown, no CSV export — means
+  // every child of the pane is empty or a placeholder, so hide the whole thing
+  // rather than showing an empty shell. Tracked counts alone don't count: the
+  // Data targets table already carries those.
+  const lr = r.last_run || {};
+  const td = r.teardown_report || {};
+  const hasResults = !!(lr.text || td.text || (r.outputs || []).length);
+  $("#results-panel").hidden = !hasResults;
+  if (!hasResults) return;
+
   const s = r.summary || {};
   const bt = s.below_target || 0;
   const sum = $("#report-summary");
@@ -1308,12 +1340,21 @@ async function loadReport() {
   sum.className = "report-summary" + (bt ? " short" : " ok");
 
   renderRunStatus(r.run_summary);
+  renderTeardownStatus(r.teardown_summary, r.latest_action);
 
-  const lr = r.last_run || {};
-  $("#report").textContent = lr.text || "(no live seeding run yet)";
-  $("#raw-report-summary").textContent = lr.generated_at
-    ? `Raw report — ${new Date(lr.generated_at).toLocaleString()}`
-    : "Raw report";
+  // The raw-report viewer shows whichever action last touched the account —
+  // the seed's report, or the teardown's (see report.py::latest_action).
+  if (r.latest_action === "teardown" && td.text) {
+    $("#report").textContent = td.text;
+    $("#raw-report-summary").textContent = td.generated_at
+      ? `Raw teardown report — ${new Date(td.generated_at).toLocaleString()}`
+      : "Raw teardown report";
+  } else {
+    $("#report").textContent = lr.text || "(no live seeding run yet)";
+    $("#raw-report-summary").textContent = lr.generated_at
+      ? `Raw report — ${new Date(lr.generated_at).toLocaleString()}`
+      : "Raw report";
+  }
 
   renderOutputs();
 }
@@ -1342,6 +1383,39 @@ function renderRunStatus(rs) {
     parts.push("most common: " + rs.top_failure_reasons.map(([reason, n]) => `${reason} ×${n}`).join(" · "));
   }
   if (clean) parts.push(`${rs.total_created.toLocaleString()} created, no failures`);
+
+  box.append(icon(clean ? "check" : "alert"), el("span", { text: parts.join(" · ") }));
+}
+
+// The mirror of renderRunStatus for the last live teardown (teardown.py::
+// write_teardown_report -> report.py). Per-entity "-N" deltas live on the
+// Data targets "last run" column (see pickDelta); this strip carries what a
+// row can't — an entity-batch abort, the aggregate deleted/failed picture.
+function renderTeardownStatus(ts, latest) {
+  const box = $("#teardown-status");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!ts) { box.hidden = true; return; }
+  box.hidden = false;
+
+  const clean = !ts.aborted_entities.length && !ts.total_failed;
+  box.className = "run-status " + (clean ? "ok" : "bad");
+
+  const when = ts.generated_at ? relTime(Date.parse(ts.generated_at) / 1000) : "";
+  const head = "Last teardown" + (latest === "teardown" ? "" : " (earlier)")
+    + (ts.mode === "clean" ? " · clean mode" : "");
+  const parts = [`${head} — ${when}`];
+  if (ts.total_deleted) parts.push(`${ts.total_deleted.toLocaleString()} deleted`);
+  if (ts.total_marked_used) parts.push(`${ts.total_marked_used.toLocaleString()} marked used`);
+  if (ts.total_failed) {
+    parts.push(`${ts.total_failed.toLocaleString()} record${ts.total_failed === 1 ? "" : "s"} failed`
+      + ` across ${ts.entities_failed} entit${ts.entities_failed === 1 ? "y" : "ies"}`);
+  }
+  for (const e of ts.aborted_entities) parts.push(`batch aborted: ${e}`);
+  if (!clean && ts.top_failure_reasons.length) {
+    parts.push("most common: " + ts.top_failure_reasons.map(([reason, n]) => `${reason} ×${n}`).join(" · "));
+  }
+  if (clean && !ts.total_deleted) parts.push("nothing to delete");
 
   box.append(icon(clean ? "check" : "alert"), el("span", { text: parts.join(" · ") }));
 }

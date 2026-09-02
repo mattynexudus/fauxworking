@@ -24,6 +24,13 @@ from config import CREATED_IDS_DIR, DATA_DIR, PROJECT_ROOT, VOLUMES, CONFIGURABL
 # this is a report about a run.
 REPORT_PATH = PROJECT_ROOT / "last-run-report.txt"
 
+# Teardown writes its own run report here (see teardown.py::write_teardown_report)
+# — deliberately a SEPARATE file from REPORT_PATH. That one means "the last
+# generation run" and teardown.py::_last_generation_run_incomplete() greps it,
+# so a teardown must never clobber it; the web control panel shows the two side
+# by side. Same .txt + .json sibling shape as write_report / write_run_json.
+TEARDOWN_REPORT_PATH = PROJECT_ROOT / "last-teardown-report.txt"
+
 # Nexudus apiPath -> config.VOLUMES key, for the entities with a direct 1:1 mapping.
 TARGET_KEY_BY_ENTITY = {
     "taxrates": "tax_rates", "financialaccounts": "financial_accounts",
