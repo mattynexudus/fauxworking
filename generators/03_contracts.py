@@ -45,10 +45,6 @@ class ContractsGenerator(BaseGenerator):
         super().__init__(**kwargs)
         self.contract_ids = {}  # ContractIndex -> Id
         self._desk_item_types_cache = None
-        # Which field shape carries a unit's contract link — discovered on
-        # the first assignment of the run, see _link_desk_to_contract.
-        self._desk_link_shape = None
-        self.coworker_ids_for_desks = {}
 
         self.contract_defs = self._load_data("contracts.json")
         self.contract_product_defs = self._load_data("contract_products.json")
@@ -90,7 +86,7 @@ class ContractsGenerator(BaseGenerator):
         self._create_contract_paused_periods(nexudus_create)
         self._create_contract_deposits(product_ids, nexudus_create)
         self._create_inventory_assignments(biz, coworker_ids, inventory_asset_ids, nexudus_create)
-        self._assign_desks(coworker_ids, floor_plan_desk_ids, nexudus_update, nexudus_get)
+        self._assign_desks(floor_plan_desk_ids, nexudus_update, nexudus_get)
 
         self.log.info("Layer 3 complete. Contracts: %d", len(self.contract_ids))
 
@@ -184,7 +180,7 @@ class ContractsGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping contract creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkercontracts", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping contract #%d — create failed: %s", idx, e,
@@ -235,7 +231,7 @@ class ContractsGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping contract product creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="contractproducts", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping contract product #%d — create failed: %s", defn["index"], e,
@@ -287,7 +283,7 @@ class ContractsGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping paused period creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="contractpausedperiods", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping paused period #%d — create failed: %s", defn["index"], e,
@@ -338,7 +334,7 @@ class ContractsGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping deposit creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="contractdeposits", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping deposit #%d — create failed: %s", defn["index"], e,
@@ -390,7 +386,7 @@ class ContractsGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping inventory assignment creation — this error has "
-                        "repeated several times in a row, likely an account-wide "
+                        "repeated several times in a row, skipping the rest of them rather than "
                         "condition: %s", e,
                         skip=True, entity="coworkerinventoryassets", reason="systemic_rate_limit")
                     break
@@ -413,25 +409,21 @@ class ContractsGenerator(BaseGenerator):
     # office is the office *contract*, and the unit type has to match the
     # plan type (office unit <-> office plan, hot desk <-> hot desk/flex).
     # prebuild.py::generate_desk_assignments already pairs them that way and
-    # now emits the ContractIndex to prove it; this writes the link and
-    # clears any CoworkerId left over from the old behaviour.
+    # now emits the ContractIndex to prove it; this writes the link. The
+    # unit's CoworkerId then follows from the contract on its own — Nexudus
+    # derives it and refuses a direct write once a unit is linked.
     #
-    # WHICH FIELD carries that link is not settled: the live record exposes
-    # CoworkerContractIds (plural) next to CoworkerContractFullNames and
-    # CoworkerContractStartDates, plus a separate Contracts field, all null
-    # on a fresh unit, and this repo's history with Nexudus schemas (rules
-    # 27/34/39) says don't trust a field list to tell you what's writable.
-    # So rather than hardcoding a guess, the first assignment of a run
-    # tries each candidate shape and keeps the one that reads back — the
-    # same "probe it live, then trust what worked" approach used elsewhere,
-    # just done at run time instead of by hand.
+    # The link is written from the CONTRACT side, not the unit side —
+    # confirmed live (see CLAUDE.md rule 55). FloorPlanDesk.CoworkerContractIds
+    # looks writable and is not: three of the four shapes originally probed
+    # here were accepted and silently dropped, the fourth 500'd, which is
+    # why an earlier run logged 28 successful assignments while every unit
+    # stayed unlinked. CoworkerContract.AddedDesks is the write side, and it
+    # must be a LIST — the same id as a bare string is accepted and dropped
+    # exactly like the unit-side fields. Nexudus then populates the
+    # contract's Desks / FloorPlanDeskIds / FloorPlanDeskNames and the
+    # unit's own CoworkerContractIds itself.
     # ------------------------------------------------------------------
-    DESK_CONTRACT_LINK_SHAPES = [
-        ("CoworkerContractIds-list", lambda cid: {"CoworkerContractIds": [cid]}),
-        ("CoworkerContractIds-string", lambda cid: {"CoworkerContractIds": str(cid)}),
-        ("Contracts-list", lambda cid: {"Contracts": [{"Id": cid}]}),
-        ("CoworkerContractId", lambda cid: {"CoworkerContractId": cid}),
-    ]
 
     @staticmethod
     def _contract_link_present(record, contract_id):
@@ -497,9 +489,8 @@ class ContractsGenerator(BaseGenerator):
                 return c["index"]
         return None
 
-    def _assign_desks(self, coworker_ids, floor_plan_desk_ids, nexudus_update, nexudus_get):
+    def _assign_desks(self, floor_plan_desk_ids, nexudus_update, nexudus_get):
         self.log.info("--- Desk Assignments (%d) ---", len(self.desk_assignment_defs))
-        self.coworker_ids_for_desks = coworker_ids
 
         for defn in self.desk_assignment_defs:
             track_key = str(defn["index"])
@@ -522,20 +513,25 @@ class ContractsGenerator(BaseGenerator):
                 continue
 
             already = self.already_created("DeskAssignmentIndex", track_key, entity="floorplandesks")
-            if already and not self._needs_reassignment(desk_id, contract_id, nexudus_get):
+            if already and not self._needs_reassignment(desk_id, contract_id,
+                                                        nexudus_get, nexudus_update):
                 self.log.info("Desk assignment #%d already tracked", defn["index"])
                 continue
             if already:
-                self.log.info("Re-applying desk assignment #%d — unit '%s' is still linked to a "
-                              "coworker rather than its contract", defn["index"], desk_name)
+                self.log.info("Re-applying desk assignment #%d — unit '%s' is not linked to its "
+                              "contract", defn["index"], desk_name)
 
-            result = self._link_desk_to_contract(desk_id, contract_id, defn, nexudus_update)
+            result = self._link_desk_to_contract(desk_id, contract_id, defn,
+                                                 nexudus_update, nexudus_get)
             if result is None:
                 continue
             if result == "systemic":
                 break
 
-            if not already:
+            # Never track in dry-run: track_id has no dry_run guard of its
+            # own, so the synthetic record above would land in
+            # data/created-ids/ as a real assignment (rule 56).
+            if not already and not self.dry_run:
                 self.track_id({
                     "entity": "floorplandesks", **result,
                     "DeskAssignmentIndex": track_key,
@@ -543,11 +539,16 @@ class ContractsGenerator(BaseGenerator):
             self.log.info("Linked unit '%s' to contract #%s (coworker #%s)",
                           desk_name, contract_index, defn.get("CoworkerIndex"))
 
-    def _needs_reassignment(self, desk_id, contract_id, nexudus_get):
-        """Whether a unit assigned by an earlier run still needs fixing —
-        it predates the contract link, or kept its CoworkerId. Without this
-        every unit assigned before this change would keep its person link
-        forever, since already_created() would skip it every run."""
+    def _needs_reassignment(self, desk_id, contract_id, nexudus_get, nexudus_update):
+        """Whether a unit assigned by an earlier run still needs its
+        contract link written. Without this every unit assigned before the
+        move to the contract-side link would keep its person link forever,
+        since already_created() would skip it every run.
+
+        A unit that IS already linked but still reads Available=False is
+        normalised here rather than reported as needing reassignment —
+        re-adding an already-added desk to its contract isn't worth the
+        write."""
         if self.dry_run:
             return False
         try:
@@ -555,81 +556,77 @@ class ContractsGenerator(BaseGenerator):
         except Exception as e:  # noqa: BLE001
             self.log.warning("Could not re-check unit %s (%s) — leaving it as it is", desk_id, e)
             return False
-        return bool(current.get("CoworkerId")) or not self._contract_link_present(current, contract_id)
+        if not self._contract_link_present(current, contract_id):
+            return True
+        self._assert_unit_available(desk_id, current, nexudus_update)
+        return False
 
-    def _link_desk_to_contract(self, desk_id, contract_id, defn, nexudus_update):
-        """Write the contract link, discovering which field shape the API
-        accepts on the first assignment of the run. Returns the updated
-        record, None to skip this unit, or "systemic" to stop."""
-        if self._desk_link_shape == "none":
-            return self._fallback_coworker_link(desk_id, defn, nexudus_update)
+    def _link_desk_to_contract(self, desk_id, contract_id, defn, nexudus_update, nexudus_get):
+        """Occupy a unit by adding it to its contract's AddedDesks.
 
-        shapes = (self.DESK_CONTRACT_LINK_SHAPES if self._desk_link_shape is None
-                  else [self._desk_link_shape])
-        last_error = None
+        Returns the unit's record as it reads back after the write (what
+        gets tracked), None to skip this unit, or "systemic" to stop.
+        """
+        if self.dry_run:
+            self.log.info("WOULD UPDATE coworkercontracts %s: %s",
+                          contract_id, json.dumps({"AddedDesks": [desk_id]}))
+            return {"Id": desk_id, "CoworkerContractIds": str(contract_id)}
 
-        for label, build in shapes:
-            # CoworkerId is nulled explicitly: nexudus_update is a
-            # read-modify-write, so anything left out of the body is echoed
-            # back unchanged and the old person link would survive.
-            body = {**build(contract_id), "CoworkerId": None, "Available": False}
-
-            if self.dry_run:
-                self.log.info("WOULD UPDATE floorplandesks %s: %s", desk_id, json.dumps(body))
-                return {"Id": desk_id, **body}
-
-            try:
-                result = nexudus_update("floorplandesks", desk_id, body)
-            except Exception as e:  # noqa: BLE001
-                last_error = e
-                if self._desk_link_shape is not None:
-                    verdict = self.classify_failure("floorplandesks", e)
-                    if verdict == "systemic":
-                        self.log.warning(
-                            "Stopping desk assignment — this error has repeated several "
-                            "times in a row, likely an account-wide condition: %s", e,
-                            skip=True, entity="floorplandesks", reason="systemic_rate_limit")
-                        return "systemic"
-                    self.log.warning("Skipping desk assignment #%d — update failed: %s",
-                                      defn["index"], e,
-                                      skip=True, entity="floorplandesks", reason="unknown_error")
-                    return None
-                continue
-
-            if self._desk_link_shape is not None:
-                return result
-            if self._contract_link_present(result, contract_id):
-                self._desk_link_shape = (label, build)
-                self.log.info("Floor plan units link to a contract via %s — using it for the "
-                              "rest of this run", label)
-                return result
-            self.log.info("Contract link shape %s did not read back on unit %s — trying the next one",
-                          label, desk_id)
-
-        # Nothing stuck. Fall back to the old person link so occupancy is at
-        # least represented, and say loudly what needs capturing by hand.
-        # Decided once per run — don't re-probe all four shapes on every
-        # remaining unit.
-        self._desk_link_shape = "none"
-        self.log.warning(
-            "None of the contract-link field shapes (%s) took on unit %s%s. Falling back to the "
-            "CoworkerId link. Capture the admin UI's own request when assigning a unit to a "
-            "contract and add the field to DESK_CONTRACT_LINK_SHAPES (see CLAUDE.md rule 27).",
-            ", ".join(label for label, _ in self.DESK_CONTRACT_LINK_SHAPES), desk_id,
-            f" (last error: {last_error})" if last_error else "")
-        return self._fallback_coworker_link(desk_id, defn, nexudus_update)
-
-    def _fallback_coworker_link(self, desk_id, defn, nexudus_update):
-        coworker_id = self.coworker_ids_for_desks.get(defn.get("CoworkerIndex"))
-        if coworker_id is None:
-            return None
         try:
-            return nexudus_update("floorplandesks", desk_id,
-                                  {"CoworkerId": coworker_id, "Available": False})
+            nexudus_update("coworkercontracts", contract_id, {"AddedDesks": [desk_id]})
         except Exception as e:  # noqa: BLE001
-            self.log.warning("Skipping desk assignment #%d — update failed: %s", defn["index"], e,
+            verdict = self.classify_failure("floorplandesks", e)
+            if verdict == "systemic":
+                self.log.warning(
+                    "Stopping desk assignment — this error has repeated several "
+                    "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
+                    skip=True, entity="floorplandesks", reason="systemic_rate_limit")
+                return "systemic"
+            self.log.warning("Skipping desk assignment #%d — linking unit to contract %s failed: %s",
+                              defn["index"], contract_id, e,
                               skip=True, entity="floorplandesks", reason="unknown_error")
             return None
+
+        # AddedDesks is write-only and the update echoes the contract, not
+        # the unit, so the unit itself is the only place to confirm the
+        # link landed. A silent no-op here is exactly the failure mode the
+        # old unit-side shapes had, so it's checked rather than assumed.
+        try:
+            record = nexudus_get("floorplandesks", desk_id)
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Linked unit %s to contract %s but could not read it back (%s) — "
+                             "tracking it anyway", desk_id, contract_id, e)
+            return {"Id": desk_id}
+
+        if not self._contract_link_present(record, contract_id):
+            self.log.warning(
+                "Skipping desk assignment #%d — AddedDesks was accepted for contract %s but "
+                "unit %s did not come back carrying the link. Capture the admin UI's own "
+                "request when assigning a unit to a contract (see CLAUDE.md rules 27/55).",
+                defn["index"], contract_id, desk_id,
+                skip=True, entity="floorplandesks", reason="unknown_error")
+            return None
+
+        self._assert_unit_available(desk_id, record, nexudus_update)
+        return record
+
+    def _assert_unit_available(self, desk_id, record, nexudus_update):
+        """Undo the Available=False the pre-contract-link behaviour set to
+        mark occupancy — that's the contract link's job now.
+
+        The unit's CoworkerId is deliberately left alone: once a unit is
+        linked to a contract Nexudus derives the person from it (confirmed
+        live — every linked unit's CoworkerId matches its contract's own
+        coworker) and rejects a direct write with "This is desk is linked to
+        a contract. To change the person it is assigned to you should change
+        that contract." Nulling it here is both impossible and pointless.
+        """
+        if record.get("Available") is not False:
+            return
+        try:
+            nexudus_update("floorplandesks", desk_id, {"Available": True})
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Could not mark unit %s available: %s", desk_id, e)
 
 
 if __name__ == "__main__":

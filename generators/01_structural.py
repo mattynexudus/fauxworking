@@ -426,7 +426,7 @@ class StructuralGenerator(BaseGenerator):
         self._create_floor_plans(biz, nexudus_list, nexudus_create)
 
         # FloorPlanDesks
-        self._create_floor_plan_desks(nexudus_list, nexudus_create, nexudus_update)
+        self._create_floor_plan_desks(biz, nexudus_list, nexudus_create, nexudus_update)
 
         # InventoryAssets
         self._create_inventory_assets(biz, nexudus_list, nexudus_create)
@@ -512,7 +512,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping '%s' creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", entity, e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", entity, e,
                         skip=True, entity=entity, reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping '%s' — create failed: %s", name, e,
@@ -576,7 +576,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping tariff creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="tariffs", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping tariff '%s' — create failed: %s", name, e,
@@ -637,7 +637,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping product creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="products", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping product '%s' — create failed: %s", name, e,
@@ -713,7 +713,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping extra service creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="extraservices", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping extra service '%s' — create failed: %s", name, e,
@@ -754,7 +754,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping time pass creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="timepasses", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping time pass '%s' — create failed: %s", name, e,
@@ -892,7 +892,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping resource creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="resources", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping resource '%s' — create failed: %s", name, e,
@@ -941,7 +941,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping floor plan creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="floorplans", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping floor plan '%s' — create failed: %s", name, e,
@@ -955,8 +955,9 @@ class StructuralGenerator(BaseGenerator):
     # ------------------------------------------------------------------
     # FloorPlanDesks
     # ------------------------------------------------------------------
-    def _create_floor_plan_desks(self, nexudus_list, nexudus_create, nexudus_update):
+    def _create_floor_plan_desks(self, biz, nexudus_list, nexudus_create, nexudus_update):
         self.log.info("--- Floor Plan Desks ---")
+        live_by_name = self._live_desks_by_name(biz, nexudus_list)
 
         for idx, defn in enumerate(FLOOR_PLAN_DESKS):
             name = defn["Name"]
@@ -966,7 +967,8 @@ class StructuralGenerator(BaseGenerator):
                                  if r.get("entity") == "floorplandesks" and r.get("Name") == name)
                 self.floor_plan_desk_ids[name] = existing["Id"]
                 self.log.info("Desk '%s' already tracked (id=%s)", name, existing["Id"])
-                self._backfill_desk_figures(existing, defn, nexudus_update)
+                self._backfill_desk_figures(existing, defn, nexudus_update,
+                                            live=live_by_name.get(name))
                 continue
 
             fp_name = f"{TEST_NAME_PREFIX}{defn['FloorPlan']}"
@@ -986,6 +988,7 @@ class StructuralGenerator(BaseGenerator):
                 "Capacity": defn["Capacity"],
                 "Price": defn["Price"],
                 "Area": defn.get("Area", ""),
+                "Available": True,
                 "PositionX": (idx % 10) * 100,
                 "PositionY": (idx // 10) * 100,
                 "PositionZ": 0,
@@ -1003,7 +1006,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping desk creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="floorplandesks", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping desk '%s' — create failed: %s", name, e,
@@ -1014,13 +1017,38 @@ class StructuralGenerator(BaseGenerator):
             self.track_id({"entity": "floorplandesks", **result, "Name": name})
             self.log.info("Created desk '%s' (id=%s)", name, result["Id"])
 
-    def _backfill_desk_figures(self, existing, defn, nexudus_update):
+    def _live_desks_by_name(self, biz, nexudus_list):
+        """Name -> live unit record, for the Available check in
+        _backfill_desk_figures. One list call rather than a GET per unit;
+        a failure here is not worth aborting desk creation over, so it
+        degrades to "no live data" and the tracked copy is used instead."""
+        if self.dry_run:
+            return {}
+        try:
+            live = nexudus_list("floorplandesks", {"FloorPlanDesk_Business": biz})
+        except Exception as e:  # noqa: BLE001
+            self.log.warning("Could not list live units (%s) — backfill will use "
+                             "the tracked copy of each unit instead", e)
+            return {}
+        return {r["Name"]: r for r in live if r.get("Name")}
+
+    def _backfill_desk_figures(self, existing, defn, nexudus_update, live=None):
         """Bring a unit created by an earlier run up to the current figures.
 
-        Area / Size / Capacity / Price are set at create time, so a unit
-        already live keeps whatever it was born with — including the
-        Capacity 0 storage units used to get. Without this the
-        already_created() branch above would skip them forever.
+        Area / Size / Capacity / Price / Available are set at create time,
+        so a unit already live keeps whatever it was born with — including
+        the Capacity 0 storage units used to get, and the Available=False
+        every unit created before this defaulted to (nothing used to send
+        the field at all). Without this the already_created() branch above
+        would skip them forever.
+
+        Available comes from `live` (the caller's one business-wide list)
+        rather than the tracked record when it's available: it's the one
+        field of the five that a later layer used to overwrite (Layer 3 set
+        it False to mark occupancy), so the create-time copy in tracking
+        can disagree with reality. An absent Available means "not known"
+        and is left alone — a live record always carries the field, so
+        only an explicit False is treated as drift.
         """
         drifted = {}
         for field in ("Size", "Capacity", "Price"):
@@ -1030,6 +1058,9 @@ class StructuralGenerator(BaseGenerator):
         area = defn.get("Area", "")
         if str(existing.get("Area") or "") != str(area):
             drifted["Area"] = area
+        source = live if isinstance(live, dict) else existing
+        if source.get("Available") is False:
+            drifted["Available"] = True
         if not drifted:
             return
 
@@ -1093,7 +1124,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping inventory asset creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="inventoryassets", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping asset '%s' — create failed: %s", name, e,
@@ -1142,7 +1173,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping discount code creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="discountcodes", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping discount '%s' — create failed: %s", code, e,
@@ -1181,7 +1212,7 @@ class StructuralGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping CRM board creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="crmboards", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping board '%s' — create failed: %s", name, e,
@@ -1238,7 +1269,7 @@ class StructuralGenerator(BaseGenerator):
                     if verdict == "systemic":
                         self.log.warning(
                             "Stopping CRM board column creation — this error has "
-                            "repeated several times in a row, likely an account-wide "
+                            "repeated several times in a row, skipping the rest of them rather than "
                             "condition: %s", e,
                             skip=True, entity="crmboardcolumns", reason="systemic_rate_limit")
                         break
