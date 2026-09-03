@@ -190,7 +190,7 @@ class ActivityGenerator(BaseGenerator):
                     if verdict == "systemic":
                         self.log.warning(
                             "Stopping booking creation — this error has repeated several "
-                            "times in a row, likely an account-wide condition: %s", e,
+                            "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                             skip=True, entity="bookings", reason="systemic_rate_limit")
                         break
                     self.log.warning("Skipping booking #%d — create failed: %s", idx, e,
@@ -253,9 +253,9 @@ class ActivityGenerator(BaseGenerator):
                     verdict = self.classify_failure("bookingvisitors", e)
                     if verdict == "systemic":
                         self.log.warning(
-                            "Stopping booking-guest creation — this error has repeated "
-                            "several times in a row, likely an account-wide condition "
-                            "rather than a one-off bad record: %s", e,
+                            "Stopping booking-guest creation — this error failed several "
+                            "records in a row with none succeeding, skipping the rest rather "
+                            "than spending the wall-clock time to fail on each: %s", e,
                             skip=True, entity="bookingvisitors", reason="systemic_rate_limit")
                         return
                     self.log.warning("Skipping booking guest #%s — create failed: %s",
@@ -327,7 +327,7 @@ class ActivityGenerator(BaseGenerator):
                     if verdict == "systemic":
                         self.log.warning(
                             "Stopping booking cancellation — this error has repeated "
-                            "several times in a row, likely an account-wide condition: %s", e,
+                            "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                             skip=True, entity="cancelledbookings", reason="systemic_rate_limit")
                         break
                     self.log.warning("Skipping cancellation of booking #%d — command failed: %s",
@@ -395,7 +395,7 @@ class ActivityGenerator(BaseGenerator):
                     if verdict == "systemic":
                         self.log.warning(
                             "Stopping check-in creation — this error has repeated "
-                            "several times in a row, likely an account-wide condition: %s", e,
+                            "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                             skip=True, entity="checkins", reason="systemic_rate_limit")
                         break
                     self.log.warning("Skipping check-in #%d — create failed: %s",
@@ -496,7 +496,7 @@ class ActivityGenerator(BaseGenerator):
                 if charge_booking_blocked:
                     self.log.warning(
                         "Skipping charge #%d — booking charging stopped earlier this "
-                        "run after repeated identical failures, likely an account-wide "
+                        "run after repeated identical failures, skipping the rest of them rather than "
                         "condition", defn["index"],
                         skip=True, entity="coworkerextraservices", reason="systemic_rate_limit")
                     continue
@@ -600,7 +600,7 @@ class ActivityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping time/printing credit creation — this error has "
-                        "repeated several times in a row, likely an account-wide "
+                        "repeated several times in a row, skipping the rest of them rather than "
                         "condition: %s", e,
                         skip=True, entity="coworkerextraservices", reason="systemic_rate_limit")
                     break
@@ -663,7 +663,7 @@ class ActivityGenerator(BaseGenerator):
                     if verdict == "systemic":
                         self.log.warning(
                             "Stopping booking credit creation — this error has repeated "
-                            "several times in a row, likely an account-wide condition: %s", e,
+                            "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                             skip=True, entity="coworkerbookingcredits", reason="systemic_rate_limit")
                         break
                     self.log.warning("Skipping booking credit #%d — create failed: %s", idx, e,
@@ -763,7 +763,7 @@ class ActivityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping time pass creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkertimepasses", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping time pass #%d — create failed: %s", defn["index"], e,
@@ -831,7 +831,7 @@ class ActivityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping coworker product creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkerproducts", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping coworker product #%d — create failed: %s", defn["index"], e,

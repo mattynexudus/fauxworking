@@ -162,7 +162,7 @@ class CommunityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping delivery creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkerdeliveries", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping delivery #%d — create failed: %s", defn["index"], e,
@@ -253,7 +253,7 @@ class CommunityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping event creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="calendarevents", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping event #%d — create failed: %s", idx, e,
@@ -320,7 +320,7 @@ class CommunityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping event product creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="eventproducts", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping event product #%d — create failed: %s", idx, e,
@@ -385,7 +385,7 @@ class CommunityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping attendee registration — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="eventattendees", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping attendee #%d — create failed: %s", defn["index"], e,
@@ -444,7 +444,7 @@ class CommunityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping help desk message creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="helpdeskmessages", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping help desk message #%d — create failed: %s", defn["index"], e,
@@ -507,7 +507,7 @@ class CommunityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping community thread creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="communitythreads", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping thread #%d — create failed: %s", idx, e,
@@ -562,7 +562,7 @@ class CommunityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping community message creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="communitymessages", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping community message #%d — create failed: %s", defn["index"], e,
@@ -609,7 +609,7 @@ class CommunityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping blog post creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="blogposts", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping blog post #%d — create failed: %s", defn["index"], e,
@@ -659,7 +659,7 @@ class CommunityGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping task creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkertasks", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping task #%d — create failed: %s", defn["index"], e,

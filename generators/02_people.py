@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from generators.base import BaseGenerator, parse_args
+from generators.base import BaseGenerator, SYSTEMIC_FAILURE_THRESHOLD, parse_args
 from config import (
     DATA_DIR,
     TEST_NAME_PREFIX,
@@ -55,13 +55,14 @@ class PeopleGenerator(BaseGenerator):
             )
         return json.loads(path.read_text(encoding="utf-8"))
 
-    def run(self, nexudus_list, nexudus_create, nexudus_update, prev_output):
+    def run(self, nexudus_list, nexudus_create, nexudus_update, nexudus_get, prev_output):
         biz = prev_output["business_id"]
         country = prev_output.get("country_id")
         tz = prev_output.get("timezone_id")
         team_ids = prev_output.get("team_ids", {})
 
-        self._create_coworkers(biz, country, tz, team_ids, nexudus_list, nexudus_create)
+        self._create_coworkers(biz, country, tz, team_ids, nexudus_list, nexudus_create,
+                               nexudus_get)
         self._create_visitors(biz, nexudus_list, nexudus_create)
         self._set_team_paying_members(team_ids, nexudus_list, nexudus_update)
 
@@ -75,16 +76,23 @@ class PeopleGenerator(BaseGenerator):
             "visitor_ids": self.visitor_ids,
         }
 
-    def _create_coworkers(self, biz, country, tz, team_ids, nexudus_list, nexudus_create):
+    def _create_coworkers(self, biz, country, tz, team_ids, nexudus_list, nexudus_create,
+                          nexudus_get=None):
         self.log.info("--- Coworkers (%d) ---", len(self.coworker_defs))
 
         # Coworker_Email is an exact-match filter, not a substring/contains —
         # filtering by "@{domain}" always returns zero results. List every
         # coworker and filter client-side by domain instead.
+        #
+        # Scoped to this business client-side (rule 46's convention) rather
+        # than adopting anything the login can see: this list is unfiltered,
+        # and on a multi-business login (rule 8) that includes coworkers this
+        # run has no business writing children against.
         existing = nexudus_list("coworkers", {})
         existing_by_email = {
             r.get("Email", ""): r["Id"] for r in existing
             if r.get("Email", "").endswith(f"@{TEST_EMAIL_DOMAIN}")
+            and str(r.get("InvoicingBusinessId")) == str(biz)
         }
 
         for defn in self.coworker_defs:
@@ -92,10 +100,16 @@ class PeopleGenerator(BaseGenerator):
             idx = defn["index"]
 
             if email in existing_by_email:
-                self.log.info("Coworker '%s' already exists (id=%s)", email, existing_by_email[email])
-                self.count_skip(entity="coworkers")
-                self.coworker_ids[idx] = existing_by_email[email]
-                continue
+                existing_id = existing_by_email[email]
+                if self._coworker_is_usable(existing_id, nexudus_get):
+                    self.log.info("Coworker '%s' already exists (id=%s)", email, existing_id)
+                    self.count_skip(entity="coworkers")
+                    self.coworker_ids[idx] = existing_id
+                    continue
+                self.log.warning(
+                    "Coworker '%s' is listed (id=%s) but can't be fetched — a deleted record "
+                    "the list endpoint still returns. Creating a fresh one instead of adopting "
+                    "an id every child record would be refused against.", email, existing_id)
 
             att = defn["Attendance"]
             body = {
@@ -149,21 +163,27 @@ class PeopleGenerator(BaseGenerator):
                 try:
                     result = nexudus_create("coworkers", body)
                 except Exception as e:  # noqa: BLE001
-                    if "Access Denied" in str(e):
-                        self.log.warning(
-                            "Coworker creation stopped at #%d — account appears to "
-                            "have hit a coworker/seat limit (%d created this run). "
-                            "Later layers will skip records tied to missing coworkers.",
-                            idx, len(self.coworker_ids),
-                            skip=True, entity="coworkers", reason="seat_limit")
-                        break
+                    # "Access Denied" used to break out of this loop on its
+                    # very first occurrence, on the theory that it meant the
+                    # account had hit a per-day coworker/seat cap (CLAUDE.md
+                    # rule 30, user-reported, never independently confirmed).
+                    # A full day of live runs disproved that: the same message
+                    # turned out to mean "this write references a record that
+                    # no longer exists" — see _coworker_is_usable — and it
+                    # appeared on thirteen other entities in runs where every
+                    # coworker created fine. Abandoning ~50 coworkers on one
+                    # ambiguous error is far more expensive than skipping the
+                    # one record, and if a real cap does exist, the ordinary
+                    # streak counter below still stops the loop once enough
+                    # records fail consecutively.
                     verdict = self.classify_failure("coworkers", e)
                     if verdict == "systemic":
                         self.log.warning(
-                            "Coworker creation stopped at #%d — this error has repeated "
-                            "several times in a row, likely an account-wide condition "
-                            "rather than a one-off bad record: %s", idx, e,
-                            skip=True, entity="coworkers", reason="systemic_rate_limit")
+                            "Coworker creation stopped at #%d — %d records in a row failed "
+                            "with none succeeding, skipping the rest rather than spending "
+                            "the wall-clock time to fail on each: %s",
+                            idx, SYSTEMIC_FAILURE_THRESHOLD, e,
+                            skip=True, entity="coworkers", reason="systemic_repeated_failure")
                         break
                     self.log.warning("Skipping coworker #%d — create failed: %s", idx, e,
                                       skip=True, entity="coworkers", reason="unknown_error")
@@ -176,6 +196,37 @@ class PeopleGenerator(BaseGenerator):
                 })
                 self.log.info("Created coworker #%d '%s' [%s] (id=%s)",
                               idx, defn["FullName"], defn["Scenario"], result["Id"])
+
+    def _coworker_is_usable(self, coworker_id, nexudus_get):
+        """True if `coworker_id` can actually be referenced by other records.
+
+        The coworkers list endpoint keeps returning records that no longer
+        exist — confirmed live: five coworkers from an earlier session
+        (test-001/009/012/015/034) come back in the list, carrying this
+        business's own InvoicingBusinessId, but a GET on any of their ids
+        fails 401 "Not found", and four of the five read Active=False with
+        UpdatedBy=[System]. They're what a previous teardown deleted; only
+        the list hasn't caught up.
+
+        Adopting one of those ids is silently fatal, because Nexudus reports
+        a write referencing a dead coworker as 401 "Access Denied." — not a
+        validation error naming the field. Every such record then fails on
+        every run forever: two visitors, three contracts, two inventory
+        assignments, two team updates and two bill runs in one real run, all
+        of them tracing back to these five ids, and each cluster tripping
+        classify_failure's breaker and taking the rest of its entity down
+        with it (2 bad contracts became 67 missing ones).
+
+        Active=False alone isn't the test — one of the five reads
+        Active=True and still 404s on GET — so this fetches the record.
+        """
+        if nexudus_get is None:  # standalone/dry-run callers without the fetcher
+            return True
+        try:
+            nexudus_get("coworkers", coworker_id)
+            return True
+        except Exception:  # noqa: BLE001 — any failure to fetch means don't adopt
+            return False
 
     def _create_visitors(self, biz, nexudus_list, nexudus_create):
         self.log.info("--- Visitors (%d) ---", len(self.visitor_defs))
@@ -206,8 +257,21 @@ class PeopleGenerator(BaseGenerator):
                 "ExpectedArrival": expected_arrival,
             }
 
+            # A visitor whose host coworker was never created is not
+            # salvageable by dropping the field: confirmed live, Nexudus
+            # answers a hostless Visitor with 401 "Access Denied.", which
+            # reads as an account-wide problem and, three in a row, stops the
+            # whole entity (see classify_failure). Skipping it is the same
+            # treatment every other generator gives a missing parent
+            # (rule 29) — one clearly-attributed record lost instead of the
+            # rest of the run's visitors.
             host_idx = defn.get("HostCoworkerIndex")
-            if host_idx and host_idx in self.coworker_ids:
+            if host_idx and host_idx not in self.coworker_ids:
+                self.log.warning(
+                    "Skipping visitor #%d — host coworker #%s was never created",
+                    idx, host_idx, skip=True, entity="visitors", reason="parent_skipped")
+                continue
+            if host_idx:
                 body["CoworkerId"] = self.coworker_ids[host_idx]
 
             if self.dry_run:
@@ -222,7 +286,7 @@ class PeopleGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping visitor creation — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="visitors", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping visitor #%d — create failed: %s", idx, e,
@@ -253,18 +317,26 @@ class PeopleGenerator(BaseGenerator):
             if not team_id:
                 continue
 
-            member = next((d for d in self.coworker_defs if d.get("Team") == team_name), None)
-            if member is None:
+            members = [d for d in self.coworker_defs if d.get("Team") == team_name]
+            if not members:
                 self.log.warning("No coworker assigned to team '%s' — skipping paying member setup", team_name,
                                   skip=True, entity="teams", reason="parent_skipped")
                 continue
 
-            coworker_id = self.coworker_ids.get(member["index"])
-            if not coworker_id:
-                self.log.warning("Skipping paying member setup for '%s' — coworker #%s was never created",
-                                  team_name, member["index"],
+            # Any member who actually exists will do, not strictly the first
+            # one on the team: picking the first blindly is what failed both
+            # 'Acme Corp' (member #1) and 'Bright Studio' (member #9) on every
+            # run — both teams led with a coworker that was never created, and
+            # the update came back 401 "Access Denied.". 'Echo Digital', the
+            # one team whose first member existed, succeeded every time.
+            member = next((d for d in members if self.coworker_ids.get(d["index"])), None)
+            if member is None:
+                self.log.warning("Skipping paying member setup for '%s' — none of its %d "
+                                  "coworkers were created", team_name, len(members),
                                   skip=True, entity="teams", reason="parent_skipped")
                 continue
+
+            coworker_id = self.coworker_ids[member["index"]]
 
             fields = {"PayingMemberId": coworker_id, "CreateSingleInvoiceForTeam": True, **extra_fields}
 
@@ -310,6 +382,7 @@ if __name__ == "__main__":
             nexudus_list=lambda entity, filters: [],
             nexudus_create=lambda entity, body: {"Id": f"DRY-{entity}-{body.get('Email', 'x')}"},
             nexudus_update=lambda entity, id, body: None,
+            nexudus_get=lambda entity, id: {"Id": id},
             prev_output=mock_prev,
         )
     else:

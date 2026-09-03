@@ -35,15 +35,17 @@ and raises NexudusApiError on failure. List responses are the same shape
 MCP's nexudus_list already returned: {"Records": [...], "HasNextPage", ...}.
 """
 
+import json
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent))
-from config import WRITE_PACING_SECONDS
+from config import LOGS_DIR, WRITE_PACING_SECONDS
 from nexudus_auth import get_access_token, base_url
 
 # apiPath -> module. Sourced from the Nexudus entity catalog (not guessed) —
@@ -96,6 +98,53 @@ MAX_TRANSIENT_ERROR_RETRIES = 6
 _TRANSIENT_ERROR_TEXT = "Ooops! There was a problem while running this action"
 
 
+# Diagnostic capture for failed writes — see CLAUDE.md rules 30/37.
+#
+# The 401 "Access Denied." that dominates a live run's shortfall has never been
+# identified: it is intermittent (the same token, in the same process, creates
+# a record, is refused on the next, and creates the one after that), and it
+# hits every write entity rather than any one of them. Rule 30 reads it as a
+# per-day Coworker seat cap, but a run where coworkers completed 50/50 clean
+# then saw it on thirteen other entities doesn't fit that.
+#
+# The reason it stayed unidentified is that the evidence was being discarded:
+# NexudusApiError keeps at most resp.text[:500], and nothing anywhere looks at
+# the response headers — which is exactly where a throttle (Retry-After,
+# X-RateLimit-*) and a genuine authorization rejection (WWW-Authenticate) tell
+# themselves apart. This writes the whole response, plus enough timing/volume
+# context to spot a rate pattern, to one JSONL line per failed write.
+#
+# Deliberately observational: it changes no control flow, retries nothing and
+# never raises (a diagnostic must not be able to break a seed run).
+FAILURE_LOG_PATH = LOGS_DIR / "http-failures.jsonl"
+_PROCESS_START = time.monotonic()
+_writes_attempted = 0
+
+
+def _record_write_failure(method, url, resp):
+    """Append one JSON line describing a non-2xx write. Best-effort."""
+    try:
+        FAILURE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "at": datetime.now(timezone.utc).isoformat(),
+            "elapsed_s": round(time.monotonic() - _PROCESS_START, 3),
+            "writes_attempted": _writes_attempted,
+            "method": method,
+            "url": url,
+            # The last path segment isn't always the entity — a command posts
+            # to <entity>/runcommand and a GET-one ends in the record id.
+            "entity": next((seg for seg in reversed(url.split("/")) if seg in ENTITY_MODULES), None),
+            "status": resp.status_code,
+            "reason": resp.reason,
+            "body": resp.text[:2000],
+            "headers": dict(resp.headers),
+        }
+        with FAILURE_LOG_PATH.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry) + "\n")
+    except Exception:  # noqa: BLE001 — diagnostics never break the caller
+        pass
+
+
 def _is_transient_server_error(resp):
     if resp.status_code != 500:
         return False
@@ -145,13 +194,25 @@ def _request(method, url, **kwargs):
       MAX_TRANSIENT_ERROR_RETRIES times (see _is_transient_server_error).
 
     Also paces writes (see config.WRITE_PACING_SECONDS) — once per call,
-    not per retry attempt, since retries already have their own backoff."""
-    if method in _WRITE_METHODS and WRITE_PACING_SECONDS:
-        time.sleep(WRITE_PACING_SECONDS)
+    not per retry attempt, since retries already have their own backoff.
+
+    Every non-2xx write is recorded to FAILURE_LOG_PATH on its way past — see
+    _record_write_failure. That's observation only: it doesn't retry anything
+    the retry branches below don't already retry, and it doesn't change what
+    this function returns."""
+    global _writes_attempted
+
+    is_write = method in _WRITE_METHODS
+    if is_write:
+        _writes_attempted += 1
+        if WRITE_PACING_SECONDS:
+            time.sleep(WRITE_PACING_SECONDS)
 
     transient_attempts = 0
     for attempt in range(MAX_RATE_LIMIT_RETRIES):
         resp = requests.request(method, url, timeout=DEFAULT_TIMEOUT, **kwargs)
+        if is_write and not resp.ok:
+            _record_write_failure(method, url, resp)
         if resp.status_code == 429:
             wait = 1.0
             match = _RATE_LIMIT_WAIT_RE.search(resp.text)

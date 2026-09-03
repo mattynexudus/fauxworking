@@ -25,6 +25,28 @@ from config import (
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(message)s")
 
+# How many *consecutive* failures of one entity (no successful create in
+# between — see classify_failure/note_success) before a generator abandons the
+# rest of that entity's records.
+#
+# This is a run-time guard, not a diagnosis. Abandoning an entity is always
+# worse for the data than skipping records one at a time; the only thing it
+# buys is not spending an hour discovering that every remaining record fails
+# the same way. That cost is entirely down to how hard nexudus_client.py
+# retries: a 401 gets no retry (~0.4s a record, so a whole 240-record entity
+# costs ~1.6 min to grind through), while the generic 500 gets
+# MAX_TRANSIENT_ERROR_RETRIES with backoff (~25s a record — ~100 min for the
+# same entity). Only the second case justifies stopping early at all.
+#
+# It was 3, which was low enough that ordinary scattered bad records tripped
+# it: one live run lost 64 untouched contracts because records #1, #2 and #12
+# referenced deleted coworkers (nine successful creates sat between the second
+# and third, and did not reset the count — that part is fixed separately).
+# At 15, a genuine wall still stops within ~6 min on the expensive error,
+# while any entity whose failures are merely sprinkled through the run keeps
+# going and loses only the records that actually failed.
+SYSTEMIC_FAILURE_THRESHOLD = 15
+
 # Global dry-run flag — set via CLI or DRY_RUN env var
 DRY_RUN = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
 
@@ -138,6 +160,9 @@ class BaseGenerator:
         self.counts["created"] += 1
         if entity:
             self._entity_bucket(entity)["created"] += 1
+            # A create landed, so this entity isn't hitting an unbroken wall
+            # — see classify_failure/note_success.
+            self.note_success(entity)
 
     def log_would_create(self, entity: str, body: dict):
         """In dry-run mode, log the record that would be created."""
@@ -166,25 +191,55 @@ class BaseGenerator:
         per entity at __init__, before any creation happens."""
         self._entity_bucket(entity)["target"] = target
 
-    def classify_failure(self, entity: str, error: Exception, repeat_threshold: int = 3) -> str:
+    def classify_failure(self, entity: str, error: Exception,
+                         repeat_threshold: int = SYSTEMIC_FAILURE_THRESHOLD) -> str:
         """Classify a create/update/run_command failure for `entity` that
         doesn't already have a specific, diagnosed handler at the call
         site. Returns:
         - "skip" — a one-off per-record problem; caller should skip this
           one record and keep looping.
-        - "systemic" — this exact error text has now repeated
-          `repeat_threshold` times in a row for this entity, suggesting an
-          account-wide condition (e.g. an undocumented creation-rate
-          limit) rather than a bad record; caller should stop the loop
-          entirely instead of continuing to hit the same wall.
+        - "systemic" — this exact error text has now failed
+          `repeat_threshold` records in a row for this entity with nothing
+          succeeding in between, so the remaining records are probably not
+          worth the wall-clock cost of attempting; caller should stop the
+          loop. This is a run-time guard, NOT a diagnosis — see
+          SYSTEMIC_FAILURE_THRESHOLD. It does not mean the account is
+          broken, and it never did: every time it fired in a real run it
+          was a per-record data problem (records referencing coworkers that
+          had been deleted), while the warning text it produced sent the
+          reader looking for rate limits and quotas that did not exist.
         Call sites with a diagnosed, specific error text should keep
         handling it directly — this is the fallback for everything else.
+
+        "In a row" is literal, and it did not used to be: the streak was
+        only ever reset by a *different* error text arriving, so a success
+        in between left the count standing and `repeat_threshold`
+        occurrences anywhere in a run were enough to declare the whole
+        entity systemically broken. A real run failed contract #1 and #2,
+        created #3 through #11, failed #12, and abandoned all 76 contracts
+        reporting "this error has repeated several times in a row". Every
+        successful create now clears the streak via note_success (called
+        from track_id), so this only fires on a genuine unbroken run of
+        failures — the wall it's meant to detect.
         """
         text = str(error)
         prev_text, prev_count = self._failure_streaks.get(entity, (None, 0))
         count = prev_count + 1 if text == prev_text else 1
         self._failure_streaks[entity] = (text, count)
         return "systemic" if count >= repeat_threshold else "skip"
+
+    def note_success(self, entity: str):
+        """Clear `entity`'s failure streak — something just worked, so
+        whatever failed before it wasn't an unbroken wall.
+
+        Also clears any compound streak key for the same entity: several
+        call sites classify under "<entity>:<action>" (e.g.
+        "coworkerinvoices:void") while track_id records the plain entity
+        name, and those would otherwise never see a reset.
+        """
+        for key in [k for k in self._failure_streaks
+                    if k == entity or k.startswith(f"{entity}:")]:
+            del self._failure_streaks[key]
 
     def fail_loudly(self, entity: str, error: Exception, reason: str = "foundational_failure"):
         """For small, fixed-size, foundational entities where almost

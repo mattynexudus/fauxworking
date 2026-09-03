@@ -206,9 +206,17 @@ class TestClassifyFailure(unittest.TestCase):
 
     def test_same_error_repeating_at_threshold_becomes_systemic(self):
         gen = _Probe()
-        gen.classify_failure("widgets", ValueError("boom"))
-        gen.classify_failure("widgets", ValueError("boom"))
+        for _ in range(base.SYSTEMIC_FAILURE_THRESHOLD - 1):
+            self.assertEqual(gen.classify_failure("widgets", ValueError("boom")), "skip")
         self.assertEqual(gen.classify_failure("widgets", ValueError("boom")), "systemic")
+
+    def test_a_handful_of_failures_does_not_abandon_the_entity(self):
+        """The threshold is a wall-clock guard, not a diagnosis — a few bad
+        records must never cost the rest of the entity. Three did once: 64
+        untouched contracts, from records #1, #2 and #12."""
+        gen = _Probe()
+        for _ in range(5):
+            self.assertEqual(gen.classify_failure("widgets", ValueError("boom")), "skip")
 
     def test_custom_repeat_threshold(self):
         gen = _Probe()
@@ -219,16 +227,60 @@ class TestClassifyFailure(unittest.TestCase):
         gen.classify_failure("widgets", ValueError("boom"))
         gen.classify_failure("widgets", ValueError("boom"))
         # A different error text interrupts the streak — not systemic yet
-        self.assertEqual(gen.classify_failure("widgets", ValueError("different problem")), "skip")
-        self.assertEqual(gen.classify_failure("widgets", ValueError("different problem")), "skip")
+        for _ in range(base.SYSTEMIC_FAILURE_THRESHOLD - 1):
+            self.assertEqual(gen.classify_failure("widgets", ValueError("different problem")), "skip")
         self.assertEqual(gen.classify_failure("widgets", ValueError("different problem")), "systemic")
 
     def test_streaks_are_scoped_per_entity(self):
         gen = _Probe()
-        gen.classify_failure("widgets", ValueError("boom"))
-        gen.classify_failure("widgets", ValueError("boom"))
+        for _ in range(base.SYSTEMIC_FAILURE_THRESHOLD - 1):
+            gen.classify_failure("widgets", ValueError("boom"))
         # A different entity's failures don't contribute to widgets' streak
         self.assertEqual(gen.classify_failure("gadgets", ValueError("boom")), "skip")
+        self.assertEqual(gen.classify_failure("widgets", ValueError("boom")), "systemic")
+
+    def test_success_resets_the_streak(self):
+        """"In a row" is literal. A live run failed contract #1 and #2,
+        created #3-#11, failed #12, and abandoned all 76 contracts saying
+        the error had "repeated several times in a row"."""
+        gen = _Probe()
+        gen.classify_failure("widgets", ValueError("boom"))
+        gen.classify_failure("widgets", ValueError("boom"))
+        gen.note_success("widgets")
+        self.assertEqual(gen.classify_failure("widgets", ValueError("boom")), "skip")
+
+    def test_tracking_a_created_record_resets_the_streak(self):
+        """The reset has to come from the normal create path, not a call
+        every one of the ~50 call sites would have to remember to add."""
+        gen = _Probe()
+        gen.classify_failure("widgets", ValueError("boom"))
+        gen.classify_failure("widgets", ValueError("boom"))
+        gen.track_id({"entity": "widgets", "Id": 1})
+        self.assertEqual(gen.classify_failure("widgets", ValueError("boom")), "skip")
+
+    def test_success_also_clears_compound_action_streaks(self):
+        """Several call sites classify under "<entity>:<action>" (e.g.
+        "coworkerinvoices:void") while track_id records the plain name."""
+        gen = _Probe()
+        gen.classify_failure("widgets:void", ValueError("boom"))
+        gen.classify_failure("widgets:void", ValueError("boom"))
+        gen.note_success("widgets")
+        self.assertEqual(gen.classify_failure("widgets:void", ValueError("boom")), "skip")
+
+    def test_success_does_not_clear_another_entity(self):
+        gen = _Probe()
+        for _ in range(base.SYSTEMIC_FAILURE_THRESHOLD - 1):
+            gen.classify_failure("widgets", ValueError("boom"))
+        gen.note_success("gadgets")
+        self.assertEqual(gen.classify_failure("widgets", ValueError("boom")), "systemic")
+
+    def test_unbroken_run_of_failures_still_becomes_systemic(self):
+        """The breaker must still fire on a genuine wall — that's its job."""
+        gen = _Probe()
+        gen.classify_failure("widgets", ValueError("boom"))
+        gen.note_success("widgets")
+        for _ in range(base.SYSTEMIC_FAILURE_THRESHOLD - 1):
+            gen.classify_failure("widgets", ValueError("boom"))
         self.assertEqual(gen.classify_failure("widgets", ValueError("boom")), "systemic")
 
 

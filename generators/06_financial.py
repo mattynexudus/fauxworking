@@ -106,6 +106,7 @@ Usage:
 
 import calendar
 import json
+import math
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -154,6 +155,16 @@ class FinancialGenerator(BaseGenerator):
     VOID_COUNT = 5
     CREDIT_NOTE_COUNT = 10
     REFUND_COUNT = 5
+
+    # Smallest share of an invoice pool that must be left available to pay.
+    # VOID_COUNT/CREDIT_NOTE_COUNT are fixed lifetime counts while paid
+    # invoices are the bulk of the design (~205 of INVOICE_TARGET's 220), so
+    # taking void and credit off the top first is only harmless while the pool
+    # is large. It isn't always: a run whose billing was cut short raised 9
+    # invoices, and void (5) plus credit (7 outstanding) consumed all 12 —
+    # `--- Paying 0 invoices ---`, no error, and then no refunds either, since
+    # refunds need an already-paid invoice. See _select_invoices.
+    PAID_MIN_SHARE = 0.6
 
     # Total coworkerinvoices this project aims to have tracked across all
     # runs — repeated nexudus_raise_invoice calls for the same coworker
@@ -249,6 +260,11 @@ class FinancialGenerator(BaseGenerator):
         all runs (via tracked history) rather than a fraction of
         whatever's in the pool this run, avoids that entirely.
 
+        Void and credit are additionally capped against the size of the pool
+        itself, not just their lifetime targets — see PAID_MIN_SHARE. Taking
+        them off the top of a short pool left nothing to pay, which then left
+        nothing to refund either.
+
         Refund is the mirror case: it requires an *already-paid* invoice
         (the opposite precondition from void/credit), so its candidates
         are drawn from the Paid pool instead — which on a fresh account is
@@ -272,9 +288,23 @@ class FinancialGenerator(BaseGenerator):
         need_void = max(0, self.VOID_COUNT - len(already_voided))
         need_credit = max(0, self.CREDIT_NOTE_COUNT - len(already_credited))
 
-        to_void = candidates[:need_void]
-        to_credit = candidates[need_void:need_void + need_credit]
-        to_pay = candidates[need_void + need_credit:]
+        # Reserve PAID_MIN_SHARE of the pool for paying before void and credit
+        # take their slices, so a small pool splits across all three instead of
+        # void+credit swallowing it whole (which is what produced "Paying 0
+        # invoices" from a 12-invoice pool). Whatever's left over is divided
+        # between void and credit in proportion to what each still needs, so
+        # neither starves the other. On an ample pool both take their full
+        # remaining need and this is identical to the old fixed slicing.
+        take_void, take_credit = need_void, need_credit
+        actionable = len(candidates) - math.ceil(len(candidates) * self.PAID_MIN_SHARE)
+        if need_void + need_credit > actionable:
+            # Unreachable when both needs are 0 — actionable is never negative.
+            take_void = min(need_void, round(actionable * need_void / (need_void + need_credit)))
+            take_credit = min(need_credit, actionable - take_void)
+
+        to_void = candidates[:take_void]
+        to_credit = candidates[take_void:take_void + take_credit]
+        to_pay = candidates[take_void + take_credit:]
 
         need_refund = max(0, self.REFUND_COUNT - len(already_refunded))
         refund_candidates = [
@@ -370,7 +400,7 @@ class FinancialGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping invoice raising — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkerinvoices", reason="systemic_rate_limit")
                     return
                 self.log.warning("Failed to raise invoice for coworker %s: %s", coworker_id, e,
@@ -513,7 +543,7 @@ class FinancialGenerator(BaseGenerator):
                     if verdict == "systemic":
                         self.log.warning(
                             "Stopping invoice payment — this error has repeated several "
-                            "times in a row, likely an account-wide condition: %s", e,
+                            "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                             skip=True, entity="coworkerledgerentries", reason="systemic_rate_limit")
                         break
                     self.log.warning("Skipping payment of invoice %s — create failed: %s", inv_id, e,
@@ -599,7 +629,7 @@ class FinancialGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping invoice voiding — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkerinvoices", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping void of invoice %s — command failed: %s", inv.get("Id"), e,
@@ -631,7 +661,7 @@ class FinancialGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping credit note issuance — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkerinvoices", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping credit note for invoice %s — command failed: %s", inv.get("Id"), e,
@@ -928,7 +958,7 @@ class FinancialGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping invoice date scheduling — this error has repeated several "
-                        "times in a row, likely an account-wide condition: %s", e,
+                        "records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkerinvoices", reason="systemic_rate_limit")
                     break
                 self.log.warning("Failed to schedule dates for invoice %s: %s", inv_id, e,
@@ -988,7 +1018,7 @@ class FinancialGenerator(BaseGenerator):
                 if verdict == "systemic":
                     self.log.warning(
                         "Stopping ledger supplement creation — this error has repeated "
-                        "several times in a row, likely an account-wide condition: %s", e,
+                        "several records in a row with none succeeding — skipping the rest of them rather than spending the wall-clock time to fail on each: %s", e,
                         skip=True, entity="coworkerledgerentries", reason="systemic_rate_limit")
                     break
                 self.log.warning("Skipping ledger supplement #%d — create failed: %s", i, e,

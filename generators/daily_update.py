@@ -350,10 +350,19 @@ def resolve_context(nexudus_list, business_id=None):
     # account is disabled" error, which previously surfaced as a raw
     # traceback on whichever record happened to be picked. Filtering here
     # means only genuinely usable coworkers are ever selected.
+    # Scoped to this business as well as to Active: the list itself is
+    # unfiltered, so on a multi-business login (rule 8) it also returns
+    # coworkers this run can't write children against. The Active check
+    # additionally screens out most of the deleted-but-still-listed records
+    # described in 02_people.py::_coworker_is_usable — most, not all: one of
+    # the five found live read Active=True and still failed a GET, so a
+    # picked coworker can in principle still be a ghost. It surfaces as a
+    # 401 "Access Denied." on whichever record referenced it.
     all_coworkers = nexudus_list("coworkers", {})
     active_coworkers = [
         {"Id": c["Id"], "Email": c.get("Email")} for c in all_coworkers
         if c.get("Email", "").endswith(f"@{TEST_EMAIL_DOMAIN}") and c.get("Active")
+        and str(c.get("InvoicingBusinessId")) == str(business_id)
     ]
 
     resources = nexudus_list("resources", {"Resource_Business": business_id})

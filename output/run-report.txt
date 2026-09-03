@@ -1,84 +1,69 @@
-Report generated 2026-08-27T09:08:24.727070+00:00
+Report generated 2026-09-02T16:26:23.720113+00:00
 
 === This run: target vs. actual ===
 Entity                             Target  Created  Existed   Failed
 --------------------------------------------------------------------
 blogposts                              10        0       10        0
-bookings                              240        0       47        3  <-- short
-    reasons: unknown_error=2, systemic_rate_limit=1
-bookingvisitors                        94        0       19       75  <-- short
-    reasons: parent_skipped=75
+bookings                              240      183       53        4  <-- short
+    reasons: validation_rejected=4
+bookingvisitors                        94       36       16       42  <-- short
+    reasons: unknown_error=39, parent_skipped=3
 calendareventcategories                 4        0        4        0
 calendarevents                         20        0       20        0
-cancelledbookings                      40        0       35        5  <-- short
-    reasons: parent_skipped=3, validation_rejected=2
-checkins                              300        0       35        4  <-- short
-    reasons: unknown_error=2, validation_rejected=1, systemic_rate_limit=1
+cancelledbookings                      40        2       38        0
+checkins                              300      267       32        1  <-- short
+    reasons: validation_rejected=1
 communitygroups                         3        0        3        0
 communitymessages                      46        0       46        0
 communitythreads                       15        0       15        0
-contractdeposits                       10        0        1        9  <-- short
-    reasons: parent_skipped=9
-contractpausedperiods                  12        0        3        9  <-- short
-    reasons: parent_skipped=9
-contractproducts                       30        0       12       18  <-- short
-    reasons: parent_skipped=18
-coworkerbookingcredits                 25        0       25        0
-coworkerbookingcreditusehistories       50        0       50        0
-coworkercontracts                      76        0       15        3  <-- short
-    reasons: unknown_error=2, systemic_rate_limit=1
-coworkerdatafiles                      10        0        9        1  <-- short
-    reasons: unknown_error=1
-coworkerdeliveries                     40        0       17        3  <-- short
-    reasons: unknown_error=2, systemic_rate_limit=1
-coworkerextraservices                  80        0       32       48  <-- short
-    reasons: parent_skipped=47, unknown_error=1
-coworkerinventoryassets                12        0       10        2  <-- short
+contractdeposits                       10        0       10        0
+contractpausedperiods                  12        0       12        0
+contractproducts                       30        0       30        0
+coworkerbookingcredits                 25        1       24        0
+coworkerbookingcreditusehistories       50        5       45        0
+coworkercontracts                      76        0       76        0
+coworkerdatafiles                      10        1        9        0
+coworkerdeliveries                     40       23       17        0
+coworkerextraservices                  80       46       33        1  <-- short
+    reasons: parent_skipped=1
+coworkerinventoryassets                12        0       12        0
+coworkerinvoices                      220      166       12        2  <-- short
     reasons: unknown_error=2
-coworkerinvoices                      220       17       17        3  <-- short
-    reasons: unknown_error=2, systemic_rate_limit=1
-coworkerledgerentries                   0       12        5        0
-coworkerproducts                       20        0       15        3  <-- short
-    reasons: unknown_error=2, systemic_rate_limit=1
-coworkers                              50        0       50        0
-coworkertasks                          20        0       18        2  <-- short
-    reasons: unknown_error=2
-coworkertimepasses                     40        1       27        3  <-- short
-    reasons: unknown_error=2, systemic_rate_limit=1
+coworkerledgerentries                   0      155        4        4
+    reasons: parent_skipped=4
+coworkerproducts                       20        5       15        0
+coworkers                              50        5       45        0
+coworkertasks                          20       10       10        0
+coworkertimepasses                     40      132       27        0
 crmboardcolumns                        10        0       10        0
 crmboards                               2        0        2        0
-crmopportunities                       30        0        0        3  <-- short
-    reasons: unknown_error=2, systemic_rate_limit=1
+crmopportunities                       30        0        0       15  <-- short
+    reasons: unknown_error=14, systemic_rate_limit=1
 crmopportunityhistories                90        0        0       90  <-- short
     reasons: parent_skipped=90
 discountcodes                           6        0        6        0
-eventattendees                         60        0       29        6  <-- short
-    reasons: unknown_error=5, systemic_rate_limit=1
+eventattendees                         60       34       24        2  <-- short
+    reasons: unknown_error=2
 eventproducts                          20        0       20        0
 extraservices                           7        0        7        0
 financialaccounts                       8        0        8        0
-floorplandesks                         68        0       49        3  <-- short
-    reasons: unknown_error=2, systemic_rate_limit=1
+floorplandesks                         68        0       68        0
 floorplans                              3        0        3        0
 helpdeskdepartments                     3        0        3        0
-helpdeskmessages                       25        0       23        2  <-- short
-    reasons: unknown_error=2
+helpdeskmessages                       25        2       23        0
 inventoryassets                        15        0       15        0
 opportunitytypes                        4        0        4        0
 products                               12        0       12        0
-proposals                              15        0       13        2  <-- short
-    reasons: unknown_error=2
+proposals                              15        2       13        0
 resources                              20        0       20        0
 resourcetypes                           5        0        5        0
 tariffextraservices                    14        0       14        0
 tariffs                                 8        0        8        0
 tarifftimepasses                        6        0        6        0
 taxrates                                3        0        3        0
-teams                                   5        0        5        2
-    reasons: unknown_error=2
+teams                                   5        0        5        0
 timepasses                              4        0        4        0
-visitors                               60        8       51        1  <-- short
-    reasons: unknown_error=1
+visitors                               60        0       60        0
 
 Some entities fell short of this run's target — see reasons above.
 
@@ -86,52 +71,53 @@ Some entities fell short of this run's target — see reasons above.
 Entity                            Created   Target
 --------------------------------------------------
 blogposts                              10       10
-bookings                               47      240  <-- below target
-bookingvisitors                        19        -
+bookings                              236      240  <-- below target
+bookingvisitors                        52       94  <-- below target
 calendareventcategories                 4        4
 calendarevents                         20       20
-cancelledbookings                      35        -
-checkins                               35      300  <-- below target
+cancelledbookings                      40       40
+checkins                              299      300  <-- below target
 communitygroups                         3        3
-communitymessages                      46       40
+communitymessages                      46       46
 communitythreads                       15       15
-contractdeposits                        1       10  <-- below target
-contractpausedperiods                   3       12  <-- below target
-contractproducts                       12       30  <-- below target
+contractdeposits                       10       10
+contractpausedperiods                  12       12
+contractproducts                       30       30
 coworkerbookingcredits                 25       25
-coworkerbookingcreditusehistories       50        -
-coworkercontracts                      15       90  <-- below target
-coworkerdatafiles                       9       10  <-- below target
-coworkerdeliveries                     17       40  <-- below target
-coworkerextraservices                  32       80  <-- below target
-coworkerinventoryassets                10       12  <-- below target
-coworkerinvoices                       44        -
-coworkerledgerentries                  19        -
-coworkerproducts                       15       20  <-- below target
-coworkers                              45       50  <-- below target
-coworkertasks                          18       20  <-- below target
-coworkertimepasses                     57       40
+coworkerbookingcreditusehistories       50       50
+coworkercontracts                      76       76
+coworkerdatafiles                      10       10
+coworkerdeliveries                     40       40
+coworkerextraservices                  79       80  <-- below target
+coworkerinventoryassets                12       12
+coworkerinvoices                      185        -
+coworkerledgerentries                 159        -
+coworkerproducts                       20       20
+coworkers                              60       50
+coworkertasks                          20       20
+coworkertimepasses                    188       40
 crmboardcolumns                        10       10
 crmboards                               2        2
 discountcodes                           6        6
-eventattendees                         29       60  <-- below target
-eventproducts                          20        -
-extraservices                           5        6  <-- below target
-financialaccounts                       4        8  <-- below target
-floorplandesks                         49       40
+eventattendees                         58       60  <-- below target
+eventproducts                          20       20
+extraservices                           7        7
+financialaccounts                       8        8
+floorplandesks                         68       68
 floorplans                              3        3
 helpdeskdepartments                     3        3
-helpdeskmessages                       23       25  <-- below target
+helpdeskmessages                       25       25
 inventoryassets                        15       15
-products                               12       15  <-- below target
-proposals                              13       15  <-- below target
+products                               12       12
+proposals                              15       15
 resources                              20       20
-tariffextraservices                    14        -
+resourcetypes                           5        5
+tariffextraservices                    14       14
 tariffs                                 8        8
-tarifftimepasses                        6        -
-taxrates                                2        3  <-- below target
+tarifftimepasses                        6        6
+taxrates                                3        3
 teams                                   5        5
 timepasses                              4        4
-visitors                               41       60  <-- below target
+visitors                               68       60
 
-Total tracked records: 900
+Total tracked records: 2086

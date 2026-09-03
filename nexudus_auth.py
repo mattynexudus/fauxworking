@@ -128,14 +128,30 @@ def authenticate(email, password):
 
 def is_authenticated():
     """True if get_access_token() would succeed right now — tokens present in
-    .env and still valid or refreshable. Lets the control panel render its
-    auth banner without side effects (a refresh, if due, is a harmless
-    side effect get_access_token() would do on the next real call anyway)."""
-    try:
-        get_access_token()
-        return True
-    except SystemExit:
-        return False
+    .env and either still valid or refreshable.
+
+    Deliberately does NOT perform the refresh itself. It used to, on the
+    reasoning that a refresh is "a harmless side effect get_access_token()
+    would do on the next real call anyway" — which is true of one call and
+    false of this one's actual caller: the control panel's /api/status
+    endpoint, polled by an open browser tab every 3 seconds
+    (webui/static/app.js's `setInterval(refreshStatus, 3000)`). Once the
+    access token is inside REFRESH_MARGIN_SECONDS, that poll performs a
+    refresh_token grant every 3 seconds, and each grant rotates the token
+    pair stored in .env. A seed run reads .env per request, so its writes
+    land on whichever side of a rotation they hit — which is what produced
+    intermittent 401 "Access Denied." (with WWW-Authenticate: Bearer, and
+    no rate-limit headers) scattered across every entity of a live run,
+    unrelated to volume. Rendering an auth banner must not mutate tokens.
+
+    Because it no longer contacts the server, a revoked or expired refresh
+    token still reads as authenticated here until the next real API call
+    fails. That's the right trade: an over-optimistic banner is a cosmetic
+    problem, tokens rotating underneath a running seed is a data one.
+    """
+    load_dotenv(ENV_PATH, override=True)
+    return bool(os.environ.get("NEXUDUS_ACCESS_TOKEN")
+                and os.environ.get("NEXUDUS_REFRESH_TOKEN"))
 
 
 def setup():

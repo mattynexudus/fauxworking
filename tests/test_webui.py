@@ -581,6 +581,60 @@ class TestDestructiveGating(_MgrCase):
 
 
 # --------------------------------------------------------------------------
+# nexudus_auth.is_authenticated
+# --------------------------------------------------------------------------
+class TestIsAuthenticatedHasNoSideEffects(unittest.TestCase):
+    """The control panel polls /api/status (and so is_authenticated) every 3
+    seconds from an open browser tab. When this performed a refresh_token
+    grant, each poll rotated the token pair in .env underneath any running
+    seed, and that run's writes started failing 401 "Access Denied." at
+    random — see nexudus_auth.is_authenticated."""
+
+    def _env(self, d, expires_at):
+        env = Path(d) / ".env"
+        env.write_text(f"NEXUDUS_ACCESS_TOKEN=a\nNEXUDUS_REFRESH_TOKEN=r\n"
+                       f"NEXUDUS_TOKEN_EXPIRES_AT={expires_at}\n")
+        self.addCleanup(lambda: [os.environ.pop(k, None) for k in nexudus_auth_mod().TOKEN_ENV_KEYS])
+        return env
+
+    def test_does_not_contact_the_server_even_when_a_refresh_is_due(self):
+        nexudus_auth = nexudus_auth_mod()
+        with tempfile.TemporaryDirectory() as d:
+            # Expiry in the past — the old implementation would refresh here.
+            env = self._env(d, "1")
+            with patch.object(nexudus_auth, "ENV_PATH", env), \
+                 patch.object(nexudus_auth.requests, "post") as post:
+                self.assertTrue(nexudus_auth.is_authenticated())
+                post.assert_not_called()
+
+    def test_does_not_rewrite_the_env_file(self):
+        nexudus_auth = nexudus_auth_mod()
+        with tempfile.TemporaryDirectory() as d:
+            env = self._env(d, "1")
+            before = env.read_text()
+            with patch.object(nexudus_auth, "ENV_PATH", env), \
+                 patch.object(nexudus_auth.requests, "post") as post:
+                nexudus_auth.is_authenticated()
+                post.assert_not_called()
+            self.assertEqual(env.read_text(), before)
+
+    def test_false_when_tokens_are_missing(self):
+        nexudus_auth = nexudus_auth_mod()
+        with tempfile.TemporaryDirectory() as d:
+            env = Path(d) / ".env"
+            env.write_text("")
+            for k in nexudus_auth.TOKEN_ENV_KEYS:
+                os.environ.pop(k, None)
+            with patch.object(nexudus_auth, "ENV_PATH", env):
+                self.assertFalse(nexudus_auth.is_authenticated())
+
+
+def nexudus_auth_mod():
+    import nexudus_auth
+    return nexudus_auth
+
+
+# --------------------------------------------------------------------------
 # nexudus_auth.logout
 # --------------------------------------------------------------------------
 class TestLogout(unittest.TestCase):

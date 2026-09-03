@@ -19,20 +19,20 @@
       <path d="M6 14V6h5.2M6 10h4.4" stroke="var(--brand-ink)" stroke-width="1.9"
             stroke-linecap="round" fill="none"></path>
     </symbol>
-    <g fill="none" stroke="currentColor" stroke-width="1.8"
-       stroke-linecap="round" stroke-linejoin="round">
-      <symbol id="i-play" viewBox="0 0 16 16"><path d="M4.5 3.2v9.6l8-4.8z" fill="currentColor" stroke="none"/></symbol>
-      <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3.2L13 4.8"/></symbol>
-      <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
-      <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13.5 7a5.5 5.5 0 1 0-1.2 4.2"/><path d="M13.6 3v4h-4"/></symbol>
-      <symbol id="i-terminal" viewBox="0 0 16 16"><path d="M3 4l3.5 4L3 12M8.5 12.2H13"/></symbol>
-      <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.8l5 2v4c0 3-2.2 5.3-5 6.4-2.8-1.1-5-3.4-5-6.4v-4z"/></symbol>
-      <symbol id="i-dot" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor" stroke="none"/></symbol>
-      <symbol id="i-minus" viewBox="0 0 16 16"><path d="M4 8h8"/></symbol>
-      <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2.5v7.5M4.8 7.2L8 10.4l3.2-3.2M2.8 12.8h10.4"/></symbol>
-      <symbol id="i-chevron" viewBox="0 0 16 16"><path d="M5.5 3.5L10 8l-4.5 4.5"/></symbol>
-      <symbol id="i-alert" viewBox="0 0 16 16"><path d="M8 2.6l6 10.8H2z"/><path d="M8 6.6v3.1M8 11.6v.1"/></symbol>
-    </g>
+    <!-- The stroke attributes have to sit on each <symbol>, not on a wrapping
+         <g>: <use> clones only the symbol, so an ancestor here is outside the
+         rendered icon's inheritance chain and its fill/stroke never apply. -->
+    <symbol id="i-play" viewBox="0 0 16 16"><path d="M4.5 3.2v9.6l8-4.8z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-dot" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></symbol>
+    <symbol id="i-x" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 7a5.5 5.5 0 1 0-1.2 4.2"/><path d="M13.6 3v4h-4"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4l3.5 4L3 12M8.5 12.2H13"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8l5 2v4c0 3-2.2 5.3-5 6.4-2.8-1.1-5-3.4-5-6.4v-4z"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h8"/></symbol>
+    <symbol id="i-download" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7.5M4.8 7.2L8 10.4l3.2-3.2M2.8 12.8h10.4"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.5L10 8l-4.5 4.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.6l6 10.8H2z"/><path d="M8 6.6v3.1M8 11.6v.1"/></symbol>
   </svg>
 
   <header>
